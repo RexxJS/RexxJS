@@ -14,7 +14,7 @@ SAY ""
 
 /* Load the r-graphics library with RENDER function */
 SAY "Loading r-graphics functions..."
-REQUIRE "./graphics-functions.js"
+REQUIRE "./r-graphics-functions.js"
 SAY "✅ Library loaded successfully"
 SAY ""
 

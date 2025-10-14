@@ -432,20 +432,39 @@ END
 ### String Interpolation ✨
 
 **Variable Interpolation in Strings:**
+
+RexxJS supports multiple interpolation patterns that can be switched at runtime:
+
 ```rexx
-LET mealName = 'Special Dinner'
-LET guest = 'VIP'
-LET stock = checkStock item=chicken
+-- Default: Handlebars-style {{var}}
+LET name = "Alice"
+SAY "Hello {{name}}"  -- Output: Hello Alice
 
--- Basic interpolation
-prepareDish name="Today's {mealName}" servings=4
+-- Switch to shell-style ${var}
+SET_INTERPOLATION('shell')
+SAY "Hello ${name}"   -- Output: Hello Alice
 
--- Multiple variables
-LET greeting = "Welcome {firstName} {lastName}"
+-- Switch to batch-style %var%
+SET_INTERPOLATION('batch')
+SAY "Hello %name%"    -- Output: Hello Alice
 
--- Complex variable paths
-LET status = "Current stock: {stock.quantity} units"
+-- Switch back to handlebars
+SET_INTERPOLATION('handlebars')
+SAY "Hello {{name}}"  -- Output: Hello Alice
 ```
+
+**Available Interpolation Patterns:**
+- `'handlebars'` - `{{var}}` (default)
+- `'shell'` - `${var}`
+- `'batch'` - `%var%`
+- `'doubledollar'` - `$$var$$`
+- Custom patterns via pattern example: `SET_INTERPOLATION('{v}')`
+
+**Important Notes:**
+- Only **double-quoted strings** interpolate: `"Hello {{name}}"` ✅
+- Single-quoted strings are literal: `'Hello {{name}}'` ❌ (shows {{name}} literally)
+- Pattern changes affect all subsequent string interpolation
+- Works in SAY statements, ADDRESS commands, and string assignments
 
 ### Built-in Functions ⚡
 
@@ -520,35 +539,6 @@ LET secureBytes = RANDOM_BYTES count=16     -- [42, 158, 91, 203, ...]
 - **Expression Integration**: Functions work seamlessly in mathematical expressions
 - **Control Flow Integration**: Functions can be used in IF conditions and DO loop bounds
 - **Error Handling**: Graceful handling of invalid inputs with sensible defaults
-
-**Advanced String Interpolation Features:**
-- **Complex Variable Paths**: `{object.property}` notation
-- **Missing Variable Handling**: Placeholder preserved if variable not found
-- **Control Flow Integration**: Works within IF/DO/SELECT statements
-- **Numeric Variable Support**: Automatic string conversion
-
-**Examples in Control Structures:**
-```rexx
--- Within conditionals
-IF stock.quantity > 5 THEN
-  createMeal name="Meal for {guest}" chicken=3
-ENDIF
-
--- Within loops
-DO i = 1 TO 3
-  prepareDish name="{mealName} #{i}" servings=i
-END
-
--- Within SELECT statements
-SELECT
-  WHEN stock.chicken >= 8 THEN
-    createMeal name="Large {mealName}" chicken=6
-  WHEN stock.chicken >= 3 THEN
-    createMeal name="Medium {mealName}" chicken=3
-  OTHERWISE
-    prepareDish name="Simple {mealName}" servings=1
-END
-```
 
 ### Operations vs Functions with REQUIRE 🔧
 

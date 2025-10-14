@@ -4,8 +4,8 @@
  */
 
 const { createTestHandler } = require('./test-helper');
-const { AddressPodmanHandler } = require('../address-podman');
-const { validateBinaryPath } = require('../shared-utils');
+const { AddressPodmanHandler } = require('../podman-address');
+const { validateBinaryPath } = require('../../_shared/provisioning-shared-utils');
 
 
 describe('ADDRESS PODMAN Handler - Coverage Tests', () => {

@@ -3,7 +3,7 @@
  * Demonstrates that the RENDER function works correctly
  */
 
-const { rGraphicsFunctions } = require('./graphics-functions');
+const { rGraphicsFunctions } = require('./src/graphics-functions');
 const fs = require('fs');
 const path = require('path');
 

@@ -44,6 +44,37 @@ async function executeScript(scriptContent, rpcClient, args = [], scriptPath = n
     ? new RexxInterpreter(rpcClient, {}, outputHandler)
     : new RexxInterpreter(rpcClient);
 
+  // Auto-load system-address in CLI mode (Node.js or pkg binary)
+  if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+    try {
+      const isPkg = typeof process.pkg !== 'undefined';
+      const systemAddressPath = isPkg
+        ? '/snapshot/pkg-build/addresses/system-address.js'
+        : require('path').resolve(__dirname, '../../extras/addresses/system/src/system-address.js');
+
+      // Check if file exists before attempting to load
+      const fs = require('fs');
+      if (fs.existsSync(systemAddressPath)) {
+        // Load the system-address module
+        const systemAddress = require(systemAddressPath);
+
+        // Register the ADDRESS SYSTEM handler if available
+        if (typeof global.ADDRESS_SYSTEM_HANDLER === 'function' &&
+            typeof global.SYSTEM_ADDRESS_META === 'function') {
+          const metadata = global.SYSTEM_ADDRESS_META();
+          interpreter.registerAddressTarget('system', {
+            handler: global.ADDRESS_SYSTEM_HANDLER,
+            methods: Object.keys(global.ADDRESS_SYSTEM_METHODS || {}),
+            metadata: metadata
+          });
+        }
+      }
+    } catch (error) {
+      // Silently ignore if system-address cannot be loaded
+      // This allows the script to run without it if needed
+    }
+  }
+
   // Set up command line arguments - stored as array for ARG() and PARSE ARG
   interpreter.argv = args;
 

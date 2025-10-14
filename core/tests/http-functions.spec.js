@@ -34,16 +34,17 @@ describe('HTTP Functions', () => {
 
       const result = await httpFunctions.HTTP_GET('https://api.example.com/test');
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/test', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/test', expect.objectContaining({
         method: 'GET',
         headers: {}
-      });
-      expect(result).toEqual({
+      }));
+      expect(result).toEqual(expect.objectContaining({
         status: 200,
         body: mockResponse,
         headers: { 'content-type': 'text/plain' },
-        ok: true
-      });
+        ok: true,
+        attempt: 1
+      }));
     });
 
     test('should handle GET request with custom headers', async () => {
@@ -62,16 +63,17 @@ describe('HTTP Functions', () => {
 
       const result = await httpFunctions.HTTP_GET('https://api.example.com/test', headers);
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/test', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/test', expect.objectContaining({
         method: 'GET',
         headers: {
           'Authorization': 'Bearer token123',
           'Accept': 'application/json'
         }
-      });
+      }));
       expect(result.status).toBe(200);
       expect(result.body).toBe(mockResponse);
       expect(result.ok).toBe(true);
+      expect(result.attempt).toBe(1);
     });
 
     test('should handle fetch errors', async () => {
@@ -84,7 +86,8 @@ describe('HTTP Functions', () => {
         body: '',
         headers: {},
         ok: false,
-        error: 'Network error'
+        error: 'Network error',
+        attempt: 1
       });
     });
 
@@ -95,7 +98,8 @@ describe('HTTP Functions', () => {
         body: '',
         headers: {},
         ok: false,
-        error: 'HTTP_GET requires a valid URL string'
+        error: 'HTTP_GET requires a valid URL string',
+        attempt: 1
       });
     });
 
@@ -106,7 +110,8 @@ describe('HTTP Functions', () => {
         body: '',
         headers: {},
         ok: false,
-        error: 'HTTP_GET requires a valid URL string'
+        error: 'HTTP_GET requires a valid URL string',
+        attempt: 1
       });
     });
 
@@ -121,10 +126,10 @@ describe('HTTP Functions', () => {
 
       await httpFunctions.HTTP_GET('  https://api.example.com/test  ');
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/test', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/test', expect.objectContaining({
         method: 'GET',
         headers: {}
-      });
+      }));
     });
   });
 
@@ -142,13 +147,13 @@ describe('HTTP Functions', () => {
 
       const result = await httpFunctions.HTTP_POST('https://api.example.com/create', requestBody);
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/create', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/create', expect.objectContaining({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: requestBody
-      });
+      }));
       expect(result).toEqual({
         status: 201,
         body: mockResponse,
@@ -174,14 +179,14 @@ describe('HTTP Functions', () => {
 
       const result = await httpFunctions.HTTP_POST('https://api.example.com/create', requestBody, headers);
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/create', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/create', expect.objectContaining({
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain',
           'Authorization': 'Bearer token'
         },
         body: requestBody
-      });
+      }));
       expect(result.status).toBe(200);
       expect(result.body).toBe(mockResponse);
       expect(result.ok).toBe(true);
@@ -199,13 +204,13 @@ describe('HTTP Functions', () => {
 
       const result = await httpFunctions.HTTP_POST('https://api.example.com/create');
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/create', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/create', expect.objectContaining({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: ''
-      });
+      }));
       expect(result.body).toBe(mockResponse);
     });
 
@@ -249,13 +254,13 @@ describe('HTTP Functions', () => {
 
       const result = await httpFunctions.HTTP_PUT('https://api.example.com/update/123', requestBody);
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/update/123', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/update/123', expect.objectContaining({
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
         },
         body: requestBody
-      });
+      }));
       expect(result).toEqual({
         status: 200,
         body: mockResponse,
@@ -303,10 +308,10 @@ describe('HTTP Functions', () => {
 
       const result = await httpFunctions.HTTP_DELETE('https://api.example.com/delete/123');
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/delete/123', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/delete/123', expect.objectContaining({
         method: 'DELETE',
         headers: {}
-      });
+      }));
       expect(result).toEqual({
         status: 200,
         body: mockResponse,
@@ -330,12 +335,12 @@ describe('HTTP Functions', () => {
 
       const result = await httpFunctions.HTTP_DELETE('https://api.example.com/delete/123', headers);
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/delete/123', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/delete/123', expect.objectContaining({
         method: 'DELETE',
         headers: {
           'Authorization': 'Bearer token123'
         }
-      });
+      }));
       expect(result.status).toBe(204);
       expect(result.body).toBe(mockResponse);
       expect(result.ok).toBe(true);
@@ -428,10 +433,10 @@ describe('HTTP Functions', () => {
       // Test with null headers
       const result = await httpFunctions.HTTP_GET('https://api.example.com/test', null);
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/test', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/test', expect.objectContaining({
         method: 'GET',
         headers: {}
-      });
+      }));
       expect(result.body).toBe(mockResponse);
     });
 
@@ -451,13 +456,13 @@ describe('HTTP Functions', () => {
 
       await httpFunctions.HTTP_GET('https://api.example.com/test', headers);
 
-      expect(fetch).toHaveBeenCalledWith('https://api.example.com/test', {
+      expect(fetch).toHaveBeenCalledWith('https://api.example.com/test', expect.objectContaining({
         method: 'GET',
         headers: {
           'X-Custom-Number': '123',
           'X-Custom-String': 'test'
         }
-      });
+      }));
     });
   });
 
@@ -474,7 +479,8 @@ describe('HTTP Functions', () => {
         body: '',
         headers: {},
         ok: false,
-        error: 'HTTP_GET requires fetch API (available in browsers and modern Node.js)'
+        error: 'HTTP_GET requires fetch API (available in browsers and modern Node.js)',
+        attempt: 1
       });
 
       // Restore fetch
@@ -505,7 +511,8 @@ describe('HTTP Functions', () => {
         body: '',
         headers: {},
         ok: false,
-        error: 'Invalid URL'
+        error: 'Invalid URL',
+        attempt: 1
       });
     });
   });

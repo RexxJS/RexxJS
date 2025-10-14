@@ -3,7 +3,7 @@
 SAY "Testing RENDER function..."
 
 /* Load the graphics functions */
-REQUIRE "./graphics-functions.js"
+REQUIRE "./r-graphics-functions.js"
 
 /* Test basic HIST function first */
 LET dataJson = "[1, 2, 3, 4, 5]"

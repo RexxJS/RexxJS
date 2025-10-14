@@ -73,9 +73,10 @@ class AddressDockerHandler {
       this.spawn = require('child_process').spawn;
       this.fs = require('fs');
       this.path = require('path');
-      
+
       // Import shared utilities
-      const sharedUtils = require('../_shared/provisioning-shared-utils');
+      const sharedUtilsPath = this.path.join(__dirname, '../_shared/provisioning-shared-utils.js');
+      const sharedUtils = require(sharedUtilsPath);
       this.interpolateMessage = sharedUtils.interpolateMessage;
       this.logActivity = sharedUtils.logActivity;
       this.createLogFunction = sharedUtils.createLogFunction;
@@ -146,8 +147,10 @@ class AddressDockerHandler {
       return str;
     }
 
-    if (interpolationConfig) {
-      const pattern = interpolationConfig.getCurrentPattern();
+    // Use the interpolation module directly
+    try {
+      const interpolationModule = require(this.path.join(__dirname, '../../..', 'core/src/interpolation.js'));
+      const pattern = interpolationModule.getCurrentPattern();
       if (!pattern.hasDelims(str)) {
         return str;
       }
@@ -159,10 +162,140 @@ class AddressDockerHandler {
         }
         return match; // Variable not found - leave as-is
       });
+    } catch (error) {
+      // Fallback to handlebars-style interpolation if module not available
+      return str.replace(/\{\{([^}]+)\}\}/g, (m, v) => (variablePool[v] !== undefined ? String(variablePool[v]) : m));
+    }
+  }
+
+  /**
+   * Run a script from a variable name
+   * run_script var=myScript
+   */
+  async runScriptFromVariable(params, context = {}) {
+    const { var: varName } = params;
+
+    if (!varName) {
+      throw new Error('Missing required parameter: var (variable name containing script)');
     }
 
-    // Fallback to simple interpolation
-    return str.replace(/\{([^}]+)\}/g, (m, v) => (variablePool[v] !== undefined ? String(variablePool[v]) : m));
+    // Look up the variable in the context
+    const script = context[varName];
+
+    if (!script) {
+      throw new Error(`Variable '${varName}' not found in context or is empty`);
+    }
+
+    if (typeof script !== 'string') {
+      throw new Error(`Variable '${varName}' must contain a string, got: ${typeof script}`);
+    }
+
+    this.log('run_script', { varName, scriptLength: script.length });
+
+    // Execute as multi-line script
+    return await this.handleMultiLineScript(script, context);
+  }
+
+  /**
+   * Handle multi-line scripts (HEREDOC-style)
+   */
+  async handleMultiLineScript(script, context = {}) {
+    // Split script into individual lines
+    const lines = script.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0 && !line.startsWith('#') && !line.startsWith('//'));
+
+    if (lines.length === 0) {
+      return {
+        success: true,
+        operation: 'multi_line_script',
+        commandCount: 0,
+        output: 'No commands to execute'
+      };
+    }
+
+    this.log('multi_line_script', { lineCount: lines.length, lines });
+
+    const results = [];
+    let lastResult = null;
+
+    // Execute each line sequentially
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      try {
+        // Recursively call handleAddressCommand for each line
+        // This ensures proper command processing and parameter extraction
+        const result = await this.handleAddressCommand(line, context);
+
+        results.push({
+          line: i + 1,
+          command: line,
+          success: result.success,
+          operation: result.operation,
+          output: result.output
+        });
+
+        lastResult = result;
+
+        // If a command fails, stop execution
+        if (!result.success) {
+          this.log('multi_line_script_failed', {
+            line: i + 1,
+            command: line,
+            error: result.error
+          });
+
+          return {
+            success: false,
+            operation: 'multi_line_script',
+            commandCount: lines.length,
+            executedCount: i + 1,
+            failedAt: i + 1,
+            failedCommand: line,
+            error: result.error || 'Command failed',
+            results,
+            output: `Multi-line script failed at line ${i + 1}: ${line}`
+          };
+        }
+      } catch (error) {
+        this.log('multi_line_script_error', {
+          line: i + 1,
+          command: line,
+          error: error.message
+        });
+
+        return {
+          success: false,
+          operation: 'multi_line_script',
+          commandCount: lines.length,
+          executedCount: i + 1,
+          failedAt: i + 1,
+          failedCommand: line,
+          error: error.message,
+          results,
+          output: `Multi-line script error at line ${i + 1}: ${error.message}`
+        };
+      }
+    }
+
+    // All commands executed successfully
+    this.log('multi_line_script_complete', {
+      commandCount: lines.length,
+      allSucceeded: true
+    });
+
+    // Return the result of the last command as the primary result
+    // but include metadata about the script execution
+    return {
+      ...lastResult,
+      operation: 'multi_line_script',
+      commandCount: lines.length,
+      executedCount: lines.length,
+      allSucceeded: true,
+      results,
+      output: `Multi-line script completed: ${lines.length} commands executed successfully`
+    };
   }
 
   /**
@@ -171,7 +304,13 @@ class AddressDockerHandler {
   async handleAddressCommand(command, context = {}) {
     try {
       // Apply RexxJS variable interpolation
-      const interpolatedCommand = this.interpolateVariables(command, context);
+      let interpolatedCommand = this.interpolateVariables(command, context);
+
+      // Check if this is a multi-line script (contains newlines)
+      if (interpolatedCommand.includes('\n')) {
+        return await this.handleMultiLineScript(interpolatedCommand, context);
+      }
+
       this.log('command', { command: interpolatedCommand });
 
       const parsed = this.parseCommand(interpolatedCommand);
@@ -179,6 +318,12 @@ class AddressDockerHandler {
       switch (parsed.operation) {
         case 'status':
           return await this.getStatus();
+        case 'check_docker_running':
+          return await this.checkDockerRunning();
+        case 'check_container_with_echo':
+          return await this.checkContainerWithEcho(parsed.params, context);
+        case 'run_script':
+          return await this.runScriptFromVariable(parsed.params, context);
         case 'list':
           return await this.listContainers();
         case 'create':
@@ -215,8 +360,18 @@ class AddressDockerHandler {
           return await this.deployRexx(parsed.params, context);
         case 'execute':
           return await this.executeInContainer(parsed.params, context);
+        case 'execute_stdin':
+          return await this.executeWithStdin(parsed.params, context);
         case 'execute_rexx':
           return await this.executeRexx(parsed.params, context);
+        case 'commit':
+          return await this.handleCommit(parsed.params, context);
+        case 'build_image':
+          return await this.handleBuildImage(parsed.params, context);
+        case 'wait_for_port':
+          return await this.waitForPort(parsed.params, context);
+        case 'shutdown':
+          return this.handleShutdown();
         default:
           throw new Error(`Unknown ADDRESS DOCKER command: ${parsed.operation}`);
       }
@@ -226,7 +381,10 @@ class AddressDockerHandler {
         success: false,
         operation: 'error',
         error: error.message,
-        output: error.message
+        output: error.message,
+        exitCode: 1,
+        stdout: '',
+        stderr: error.message
       };
     }
   }
@@ -238,7 +396,7 @@ class AddressDockerHandler {
    */
   async getStatus() {
     const containerCount = this.activeContainers.size;
-    
+
     return {
       success: true,
       operation: 'status',
@@ -248,6 +406,167 @@ class AddressDockerHandler {
       securityMode: this.securityMode,
       output: this.formatStatus(this.runtime, containerCount, this.maxContainers, this.securityMode)
     };
+  }
+
+  /**
+   * Check if Docker is running
+   */
+  async checkDockerRunning() {
+    try {
+      // Try to run docker ps to check if daemon is running
+      const result = await this.execPodmanCommand(['ps'], { timeout: 5000 });
+
+      if (result.exitCode !== 0) {
+        console.error('ERROR: Docker is not running or not accessible');
+        console.error('  ' + result.stderr);
+        return {
+          success: false,
+          operation: 'check_docker_running',
+          error: 'Docker is not running or not accessible',
+          stderr: result.stderr,
+          output: 'Docker check failed'
+        };
+      }
+
+      const containerCount = this.activeContainers.size;
+
+      console.log('[1/14] Checking Docker status...');
+      console.log('  ✓ Runtime: ' + this.runtime);
+      console.log('  ✓ Max containers: ' + this.maxContainers);
+      console.log('');
+
+      return {
+        success: true,
+        operation: 'check_docker_running',
+        runtime: this.runtime,
+        maxContainers: this.maxContainers,
+        output: 'Docker is running'
+      };
+    } catch (error) {
+      console.error('ERROR: Docker check failed: ' + error.message);
+      return {
+        success: false,
+        operation: 'check_docker_running',
+        error: error.message,
+        output: 'Docker check failed'
+      };
+    }
+  }
+
+  /**
+   * Test if container is responding
+   * Supports common test scenarios: 'echo', 'ls', 'pwd', or custom command
+   */
+  async checkContainerWithEcho(params, context) {
+    const { container: name, test_command = 'echo test' } = params;
+
+    if (!name) {
+      console.error('ERROR: Missing required parameter: container');
+      return {
+        success: false,
+        operation: 'check_container_with_echo',
+        error: 'Missing required parameter: container',
+        output: 'Container test failed'
+      };
+    }
+
+    const container = this.activeContainers.get(name);
+    if (!container) {
+      console.error('ERROR: Container not found: ' + name);
+      return {
+        success: false,
+        operation: 'check_container_with_echo',
+        error: 'Container not found: ' + name,
+        output: 'Container test failed'
+      };
+    }
+
+    if (container.status !== 'running') {
+      console.error('ERROR: Container ' + name + ' is not running');
+      return {
+        success: false,
+        operation: 'check_container_with_echo',
+        error: 'Container ' + name + ' is not running',
+        output: 'Container test failed'
+      };
+    }
+
+    // Support shorthand test scenarios
+    let testCmd = test_command;
+    const testScenarios = {
+      'echo': 'echo test',
+      'ls': 'ls /',
+      'pwd': 'pwd'
+    };
+
+    // If test_command is just a shorthand, expand it
+    if (testScenarios[test_command]) {
+      testCmd = testScenarios[test_command];
+    }
+
+    console.log('[6/14] Verifying container is running...');
+
+    try {
+      const result = await this.execInContainer(name, testCmd, { timeout: 5000 });
+
+      console.log('  Exit code: ' + result.exitCode);
+      console.log('  Success: ' + (result.exitCode === 0));
+      console.log('  Stdout: ' + result.stdout);
+      console.log('  Stderr: ' + result.stderr);
+
+      if (result.exitCode !== 0) {
+        console.error('  ERROR: Container not responding');
+
+        // Cleanup on failure
+        await this.execPodmanCommand(['stop', name]);
+        await this.execPodmanCommand(['rm', name]);
+        this.activeContainers.delete(name);
+
+        return {
+          success: false,
+          operation: 'check_container_with_echo',
+          container: name,
+          testCommand: testCmd,
+          exitCode: result.exitCode,
+          error: 'Container not responding',
+          stdout: result.stdout,
+          stderr: result.stderr,
+          output: 'Container test failed'
+        };
+      }
+
+      console.log('  ✓ Container responding');
+      console.log('');
+
+      return {
+        success: true,
+        operation: 'check_container_with_echo',
+        container: name,
+        testCommand: testCmd,
+        exitCode: result.exitCode,
+        output: 'Container is responding'
+      };
+    } catch (error) {
+      console.error('  ERROR: Container test failed: ' + error.message);
+
+      // Cleanup on failure
+      try {
+        await this.execPodmanCommand(['stop', name]);
+        await this.execPodmanCommand(['rm', name]);
+        this.activeContainers.delete(name);
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+
+      return {
+        success: false,
+        operation: 'check_container_with_echo',
+        container: name,
+        testCommand: testCmd,
+        error: error.message,
+        output: 'Container test failed'
+      };
+    }
   }
 
   /**
@@ -277,11 +596,23 @@ class AddressDockerHandler {
   }
 
   /**
+   * Check if a container exists in Docker (not just our tracking)
+   */
+  async containerExistsInDocker(containerName) {
+    try {
+      const result = await this.execPodmanCommand(['ps', '-a', '--filter', `name=^${containerName}$`, '--format', '{{.Names}}']);
+      return result.exitCode === 0 && result.stdout.trim() === containerName;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
    * Create a new container
    */
   async createContainer(params, context) {
-    const { image, name, interactive = 'false', memory, cpus, volumes, environment } = params;
-    
+    const { image, name, interactive = 'false', memory, cpus, volumes, environment, command, ports } = params;
+
     if (!image) {
       throw new Error('Missing required parameter: image');
     }
@@ -291,7 +622,7 @@ class AddressDockerHandler {
       throw new Error(`Image not allowed in strict mode: ${image}`);
     }
 
-    // Check container limits
+    // Check container limits (only count containers we know exist in Docker)
     if (this.activeContainers.size >= this.maxContainers) {
       throw new Error(`Maximum containers reached: ${this.maxContainers}`);
     }
@@ -304,10 +635,18 @@ class AddressDockerHandler {
     }
 
     const containerName = (name && name.trim()) || `docker-container-${++this.containerCounter}`;
-    
-    // Check for name conflicts
-    if (name && name.trim() && this.activeContainers.has(name.trim())) {
-      throw new Error(`Container name already exists: ${name.trim()}`);
+
+    // Check for name conflicts - check actual Docker state, not just our tracking
+    if (name && name.trim()) {
+      const existsInDocker = await this.containerExistsInDocker(name.trim());
+      if (existsInDocker) {
+        throw new Error(`Container name already exists: ${name.trim()}`);
+      }
+      // If it's in our map but not in Docker, remove the stale entry
+      if (this.activeContainers.has(name.trim()) && !existsInDocker) {
+        this.log('removing_stale_entry', { name: name.trim() });
+        this.activeContainers.delete(name.trim());
+      }
     }
     
     // Real docker container creation with enhanced options
@@ -336,16 +675,29 @@ class AddressDockerHandler {
         createArgs.push('-e', envVar.trim());
       }
     }
-    
+
+    // Add port mappings
+    if (ports) {
+      const portMappings = ports.split(',');
+      for (const portMapping of portMappings) {
+        createArgs.push('-p', portMapping.trim());
+      }
+    }
+
     // Add interactive flags
     if (interactive === 'true') {
       createArgs.push('-i', '-t'); // interactive and pseudo-TTY
     }
     
     createArgs.push(image);
-    
-    // If interactive, start with bash
-    if (interactive === 'true') {
+
+    // Add command if provided, otherwise use defaults
+    if (command) {
+      // Split command into array for docker
+      const cmdParts = command.trim().split(/\s+/);
+      createArgs.push(...cmdParts);
+    } else if (interactive === 'true') {
+      // If interactive but no command, start with bash
       createArgs.push('bash');
     }
     
@@ -396,7 +748,7 @@ class AddressDockerHandler {
    */
   async startContainer(params, context) {
     const { name } = params;
-    
+
     if (!name) {
       throw new Error('Missing required parameter: name');
     }
@@ -411,8 +763,35 @@ class AddressDockerHandler {
 
     // Real docker start
     const result = await this.execPodmanCommand(['start', name]);
-    
+
     if (result.exitCode === 0) {
+      // Wait for container to be actually running (max 5 seconds)
+      const maxRetries = 10;
+      const retryDelay = 500; // 500ms between retries
+      let isRunning = false;
+
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          const inspectResult = await this.execPodmanCommand(['inspect', name]);
+          if (inspectResult.exitCode === 0) {
+            const inspectData = JSON.parse(inspectResult.stdout)[0];
+            if (inspectData.State.Running) {
+              isRunning = true;
+              break;
+            }
+          }
+        } catch (error) {
+          // Ignore inspect errors and retry
+        }
+
+        // Wait before next retry
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+
+      if (!isRunning) {
+        throw new Error(`Container ${name} started but is not running after ${maxRetries * retryDelay}ms`);
+      }
+
       // Update container status
       container.status = 'running';
       container.started = new Date().toISOString();
@@ -470,35 +849,106 @@ class AddressDockerHandler {
   }
 
   /**
-   * Remove a container
+   * Remove a container (or multiple containers)
+   * Supports comma-separated container names, force=true, ignore_missing=true
    */
   async removeContainer(params, context) {
-    const { name } = params;
-    
+    const { name, force = 'false', ignore_missing = 'false' } = params;
+
     if (!name) {
       throw new Error('Missing required parameter: name');
     }
 
-    if (!this.activeContainers.has(name)) {
-      throw new Error(`Container not found: ${name}`);
+    // Handle comma-separated container names
+    const containerNames = name.split(',').map(n => n.trim()).filter(n => n.length > 0);
+    const forceRemove = force === 'true';
+    const ignoreMissing = ignore_missing === 'true';
+
+    const results = [];
+    let successCount = 0;
+    let skipCount = 0;
+    let errorCount = 0;
+
+    for (const containerName of containerNames) {
+      try {
+        // Check if container exists in our tracking
+        const exists = this.activeContainers.has(containerName);
+
+        if (!exists && ignoreMissing) {
+          // Try to remove anyway in case it exists in Docker but not in our tracking
+          const result = await this.execPodmanCommand(['rm', '-f', containerName]);
+
+          if (result.exitCode === 0) {
+            this.log('container_removed_untracked', { name: containerName });
+            results.push({ container: containerName, status: 'removed', tracked: false });
+            successCount++;
+          } else {
+            // Container truly doesn't exist
+            this.log('container_missing_skipped', { name: containerName });
+            results.push({ container: containerName, status: 'skipped', reason: 'not found' });
+            skipCount++;
+          }
+          continue;
+        }
+
+        if (!exists && !ignoreMissing) {
+          throw new Error(`Container not found: ${containerName}`);
+        }
+
+        // If force=true, stop the container first if it's running
+        if (forceRemove) {
+          const container = this.activeContainers.get(containerName);
+          if (container && container.status === 'running') {
+            await this.execPodmanCommand(['stop', containerName]);
+            this.log('container_force_stopped', { name: containerName });
+          }
+        }
+
+        // Remove the container
+        const removeArgs = forceRemove ? ['rm', '-f', containerName] : ['rm', containerName];
+        const result = await this.execPodmanCommand(removeArgs);
+
+        if (result.exitCode === 0) {
+          this.activeContainers.delete(containerName);
+          this.log('container_removed', { name: containerName, force: forceRemove });
+          results.push({ container: containerName, status: 'removed', forced: forceRemove });
+          successCount++;
+        } else {
+          if (ignoreMissing && result.stderr.includes('No such container')) {
+            results.push({ container: containerName, status: 'skipped', reason: 'not found' });
+            skipCount++;
+          } else {
+            throw new Error(`Failed to remove container: ${result.stderr}`);
+          }
+        }
+      } catch (error) {
+        if (ignoreMissing) {
+          this.log('container_remove_error_ignored', { name: containerName, error: error.message });
+          results.push({ container: containerName, status: 'error', error: error.message, ignored: true });
+          errorCount++;
+        } else {
+          throw error;
+        }
+      }
     }
 
-    const result = await this.execPodmanCommand(['rm', name]);
+    // Build output message
+    let outputParts = [];
+    if (successCount > 0) outputParts.push(`${successCount} removed`);
+    if (skipCount > 0) outputParts.push(`${skipCount} skipped`);
+    if (errorCount > 0) outputParts.push(`${errorCount} errors (ignored)`);
 
-    if (result.exitCode === 0) {
-        this.activeContainers.delete(name);
-
-        this.log('container_removed', { name });
-
-        return {
-          success: true,
-          operation: 'remove',
-          container: name,
-          output: `Container ${name} removed successfully`
-        };
-    } else {
-        throw new Error(`Failed to remove container: ${result.stderr}`);
-    }
+    return {
+      success: true,
+      operation: 'remove',
+      containers: containerNames,
+      count: containerNames.length,
+      successCount,
+      skipCount,
+      errorCount,
+      results,
+      output: `Containers: ${outputParts.join(', ')}`
+    };
   }
 
   /**
@@ -541,25 +991,32 @@ class AddressDockerHandler {
     try {
       // Copy binary to container
       await this.copyToContainer(name, interpolatedBinary, interpolatedTarget);
-      
+
       // Make executable
       await this.execInContainer(name, `chmod +x ${interpolatedTarget}`, { timeout: 5000 });
 
-      // Test binary
-      const testResult = await this.execInContainer(name, `${interpolatedTarget} --help`, { timeout: 10000 });
-      
-      if (testResult.exitCode !== 0) {
-        throw new Error(`RexxJS binary test failed: ${testResult.stderr}`);
+      // Test binary - optional, warn if it fails
+      const testResult = await this.execInContainer(name, `${interpolatedTarget} --version 2>&1 || echo 'binary check skipped'`, { timeout: 10000 });
+
+      const binaryWorking = testResult.exitCode === 0 && !testResult.stdout.includes('binary check skipped');
+
+      if (!binaryWorking) {
+        this.log('binary_test_skipped', {
+          container: name,
+          reason: 'Binary verification failed - may be incompatible libc (alpine vs glibc)',
+          stderr: testResult.stderr
+        });
       }
 
       // Mark container as having RexxJS deployed
       container.rexxDeployed = true;
       container.rexxPath = interpolatedTarget;
 
-      this.log('binary_deployed', { 
-        container: name, 
-        binary: interpolatedBinary, 
-        target: interpolatedTarget 
+      this.log('binary_deployed', {
+        container: name,
+        binary: interpolatedBinary,
+        target: interpolatedTarget,
+        tested: binaryWorking
       });
 
       return {
@@ -568,7 +1025,8 @@ class AddressDockerHandler {
         container: name,
         binary: interpolatedBinary,
         target: interpolatedTarget,
-        output: `RexxJS binary deployed to ${name} at ${interpolatedTarget}`
+        tested: binaryWorking,
+        output: `RexxJS binary deployed to ${name} at ${interpolatedTarget}${binaryWorking ? '' : ' (binary verification skipped)'}`
       };
     } catch (error) {
       throw new Error(`Failed to deploy RexxJS binary: ${error.message}`);
@@ -577,10 +1035,10 @@ class AddressDockerHandler {
 
   /**
    * Execute command in container
-   * execute container="test-container" command="ls -la" [timeout=30000] [working_dir="/tmp"]
+   * execute container="test-container" command="ls -la" [timeout=30000] [working_dir="/tmp"] [detached=false]
    */
   async executeInContainer(params, context) {
-    const { container: name, command: cmd, timeout, working_dir } = params;
+    const { container: name, command: cmd, timeout, working_dir, detached = 'false' } = params;
 
     if (!name || !cmd) {
       throw new Error('Missing required parameters: container and command');
@@ -611,22 +1069,106 @@ class AddressDockerHandler {
     
     const execTimeout = timeout ? parseInt(timeout) : this.defaultTimeout;
 
-    const fullCommand = interpolatedDir 
+    const fullCommand = interpolatedDir
       ? `cd ${interpolatedDir} && ${interpolatedCmd}`
       : interpolatedCmd;
 
     try {
-      const result = await this.execInContainer(name, fullCommand, { timeout: execTimeout });
+      // Use detached execution if requested
+      if (detached === 'true') {
+        const result = await this.execInContainerDetached(name, fullCommand);
 
-      this.log('command_executed', {
+        this.log('command_executed_detached', {
+          container: name,
+          command: interpolatedCmd
+        });
+
+        return {
+          success: true,
+          operation: 'execute',
+          container: name,
+          command: interpolatedCmd,
+          detached: true,
+          output: 'Command started in detached mode'
+        };
+      } else {
+        const result = await this.execInContainer(name, fullCommand, { timeout: execTimeout });
+
+        this.log('command_executed', {
+          container: name,
+          command: interpolatedCmd,
+          exitCode: result.exitCode
+        });
+
+        return {
+          success: result.exitCode === 0,
+          operation: 'execute',
+          container: name,
+          command: interpolatedCmd,
+          exitCode: result.exitCode,
+          stdout: result.stdout,
+          stderr: result.stderr,
+          output: result.exitCode === 0 ? result.stdout : `Command failed: ${result.stderr}`
+        };
+      }
+    } catch (error) {
+      throw new Error(`Command execution failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Execute command with stdin input
+   * execute_stdin container="test-container" command="/usr/local/bin/rexx --stdin" stdin_var="setupScript" [timeout=30000]
+   * Note: Either 'input' (direct content) or 'stdin_var' (variable name) can be used
+   */
+  async executeWithStdin(params, context) {
+    this.log('execute_stdin_params', {
+      containerParam: params.container,
+      hasInput: !!params.input,
+      hasStdinVar: !!params.stdin_var
+    });
+
+    let { container: name, command: cmd, input, stdin_var, timeout } = params;
+
+    // If stdin_var is provided, look up that variable in the context
+    if (!input && stdin_var && context) {
+      input = context[stdin_var];
+      if (!input) {
+        throw new Error(`Variable '${stdin_var}' not found in context or is empty`);
+      }
+    }
+
+    if (!name || !cmd || !input) {
+      throw new Error(`Missing required parameters: container, command, and input (got container=${name}, cmd=${cmd}, input=${input ? 'present' : 'missing'})`);
+    }
+
+    const container = this.activeContainers.get(name);
+    if (!container) {
+      throw new Error(`Container not found: ${name}`);
+    }
+
+    if (container.status !== 'running') {
+      throw new Error(`Container ${name} must be running to execute commands`);
+    }
+
+    const interpolatedCmd = this.interpolateVariables(cmd, context);
+    const interpolatedInput = this.interpolateVariables(input, context);
+
+    const execTimeout = timeout ? parseInt(timeout) : this.defaultTimeout;
+
+    try {
+      const result = await this.execInContainerWithStdin(name, interpolatedCmd, interpolatedInput, { timeout: execTimeout });
+
+      this.log('stdin_executed', {
         container: name,
         command: interpolatedCmd,
-        exitCode: result.exitCode
+        exitCode: result.exitCode,
+        inputLength: interpolatedInput.length
       });
 
       return {
         success: result.exitCode === 0,
-        operation: 'execute',
+        operation: 'execute_stdin',
         container: name,
         command: interpolatedCmd,
         exitCode: result.exitCode,
@@ -635,7 +1177,7 @@ class AddressDockerHandler {
         output: result.exitCode === 0 ? result.stdout : `Command failed: ${result.stderr}`
       };
     } catch (error) {
-      throw new Error(`Command execution failed: ${error.message}`);
+      throw new Error(`Stdin execution failed: ${error.message}`);
     }
   }
 
@@ -658,7 +1200,7 @@ class AddressDockerHandler {
     if (container.status !== 'running') {
       throw new Error(`Container ${name} must be running to execute RexxJS scripts`);
     }
-    
+
     if (!container.rexxDeployed) {
       throw new Error(`RexxJS binary not deployed to container ${name}. Use deploy_rexx first.`);
     }
@@ -671,7 +1213,17 @@ class AddressDockerHandler {
       const interpolatedFile = this.interpolateVariables(script_file, context);
       rexxScript = this.fs.readFileSync(interpolatedFile, 'utf8');
     } else {
-      rexxScript = this.interpolateVariables(script, context);
+      // Check if script is available from context first (for multi-line HEREDOCs)
+      if (!script || typeof script !== 'string') {
+        // Try to get from context variables
+        if (context && context.setup_script && typeof context.setup_script === 'string') {
+          rexxScript = context.setup_script;
+        } else {
+          throw new Error(`Script parameter must be a string, got: ${typeof script}`);
+        }
+      } else {
+        rexxScript = this.interpolateVariables(script, context);
+      }
     }
 
     try {
@@ -961,7 +1513,7 @@ class AddressDockerHandler {
       exec.on('close', (code) => {
         clearTimeout(timeoutHandle);
         const duration = Date.now() - startTime;
-        
+
         resolve({
           exitCode: code,
           stdout: stdout.trim(),
@@ -978,11 +1530,104 @@ class AddressDockerHandler {
   }
 
   /**
+   * Execute command in container with stdin input
+   */
+  async execInContainerWithStdin(containerName, command, input, options = {}) {
+    return new Promise((resolve, reject) => {
+      const startTime = Date.now();
+      const timeout = options.timeout || this.defaultTimeout;
+
+      const exec = this.spawn('docker', ['exec', '-i', containerName, 'sh', '-c', command], {
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+
+      let stdout = '';
+      let stderr = '';
+
+      // Write input to stdin
+      exec.stdin.write(input);
+      exec.stdin.end();
+
+      exec.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      exec.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      const timeoutHandle = setTimeout(() => {
+        exec.kill('SIGTERM');
+        reject(new Error(`Command timeout after ${timeout}ms: ${command}`));
+      }, timeout);
+
+      exec.on('close', (code) => {
+        clearTimeout(timeoutHandle);
+        const duration = Date.now() - startTime;
+
+        resolve({
+          exitCode: code,
+          stdout: stdout.trim(),
+          stderr: stderr.trim(),
+          duration: duration
+        });
+      });
+
+      exec.on('error', (error) => {
+        clearTimeout(timeoutHandle);
+        reject(new Error(`Execution error: ${error.message}`));
+      });
+    });
+  }
+
+  /**
+   * Execute command in container in detached mode (background)
+   */
+  async execInContainerDetached(containerName, command) {
+    return new Promise((resolve, reject) => {
+      const exec = this.spawn('docker', ['exec', '-d', containerName, 'sh', '-c', command], {
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+
+      let stderr = '';
+
+      exec.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      exec.on('close', (code) => {
+        if (code === 0) {
+          resolve({ success: true });
+        } else {
+          reject(new Error(`Detached execution failed: ${stderr}`));
+        }
+      });
+
+      exec.on('error', (error) => {
+        reject(new Error(`Detached execution error: ${error.message}`));
+      });
+    });
+  }
+
+  /**
    * Copy file to container
    */
   async copyToContainer(containerName, localPath, remotePath) {
     return new Promise((resolve, reject) => {
-      const copy = this.spawn('docker', ['cp', localPath, `${containerName}:${remotePath}`], {
+      // Resolve symlinks before copying - docker cp doesn't follow symlinks
+      let resolvedPath = localPath;
+      try {
+        const stats = this.fs.lstatSync(localPath);
+        if (stats.isSymbolicLink()) {
+          resolvedPath = this.fs.realpathSync(localPath);
+          this.log('symlink_resolved', { original: localPath, resolved: resolvedPath });
+        }
+      } catch (error) {
+        // If we can't stat the file, let docker cp try and fail with better error
+        this.log('symlink_check_failed', { path: localPath, error: error.message });
+      }
+
+      const copy = this.spawn('docker', ['cp', resolvedPath, `${containerName}:${remotePath}`], {
         stdio: ['ignore', 'pipe', 'pipe']
       });
 
@@ -1616,15 +2261,308 @@ class AddressDockerHandler {
   }
 
   /**
+   * Handle commit command
+   * commit container="name" image="repo/name:tag"
+   */
+  async handleCommit(params, context) {
+    const { container, image } = params;
+
+    if (!container || !image) {
+      throw new Error('commit requires container and image parameters');
+    }
+
+    const containerInfo = this.activeContainers.get(container);
+    if (!containerInfo) {
+      throw new Error(`Container not found: ${container}`);
+    }
+
+    const args = ['commit', container, image];
+
+    try {
+      const result = await this.execPodmanCommand(args);
+
+      if (result.exitCode === 0) {
+        this.log('commit_success', {
+          container,
+          image
+        });
+
+        return {
+          success: true,
+          operation: 'commit',
+          container,
+          image,
+          imageId: result.stdout.trim(),
+          output: `Committed ${container} to ${image}`
+        };
+      } else {
+        throw new Error(`Commit operation failed: ${result.stderr || result.stdout}`);
+      }
+    } catch (error) {
+      throw new Error(`Commit failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Handle build_image command
+   * build_image from_image="base:tag" tag="new:tag" cmd="ruby /app.rb"
+   */
+  async handleBuildImage(params, context) {
+    const { from_image, tag, cmd } = params;
+
+    if (!from_image || !tag || !cmd) {
+      throw new Error('build_image requires from_image, tag, and cmd parameters');
+    }
+
+    this.log('build_image_params', {
+      from_image,
+      tag,
+      cmd_raw: cmd,
+      cmd_type: typeof cmd
+    });
+
+    // Convert cmd to JSON array format for Dockerfile CMD instruction
+    // If cmd looks like JSON array already, use as-is, otherwise split into array
+    let cmdArray;
+    if (cmd.trim().startsWith('[')) {
+      // Already JSON format
+      cmdArray = cmd;
+    } else {
+      // Simple command string - split into array
+      const cmdParts = cmd.trim().split(/\s+/);
+      cmdArray = JSON.stringify(cmdParts);
+    }
+
+    this.log('build_image_cmd_array', {
+      cmdArray
+    });
+
+    // Create temporary Dockerfile
+    const dockerfileContent = `FROM ${from_image}\nCMD ${cmdArray}`;
+    const tempDir = `/tmp/docker-build-${Date.now()}`;
+    const dockerfilePath = `${tempDir}/Dockerfile`;
+
+    try {
+      // Create temp directory
+      this.fs.mkdirSync(tempDir, { recursive: true });
+
+      // Write Dockerfile
+      this.fs.writeFileSync(dockerfilePath, dockerfileContent);
+
+      this.log('build_image_start', {
+        from_image,
+        tag,
+        cmd: cmdArray,
+        dockerfile: dockerfilePath
+      });
+
+      // Build image
+      const args = ['build', '-t', tag, '-f', dockerfilePath, tempDir];
+      const result = await this.execPodmanCommand(args, { timeout: 120000 });
+
+      // Cleanup temp directory
+      this.fs.rmSync(tempDir, { recursive: true, force: true });
+
+      if (result.exitCode === 0) {
+        this.log('build_image_success', {
+          tag
+        });
+
+        return {
+          success: true,
+          operation: 'build_image',
+          from_image,
+          tag,
+          cmd: cmdArray,
+          output: `Built image ${tag} from ${from_image}`
+        };
+      } else {
+        throw new Error(`Build failed: ${result.stderr || result.stdout}`);
+      }
+    } catch (error) {
+      // Cleanup on error
+      try {
+        this.fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch (cleanupError) {
+        // Ignore cleanup errors
+      }
+      throw new Error(`Image build failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Wait for container port to be ready (makes HTTP GET request to verify service is responding)
+   * wait_for_port container="test-container" port=4567 [timeout=60000] [retryInterval=1000] [maxRetries=60]
+   */
+  async waitForPort(params, context) {
+    const { container: name, port, timeout = '60000', retryInterval = '1000', maxRetries = '60' } = params;
+
+    if (!name) {
+      throw new Error('Missing required parameter: container');
+    }
+
+    if (!port) {
+      throw new Error('Missing required parameter: port');
+    }
+
+    // Check if container is running (either tracked or via docker inspect)
+    let containerRunning = false;
+    const container = this.activeContainers.get(name);
+
+    if (container) {
+      // Container is tracked - check our status
+      if (container.status !== 'running') {
+        throw new Error(`Container ${name} must be running to wait for port`);
+      }
+      containerRunning = true;
+    } else {
+      // Container not tracked - verify it exists and is running via docker inspect
+      try {
+        const inspectResult = await this.execPodmanCommand(['inspect', name]);
+        if (inspectResult.exitCode === 0) {
+          const inspectData = JSON.parse(inspectResult.stdout)[0];
+          if (inspectData.State.Running) {
+            containerRunning = true;
+          } else {
+            throw new Error(`Container ${name} exists but is not running`);
+          }
+        } else {
+          throw new Error(`Container not found: ${name}`);
+        }
+      } catch (error) {
+        throw new Error(`Container not found or not accessible: ${name}`);
+      }
+    }
+
+    const portNum = parseInt(port);
+    const timeoutMs = parseInt(timeout);
+    const retryMs = parseInt(retryInterval);
+    const maxRetry = parseInt(maxRetries);
+
+    this.log('wait_for_port_start', {
+      container: name,
+      port: portNum,
+      timeout: timeoutMs,
+      retryInterval: retryMs,
+      maxRetries: maxRetry
+    });
+
+    const startTime = Date.now();
+    let attempt = 0;
+    let lastError = null;
+
+    // Import http module for HTTP request testing
+    const http = require('http');
+
+    // Try to make HTTP GET request to the port
+    while (attempt < maxRetry) {
+      attempt++;
+      const elapsed = Date.now() - startTime;
+
+      // Check if we've exceeded the timeout
+      if (elapsed >= timeoutMs) {
+        throw new Error(`Port ${portNum} not ready after ${timeoutMs}ms (${attempt} attempts). Last error: ${lastError || 'connection refused'}`);
+      }
+
+      try {
+        // Attempt HTTP GET to localhost:port/
+        await new Promise((resolve, reject) => {
+          const requestTimeout = Math.min(retryMs, 5000); // Max 5 seconds per attempt
+
+          const req = http.request({
+            hostname: 'localhost',
+            port: portNum,
+            path: '/',
+            method: 'GET',
+            timeout: requestTimeout
+          }, (res) => {
+            // Any response (even errors) means the HTTP server is responding
+            res.resume(); // Consume response data
+            resolve();
+          });
+
+          req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('HTTP request timeout'));
+          });
+
+          req.on('error', (err) => {
+            reject(err);
+          });
+
+          req.end();
+        });
+
+        // Success! HTTP server is responding
+        const duration = Date.now() - startTime;
+        this.log('wait_for_port_success', {
+          container: name,
+          port: portNum,
+          attempts: attempt,
+          duration
+        });
+
+        return {
+          success: true,
+          operation: 'wait_for_port',
+          container: name,
+          port: portNum,
+          attempts: attempt,
+          duration,
+          output: `Port ${portNum} is ready after ${attempt} attempts (${duration}ms)`
+        };
+      } catch (error) {
+        lastError = error.message;
+
+        this.log('wait_for_port_retry', {
+          container: name,
+          port: portNum,
+          attempt,
+          error: error.message,
+          nextRetryIn: retryMs
+        });
+
+        // Wait before next retry
+        await new Promise(resolve => setTimeout(resolve, retryMs));
+      }
+    }
+
+    // Max retries reached
+    throw new Error(`Port ${portNum} not ready after ${maxRetry} attempts. Last error: ${lastError || 'connection refused'}`);
+  }
+
+  /**
+   * Handle shutdown command - clean up resources and exit process
+   */
+  handleShutdown() {
+    this.log('shutdown_initiated', {
+      activeContainers: this.activeContainers.size
+    });
+
+    this.destroy();
+
+    // Exit immediately - the destroy() has already cleaned up all timers
+    setImmediate(() => {
+      process.exit(0);
+    });
+
+    return {
+      success: true,
+      operation: 'shutdown',
+      output: 'Handler shutdown complete'
+    };
+  }
+
+  /**
    * Cleanup process monitoring on handler destruction
    */
   destroy() {
     this.stopProcessMonitoring();
-    
+
     // Cleanup checkpoint monitoring
     this.checkpointMonitor.callbacks.clear();
     this.checkpointMonitor.realtimeData.clear();
-    
+
     this.activeContainers.clear();
     this.processStats.clear();
     this.auditLog.length = 0;
@@ -1644,13 +2582,8 @@ function DOCKER_ADDRESS_META() {
     name: 'ADDRESS DOCKER Container Service',
     version: '1.0.0',
     description: 'Docker container management via ADDRESS interface',
-    detectionFunction: 'ADDRESS_DOCKER_MAIN'
+    detectionFunction: 'DOCKER_ADDRESS_META'
   };
-}
-
-// Primary detection function with ADDRESS target metadata
-function ADDRESS_DOCKER_MAIN() {
-  return DOCKER_ADDRESS_META();
 }
 
 // ADDRESS target handler function with REXX variable management
@@ -1660,33 +2593,24 @@ async function ADDRESS_DOCKER_HANDLER(commandOrMethod, params, sourceContext) {
     dockerHandlerInstance = new AddressDockerHandler();
     await dockerHandlerInstance.initialize();
   }
-  
-  let commandString = commandOrMethod;
-  let context = sourceContext ? Object.fromEntries(sourceContext.variables) : {};
 
-  if (params) { // Method call style
-      const paramsString = Object.entries(params)
-          .map(([key, value]) => {
-              if (typeof value === 'string' && value.includes(' ')) {
-                  return `${key}="${value}"`;
-              }
-              return `${key}=${value}`;
-          })
-          .join(' ');
-      commandString = `${commandOrMethod} ${paramsString}`;
+  let commandString = commandOrMethod;
+  let context = (sourceContext && sourceContext.variables) ? Object.fromEntries(sourceContext.variables) : {};
+
+  // Params are passed in context, not serialized into commandString
+  if (params) {
       context = { ...context, ...params };
   }
 
   try {
     const result = await dockerHandlerInstance.handleAddressCommand(commandString, context);
-    
-    // Convert to REXX-style result
+
+    // Return result directly - RexxJS will set RESULT to this entire object
+    // Properties can be accessed as RESULT.property in REXX
     return {
-      success: result.success,
+      ...result,  // Spread all result properties at top level
       errorCode: result.success ? 0 : 1,
       errorMessage: result.error || null,
-      output: result.output || '',
-      result: result,
       rexxVariables: {
         'DOCKER_OPERATION': result.operation || '',
         'DOCKER_CONTAINER': result.container || '',
@@ -1705,7 +2629,7 @@ async function ADDRESS_DOCKER_HANDLER(commandOrMethod, params, sourceContext) {
       errorCode: 1,
       errorMessage: error.message,
       output: error.message,
-      result: { error: error.message },
+      error: error.message,
       rexxVariables: {
         'DOCKER_ERROR': error.message
       }
@@ -1716,38 +2640,46 @@ async function ADDRESS_DOCKER_HANDLER(commandOrMethod, params, sourceContext) {
 // Method names for RexxJS method detection
 const ADDRESS_DOCKER_METHODS = {
   'status': 'Get DOCKER handler status',
+  'check_docker_running': 'Check if Docker is running',
+  'check_container_with_echo': 'Test if container is responding [test_command=echo|ls|pwd|custom]',
+  'run_script': 'Execute multi-line script from variable [var=variableName]',
   'list': 'List containers',
   'create': 'Create a new container [interactive=true] [memory=512m] [cpus=1.0] [volumes=host:container] [environment=KEY=value]',
   'start': 'Start a container',
-  'stop': 'Stop a container', 
-  'remove': 'Remove a container',
+  'stop': 'Stop a container',
+  'remove': 'Remove container(s) - supports comma-separated names [force=true] [ignore_missing=true]',
   'deploy_rexx': 'Deploy RexxJS binary to container',
   'execute': 'Execute command in container',
+  'execute_stdin': 'Execute command with stdin input - use stdin_var to specify variable name [timeout=30000]',
   'execute_rexx': 'Execute RexxJS script in container [progress_callback=true] [timeout=30000]',
   'copy_to': 'Copy file to container',
   'copy_from': 'Copy file from container',
   'logs': 'Get container logs [lines=50]',
   'cleanup': 'Cleanup containers [all=true]',
+  'commit': 'Commit container to image',
+  'build_image': 'Build image from base with CMD',
+  'wait_for_port': 'Wait for container port to be ready [port=4567] [timeout=60000] [retryInterval=1000] [maxRetries=60]',
   'security_audit': 'Get security audit log and policies',
   'process_stats': 'Get container process statistics and health',
   'configure_health_check': 'Configure health check for container [enabled=true] [interval=30000] [command=custom]',
   'start_monitoring': 'Start container process monitoring',
   'stop_monitoring': 'Stop container process monitoring',
-  'checkpoint_status': 'Get bidirectional CHECKPOINT monitoring status'
+  'checkpoint_status': 'Get bidirectional CHECKPOINT monitoring status',
+  'shutdown': 'Clean up handler resources and exit process'
 };
 
 // UMD pattern for both Node.js and browser compatibility
 if (typeof module !== 'undefined' && module.exports) {
   // Node.js environment
   module.exports = {
-    ADDRESS_DOCKER_MAIN,
+    DOCKER_ADDRESS_META,
     ADDRESS_DOCKER_HANDLER,
     ADDRESS_DOCKER_METHODS,
     AddressDockerHandler // Export the class for testing
   };
 } else if (typeof window !== 'undefined') {
   // Browser environment - attach to global window
-  window.ADDRESS_DOCKER_MAIN = ADDRESS_DOCKER_MAIN;
+  window.DOCKER_ADDRESS_META = DOCKER_ADDRESS_META;
   window.ADDRESS_DOCKER_HANDLER = ADDRESS_DOCKER_HANDLER;
   window.ADDRESS_DOCKER_METHODS = ADDRESS_DOCKER_METHODS;
 }

@@ -1,5 +1,5 @@
 const { createTestHandler } = require('./test-helper');
-const { parseMemoryLimit, validateCommand, validateVolumePath } = require('../shared-utils');
+const { parseMemoryLimit, validateCommand, validateVolumePath } = require('../../_shared/provisioning-shared-utils');
 
 describe('ADDRESS PODMAN Handler - Security Tests', () => {
   let containerCounter = 0;

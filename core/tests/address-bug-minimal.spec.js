@@ -28,7 +28,17 @@ describe('ADDRESS Return Value Bug - Minimal Reproduction', () => {
     interpreter = new Interpreter(mockAddressSender, outputHandler);
     
     // Register mock ADDRESS target with multiple methods
-    const mockHandler = (commandOrMethod, params) => {
+    const mockHandler = (commandOrMethod, params, sourceContext) => {
+      // TEMPORARY DEBUG: Log what we receive
+      console.log('\n=== ADDRESS HANDLER CALLED ===');
+      console.log('commandOrMethod:', commandOrMethod);
+      console.log('params:', params);
+      console.log('sourceContext keys:', sourceContext ? Object.keys(sourceContext) : 'none');
+      console.log('sourceContext.variables keys:', sourceContext?.variables ? Array.from(sourceContext.variables.keys()) : 'none');
+      console.log('\nCall stack:');
+      console.log(new Error().stack);
+      console.log('=== END DEBUG ===\n');
+
       switch (commandOrMethod.toLowerCase()) {
         case 'status':
           return Promise.resolve({

@@ -33,6 +33,20 @@
  * SOFTWARE.
  */
 
+// Import browser histogram rendering functions to include them in the bundle
+try {
+  if (typeof window !== 'undefined') {
+    // In browser environment, import the renderer functions
+    const rendererModule = require('../histogram-browser-renderer.js');
+    if (rendererModule) {
+      // Make renderer functions globally available
+      Object.assign(window, rendererModule);
+    }
+  }
+} catch (e) {
+  // Ignore import errors - renderer functions may not be available in all environments
+}
+
 // Helper function to suggest render to REPL
 function suggestRender(plotData, options = {}) {
   if (typeof window !== 'undefined' && window.rexxjs) {
@@ -45,6 +59,140 @@ function suggestRender(plotData, options = {}) {
       });
     };
   }
+}
+
+// Helper function to render plot to DOM
+function renderPlotToDOM(plotData, output, options = {}) {
+  const { width = 800, height = 600, format = 'png' } = options;
+  
+  // Special handling for 'auto' output - create a new element in REPL
+  if (output === 'auto' && typeof window !== 'undefined') {
+    // Create a unique container
+    const containerId = 'repl-plot-' + Date.now();
+    const container = document.createElement('div');
+    container.id = containerId;
+    container.style.margin = '10px 0';
+    
+    // Find the REPL history element or body
+    const replHistory = document.getElementById('repl-history');
+    if (replHistory) {
+      replHistory.appendChild(container);
+    } else {
+      document.body.appendChild(container);
+    }
+    
+    output = '#' + containerId;
+  }
+  
+  // Actual canvas rendering implementation
+  if (typeof document !== 'undefined') {
+    const targetElement = typeof output === 'string' ? 
+      (output.startsWith('#') ? document.querySelector(output) : document.getElementById(output)) :
+      output;
+      
+    if (targetElement) {
+      // Create container for the plot
+      const plotContainer = document.createElement('div');
+      plotContainer.style.cssText = `
+        border: 2px solid #4CAF50;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 10px 0;
+        background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+        font-family: monospace;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      `;
+      
+      // Add plot title
+      const plotType = plotData.type || 'plot';
+      const title = (plotData.options && plotData.options.main) || `${plotType.toUpperCase()} Visualization`;
+      
+      const titleDiv = document.createElement('div');
+      titleDiv.style.cssText = `
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 15px;
+        text-align: center;
+      `;
+      titleDiv.textContent = `📊 ${title}`;
+      plotContainer.appendChild(titleDiv);
+      
+      // Create canvas element
+      const canvasId = 'canvas-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+      const canvas = document.createElement('canvas');
+      canvas.id = canvasId;
+      canvas.width = width;
+      canvas.height = height;
+      canvas.style.cssText = `
+        display: block;
+        margin: 0 auto;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background: white;
+      `;
+      
+      plotContainer.appendChild(canvas);
+      
+      try {
+        // Render based on plot type using browser renderers
+        if (typeof renderPlotToCanvas === 'function') {
+          // Use the universal renderer if available
+          renderPlotToCanvas(plotData, canvasId, { margin: options.margin });
+        } else if (plotData.type === 'hist' && typeof renderHistogramToCanvas === 'function') {
+          // Use specific histogram renderer
+          renderHistogramToCanvas(plotData, canvasId, { margin: options.margin });
+        } else {
+          // Fallback: create error message
+          const context = canvas.getContext('2d');
+          context.fillStyle = 'white';
+          context.fillRect(0, 0, width, height);
+          context.fillStyle = 'red';
+          context.font = '16px Arial';
+          context.textAlign = 'center';
+          context.fillText(`${plotData.type} renderer not available`, width / 2, height / 2);
+          context.font = '12px Arial';
+          context.fillText('Make sure histogram-browser-renderer.js is loaded', width / 2, height / 2 + 25);
+        }
+        
+        // Add plot info below canvas
+        const infoDiv = document.createElement('div');
+        infoDiv.style.cssText = `
+          color: #666;
+          font-size: 12px;
+          margin-top: 10px;
+          text-align: center;
+        `;
+        infoDiv.innerHTML = `
+          Type: ${plotType} | Dimensions: ${width}x${height}px
+          ${plotData.data ? ` | Data points: ${Array.isArray(plotData.data) ? plotData.data.length : 'N/A'}` : ''}
+          ${plotData.bins ? ` | Bins: ${plotData.bins.length}` : ''}
+        `;
+        plotContainer.appendChild(infoDiv);
+        
+      } catch (error) {
+        // Show error in canvas
+        const context = canvas.getContext('2d');
+        context.fillStyle = 'white';
+        context.fillRect(0, 0, width, height);
+        context.fillStyle = 'red';
+        context.font = '14px Arial';
+        context.textAlign = 'center';
+        context.fillText(`Render Error: ${error.message}`, width / 2, height / 2);
+      }
+      
+      targetElement.appendChild(plotContainer);
+      
+      // Scroll into view if in REPL
+      if (targetElement.parentElement && targetElement.parentElement.id === 'repl-history') {
+        plotContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      
+      return targetElement.id || 'rendered';
+    }
+  }
+  
+  return 'render-failed';
 }
 
 const rGraphicsFunctions = {
@@ -1599,7 +1747,7 @@ if (typeof window !== 'undefined') {
   
   // Register in the modern registry
   window.REXX_FUNCTION_LIBS.push({
-    path: 'graphics-functions.js',
+    path: 'r-graphics-functions.js',
     name: 'r-graphics-functions', 
     version: '1.0.0',
     description: 'R Graphics and Visualization Functions',

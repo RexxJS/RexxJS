@@ -1,6 +1,6 @@
 /* Copyright (c) 2025 Paul Hammant ... Licensed under the MIT License */
 
-const rGraphicsFunctions = require('./r-graphics-functions');
+const rGraphicsFunctions = require('./src/graphics-functions');
 
 const graphicsFunctions = {
   ...rGraphicsFunctions

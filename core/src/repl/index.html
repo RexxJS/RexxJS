@@ -108,11 +108,7 @@
     
     <p>This interactive REXX REPL (Read-Eval-Print Loop) lets you execute REXX code directly in your browser using the REXX Web Loader.</p>
     
-    <h2>REXX REPL</h2>
-    
-    <div id="status" class="status loading">Click "Load REXX" to start</div>
-    
-    <button onclick="loadRexx()">Load REXX Interpreter</button>
+    <div id="status" class="status loading" style="display: none;"></div>
     <div style="display: inline-block; margin: 5px;">
         <select id="demo-select" disabled>
             <option value="">Choose Demo...</option>
@@ -286,13 +282,9 @@
                 // or unbundled version (need to use RexxWebLoader)
                 if (typeof RexxInterpreter !== 'undefined') {
                     // Bundled version - RexxInterpreter is already loaded
-                    updateStatus('Initializing REXX Interpreter...');
-                    replHistory.innerHTML = '<div class="repl-output">Initializing bundled interpreter...</div>';
+                    // No status message needed for success case
                 } else if (typeof RexxWebLoader !== 'undefined') {
                     // Unbundled version - use the loader
-                    updateStatus('Loading REXX Interpreter dependencies...');
-                    replHistory.innerHTML = '<div class="repl-output">Loading dependencies...</div>';
-                    
                     // Determine basePath based on current location
                     // For local dev at /core/src/repl/ use '../'
                     // For production at /repl/unbundled/ use '/'
@@ -313,13 +305,13 @@
                     throw new Error('RexxInterpreter not available after loading.');
                 }
                 
-                updateStatus('✅ REXX Interpreter loaded successfully!', 'success');
+                // Enable controls - no success status message
                 demoSelect.disabled = false;
                 runDemoBtn.disabled = false;
                 showDemoBtn.disabled = false;
                 
                 // Initialize REPL
-                replHistory.innerHTML = ''; // Clear loading message
+                replHistory.innerHTML = ''; // Clear any loading message
                 addToHistory('REXX REPL ready! Type REXX commands and press Enter.', 'repl-welcome');
                 addToHistory('Use ↑/↓ arrows for command history. Use REQUIRE to load libraries.', 'repl-welcome');
                 addToHistory('Library Example: REQUIRE "org.rexxjs/graphviz-functions"', 'repl-welcome');
@@ -329,7 +321,9 @@
                 scrollToBottom();
                 
             } catch (error) {
+                // Only show status div for errors
                 updateStatus(`❌ Failed to load: ${error.message}`, 'error');
+                document.getElementById('status').style.display = 'block';
                 addToHistory(`❌ Load failed: ${error.message}`, 'repl-error');
                 console.error('Load error:', error);
             }
@@ -550,6 +544,10 @@
                             } else {
                                 addGraphicsInfo(`📊 Plot auto-rendered successfully`);
                             }
+                            
+                            // Scroll to bottom after render completes and graphics info is added
+                            setTimeout(() => scrollToBottom(), 100);
+                            
                         } catch (renderError) {
                             addGraphicsInfo(`❌ Auto-render failed: ${renderError.message}`, 'error');
                         }
@@ -658,6 +656,9 @@
                     }
                 }
             });
+            
+            // Auto-load REXX interpreter on page load
+            loadRexx();
         });
     </script>
 </body>

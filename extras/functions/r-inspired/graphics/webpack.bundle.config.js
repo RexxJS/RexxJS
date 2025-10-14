@@ -42,9 +42,9 @@ module.exports = {
   mode: 'development', // No minification
   entry: path.resolve(__dirname, 'src/graphics-functions.js'),
   output: {
-    filename: 'graphics-functions.bundle.js',
+    filename: 'r-graphics-functions.bundle.js',
     path: path.resolve(getGitRoot(), '../dist/functions'),
-    library: 'graphics-functions',
+    library: 'r-graphics-functions',
     libraryTarget: 'umd',
     globalObject: 'this'
   },

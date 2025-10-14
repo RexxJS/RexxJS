@@ -8,7 +8,7 @@ SAY "=== Testing Variable Interpolation Across GCP Handlers ==="
 SAY ""
 
 /* Set interpolation pattern */
-CALL setInterpolationPattern 'handlebars'
+SET_INTERPOLATION('handlebars')
 
 /* Define test variables */
 env = "test"
@@ -77,26 +77,23 @@ SAY ""
 SAY "Test 7: Alternative Interpolation Patterns"
 SAY ""
 SAY "  A. Handlebars (default): {{var}}"
-CALL setInterpolationPattern 'handlebars'
+SET_INTERPOLATION('handlebars')
 test_var = "handlebars-value"
-SAY "     Pattern: {{test_var}}"
-SAY "     Expands to: handlebars-value"
+SAY "     Pattern:" "{{test_var}}"
 SAY ""
 
 SAY "  B. Shell style: \${var}"
-CALL setInterpolationPattern 'shell'
-SAY "     Pattern: \${test_var}"
-SAY "     Expands to: handlebars-value"
+SET_INTERPOLATION('shell')
+SAY "     Pattern:" "${test_var}"
 SAY ""
 
 SAY "  C. Batch style: %var%"
-CALL setInterpolationPattern 'batch'
-SAY "     Pattern: %test_var%"
-SAY "     Expands to: handlebars-value"
+SET_INTERPOLATION('batch')
+SAY "     Pattern:" "%test_var%"
 SAY ""
 
 /* Reset to handlebars */
-CALL setInterpolationPattern 'handlebars'
+SET_INTERPOLATION('handlebars')
 
 SAY "=== Summary ==="
 SAY ""

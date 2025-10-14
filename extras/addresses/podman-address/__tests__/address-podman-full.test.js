@@ -4,7 +4,7 @@
  */
 
 const { createTestHandler } = require('./test-helper');
-const { parseCommand } = require('../shared-utils');
+const { parseCommand } = require('../../_shared/provisioning-shared-utils');
 
 describe('ADDRESS PODMAN Handler - Full Suite', () => {
 

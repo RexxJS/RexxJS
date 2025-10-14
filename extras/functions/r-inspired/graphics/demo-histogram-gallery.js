@@ -4,7 +4,7 @@
  * Demo script that creates multiple histogram PNGs to showcase the rendering capability
  */
 
-const { rGraphicsFunctions } = require('../extras/functions/r-inspired/graphics/r-graphics-functions');
+const { rGraphicsFunctions } = require('./src/graphics-functions');
 const { renderHistogramToPNG } = require('./src/histogram-renderer');
 const path = require('path');
 const fs = require('fs');

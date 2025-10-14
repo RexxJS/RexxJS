@@ -12,7 +12,7 @@ SAY ""
 
 /* Test 1: Basic histogram rendering */
 SAY "Test 1: Basic histogram rendering"
-REQUIRE "./graphics-functions.js"
+REQUIRE "./r-graphics-functions.js"
 
 /* Create test data */
 LET dataJson = "[1.2, 2.3, 2.1, 3.4, 3.8, 3.2, 4.1, 4.5, 5.0, 6.2, 2.8, 3.1, 4.3, 3.9, 2.7]"

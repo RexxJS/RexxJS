@@ -158,11 +158,11 @@ print_success "Built r-factor-functions.bundle.js"
 cp extras/functions/r-inspired/data-types/src/r-factor-functions.js ../dist/functions/r-factor-functions.js
 print_success "Copied r-factor-functions.js (unbundled)"
 
-# graphics-functions
+# r-graphics-functions
 cd extras/functions/r-inspired/graphics && npx webpack --config $(pwd)/webpack.bundle.config.js && cd ../../../..
-print_success "Built graphics-functions.bundle.js"
-cp extras/functions/r-inspired/graphics/src/graphics-functions.js ../dist/functions/graphics-functions.js
-print_success "Copied graphics-functions.js (unbundled)"
+print_success "Built r-graphics-functions.bundle.js"
+cp extras/functions/r-inspired/graphics/src/graphics-functions.js ../dist/functions/r-graphics-functions.js
+print_success "Copied r-graphics-functions.js (unbundled)"
 
 # r-summary-functions
 cd extras/functions/r-inspired/math-stats && npx webpack --config $(pwd)/webpack.bundle.config.js && cd ../../../..

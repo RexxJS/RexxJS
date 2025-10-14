@@ -80,10 +80,14 @@ function parseCommand(cmd) {
   // Parse parameters, handling quoted values
   const regex = /(\w+)=((?:"[^"]*"|'[^']*'|[^\s]+))/g;
   let match;
+  const matchedRanges = [];
 
   while ((match = regex.exec(paramString)) !== null) {
     const key = match[1];
     let value = match[2];
+
+    // Track which parts of the string we've already matched
+    matchedRanges.push({ start: match.index, end: match.index + match[0].length });
 
     // Remove quotes
     value = value.replace(/^["']|["']$/g, '');
@@ -93,11 +97,24 @@ function parseCommand(cmd) {
   }
 
   // Also handle boolean flags (parameters without =)
+  // But only for tokens that weren't part of a key=value pair
   const words = paramString.split(/\s+/);
+  let currentPos = 0;
   for (const word of words) {
-    if (!word.includes('=')) {
+    const wordStart = paramString.indexOf(word, currentPos);
+    const wordEnd = wordStart + word.length;
+
+    // Check if this word overlaps with any matched range
+    const isPartOfKeyValue = matchedRanges.some(range =>
+      (wordStart >= range.start && wordStart < range.end) ||
+      (wordEnd > range.start && wordEnd <= range.end)
+    );
+
+    if (!word.includes('=') && !isPartOfKeyValue && word.length > 0) {
       params[word] = true;
     }
+
+    currentPos = wordEnd;
   }
 
   return { operation, params };

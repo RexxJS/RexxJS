@@ -1074,6 +1074,32 @@ function parseStatement(tokens, startIndex) {
   }
 
 
+  // EXIT UNLESS statement - check this FIRST before regular EXIT
+  // Pattern: EXIT [code] UNLESS condition, message
+  const exitUnlessMatch = line.match(/^EXIT(?:\s+(\d+))?\s+UNLESS\s+(.+?),\s*(.+)/i);
+  if (exitUnlessMatch) {
+    const code = exitUnlessMatch[1] ? parseInt(exitUnlessMatch[1]) : 0;
+    const conditionStr = exitUnlessMatch[2].trim();
+    const message = exitUnlessMatch[3].trim();
+
+    return {
+      command: {
+        type: 'EXIT_UNLESS',
+        code: code,
+        condition: conditionStr,
+        message: message
+      },
+      nextIndex: startIndex + 1
+    };
+  }
+
+  // Check for common EXIT UNLESS syntax errors (period instead of comma)
+  const exitUnlessErrorMatch = line.match(/^EXIT(?:\s+(\d+))?\s+UNLESS\s+(.+?)[.;]\s*(.+)/i);
+  if (exitUnlessErrorMatch) {
+    const separator = line.match(/^EXIT(?:\s+\d+)?\s+UNLESS\s+.+?([.;])\s*.+/i)[1];
+    throw new Error(`EXIT UNLESS syntax error: unexpected ${separator === '.' ? 'period' : 'semicolon'} after condition. Expected comma (,) to separate condition from message. Use: EXIT UNLESS condition, 'message'`);
+  }
+
   // EXIT statement
   const exitMatch = line.match(/^EXIT(?:\s+(.+))?/i);
   if (exitMatch) {

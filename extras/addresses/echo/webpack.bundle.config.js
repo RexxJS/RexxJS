@@ -5,7 +5,7 @@ module.exports = {
   entry: path.resolve(__dirname, 'src/echo-address.js'),
   output: {
     filename: 'echo-address.bundle.js',
-    path: path.resolve(__dirname, '../../../dist/addresses'),
+    path: path.resolve(__dirname, '../../../../dist/addresses'),
     library: 'EchoAddress',
     libraryTarget: 'umd',
     globalObject: 'this'

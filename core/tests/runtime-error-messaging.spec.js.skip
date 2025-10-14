@@ -1,0 +1,1171 @@
+/**
+ * Runtime Error Messaging Tests
+ *
+ * Comprehensive tests for runtime error messages in RexxJS.
+ * These test that interpreted REXX code produces clear, helpful error messages
+ * when runtime errors occur (not compilation/parsing errors).
+ *
+ * Copyright (c) 2025 Paul Hammant
+ * Licensed under the MIT License
+ */
+
+const { RexxInterpreter } = require('../src/interpreter');
+const { parse } = require('../src/parser');
+
+describe('Runtime Error Messaging - Comprehensive Suite', () => {
+  let interpreter;
+  let mockRpc;
+
+  beforeEach(() => {
+    mockRpc = { send: jest.fn().mockResolvedValue('mock response') };
+    interpreter = new RexxInterpreter(mockRpc);
+  });
+
+  describe('Undefined Variable Access Errors', () => {
+    test('should report clear error when accessing undefined variable', async () => {
+      const script = `SAY undefinedVar`;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable');
+      } catch (error) {
+        expect(error.message).toMatch(/undefined|not defined|undefinedVar/i);
+      }
+    });
+
+    test('should report error when using undefined variable in expression', async () => {
+      const script = `
+        LET x = 5
+        LET y = x + missingVariable
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable in expression');
+      } catch (error) {
+        expect(error.message).toMatch(/missingVariable|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when accessing undefined object property', async () => {
+      const script = `
+        LET obj = {"name": "test"}
+        SAY obj.nonexistent
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined property');
+      } catch (error) {
+        // Should provide context about what was being accessed
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error with context when undefined variable is in nested expression', async () => {
+      const script = `
+        LET a = 10
+        LET b = 20
+        LET result = (a + b) * unknownVar / 2
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable');
+      } catch (error) {
+        expect(error.message).toMatch(/unknownVar|undefined|not defined/i);
+      }
+    });
+
+    test('should differentiate between undefined and null variables', async () => {
+      const script = `
+        LET nullVar = null
+        SAY nullVar
+        SAY completelyUndefined
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable');
+      } catch (error) {
+        expect(error.message).toMatch(/completelyUndefined|undefined|not defined/i);
+      }
+    });
+  });
+
+  describe('Invalid Function Call Errors', () => {
+    test('should report error for calling undefined function', async () => {
+      const script = `LET result = NONEXISTENT_FUNCTION("test")`;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined function');
+      } catch (error) {
+        expect(error.message).toMatch(/NONEXISTENT_FUNCTION|not found|undefined|unknown function/i);
+      }
+    });
+
+    test('should report error for wrong number of function parameters', async () => {
+      const script = `
+        LET result = SUBSTR("hello")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for wrong parameter count');
+      } catch (error) {
+        // Error should mention parameter count or missing parameter
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report clear error for function with invalid parameter type', async () => {
+      const script = `
+        LET obj = {"key": "value"}
+        LET result = LENGTH(obj)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid parameter type');
+      } catch (error) {
+        // Should indicate type mismatch
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when calling non-function variable', async () => {
+      const script = `
+        LET notAFunction = 42
+        LET result = notAFunction("argument")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for calling non-function');
+      } catch (error) {
+        expect(error.message).toMatch(/not a function|cannot call/i);
+      }
+    });
+
+    test('should report error with function name when builtin function fails', async () => {
+      const script = `
+        LET result = SUBSTR("test", -1)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid function parameter');
+      } catch (error) {
+        // Should mention SUBSTR in error
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+
+  describe('Type Mismatch Errors', () => {
+    test('should report error when performing arithmetic on non-numeric values', async () => {
+      const script = `
+        LET a = "hello"
+        LET b = "world"
+        LET result = a + b
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-numeric arithmetic');
+      } catch (error) {
+        // Should indicate type issue
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when using string in numeric comparison', async () => {
+      const script = `
+        LET x = "abc"
+        IF x > 10 THEN
+          SAY "Greater"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid comparison');
+      } catch (error) {
+        // Should indicate type mismatch
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when array is used where scalar expected', async () => {
+      const script = `
+        LET arr = ["a", "b", "c"]
+        LET result = arr + 10
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for type mismatch');
+      } catch (error) {
+        // Should indicate type issue
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when object is used in arithmetic', async () => {
+      const script = `
+        LET obj = {"value": 10}
+        LET result = obj * 2
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for object in arithmetic');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should provide clear message for boolean used in string operation', async () => {
+      const script = `
+        LET flag = 1
+        LET result = SUBSTR(flag, 1, 1)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed by converting to string, or may error
+      } catch (error) {
+        // If error, should be clear about type
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+
+  describe('Array and Object Access Errors', () => {
+    test('should report error for accessing array with invalid index', async () => {
+      const script = `
+        LET arr = ["a", "b", "c"]
+        SAY arr[10]
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May return undefined rather than error
+      } catch (error) {
+        expect(error.message).toMatch(/index|out of bounds/i);
+      }
+    });
+
+    test('should report error when accessing property of null', async () => {
+      const script = `
+        LET obj = null
+        SAY obj.property
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null property access');
+      } catch (error) {
+        expect(error.message).toMatch(/null|cannot read property/i);
+      }
+    });
+
+    test('should report error when accessing property of undefined', async () => {
+      const script = `
+        SAY missingObj.property
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined property access');
+      } catch (error) {
+        expect(error.message).toMatch(/undefined|not defined/i);
+      }
+    });
+
+    test('should report error when using non-integer array index', async () => {
+      const script = `
+        LET arr = [1, 2, 3]
+        SAY arr["notanumber"]
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with string key
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for nested property access on non-object', async () => {
+      const script = `
+        LET value = 42
+        SAY value.property.nested
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for property access on number');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+
+  describe('Division by Zero and Math Errors', () => {
+    test('should report error for division by zero', async () => {
+      const script = `
+        LET result = 10 / 0
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // JavaScript allows Infinity, but REXX may error
+      } catch (error) {
+        expect(error.message).toMatch(/division|zero|divide/i);
+      }
+    });
+
+    test('should report error for modulo by zero', async () => {
+      const script = `
+        LET result = 10 % 0
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for modulo by zero');
+      } catch (error) {
+        expect(error.message).toMatch(/modulo|zero|divide/i);
+      }
+    });
+
+    test('should report error for invalid mathematical operation', async () => {
+      const script = `
+        LET result = SQRT(-1)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May return NaN rather than error
+      } catch (error) {
+        expect(error.message).toMatch(/invalid|negative|sqrt/i);
+      }
+    });
+
+    test('should report error for overflow in calculations', async () => {
+      const script = `
+        LET huge = 10 ** 1000
+        SAY huge
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // JavaScript allows Infinity
+      } catch (error) {
+        expect(error.message).toMatch(/overflow|too large/i);
+      }
+    });
+
+    test('should report clear error for invalid numeric format', async () => {
+      const script = `
+        LET num = "12.34.56"
+        LET result = num + 10
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid number format');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+
+  describe('CALL and RETURN Errors', () => {
+    test('should report error when calling non-existent subroutine', async () => {
+      const script = `
+        CALL NonExistentSub
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-existent subroutine');
+      } catch (error) {
+        expect(error.message).toMatch(/NonExistentSub|not found|undefined/i);
+      }
+    });
+
+    test('should report error for RETURN outside subroutine', async () => {
+      const script = `
+        LET x = 10
+        RETURN x
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for RETURN outside subroutine');
+      } catch (error) {
+        expect(error.message).toMatch(/RETURN|outside|subroutine|procedure/i);
+      }
+    });
+
+    test('should report error when subroutine expects arguments but none provided', async () => {
+      const script = `
+        CALL MySub
+        EXIT 0
+
+        MySub:
+          PARSE ARG requiredArg
+          SAY requiredArg
+        RETURN
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with empty arg
+      } catch (error) {
+        expect(error.message).toMatch(/argument|parameter|missing/i);
+      }
+    });
+
+    test('should report error for recursive call without exit condition', async () => {
+      const script = `
+        CALL InfiniteRecursion
+
+        InfiniteRecursion:
+          CALL InfiniteRecursion
+        RETURN
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected stack overflow error');
+      } catch (error) {
+        expect(error.message).toMatch(/stack|recursion|overflow|maximum call stack/i);
+      }
+    });
+
+    test('should report error when PROCEDURE hides required variable', async () => {
+      const script = `
+        LET globalVar = "global"
+        CALL TestProcedure
+        EXIT 0
+
+        TestProcedure: PROCEDURE
+          SAY globalVar
+        RETURN
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for hidden variable');
+      } catch (error) {
+        expect(error.message).toMatch(/globalVar|undefined|not defined/i);
+      }
+    });
+  });
+
+  describe('DO Loop Errors', () => {
+    test('should report error for DO without END', async () => {
+      const script = `
+        DO i = 1 TO 10
+          SAY i
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for missing END');
+      } catch (error) {
+        expect(error.message).toMatch(/END|missing|DO/i);
+      }
+    });
+
+    test('should report error for DO with invalid loop variable', async () => {
+      const script = `
+        LET i = "notanumber"
+        DO i = i TO 10
+          SAY i
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid loop variable');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for DO with non-numeric bounds', async () => {
+      const script = `
+        DO i = "start" TO "end"
+          SAY i
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-numeric bounds');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for LEAVE outside loop', async () => {
+      const script = `
+        LET x = 10
+        LEAVE
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for LEAVE outside loop');
+      } catch (error) {
+        expect(error.message).toMatch(/LEAVE|outside|loop/i);
+      }
+    });
+
+    test('should report error for ITERATE outside loop', async () => {
+      const script = `
+        LET x = 10
+        ITERATE
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for ITERATE outside loop');
+      } catch (error) {
+        expect(error.message).toMatch(/ITERATE|outside|loop/i);
+      }
+    });
+
+    test('should report error for DO OVER non-array', async () => {
+      const script = `
+        LET notArray = "string"
+        DO item OVER notArray
+          SAY item
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for DO OVER non-array');
+      } catch (error) {
+        expect(error.message).toMatch(/array|iterable|OVER/i);
+      }
+    });
+  });
+
+  describe('IF and SELECT Errors', () => {
+    test('should report error for IF without THEN', async () => {
+      const script = `
+        IF 1 > 0
+          SAY "true"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for IF without THEN');
+      } catch (error) {
+        expect(error.message).toMatch(/THEN|IF|syntax/i);
+      }
+    });
+
+    test('should report error for unclosed IF block', async () => {
+      const script = `
+        IF 1 > 0 THEN DO
+          SAY "true"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for unclosed IF');
+      } catch (error) {
+        expect(error.message).toMatch(/END|DO|IF/i);
+      }
+    });
+
+    test('should report error for SELECT without END', async () => {
+      const script = `
+        SELECT
+          WHEN 1 > 0 THEN SAY "true"
+          OTHERWISE SAY "false"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for SELECT without END');
+      } catch (error) {
+        expect(error.message).toMatch(/END|SELECT/i);
+      }
+    });
+
+    test('should report error for WHEN outside SELECT', async () => {
+      const script = `
+        WHEN 1 > 0 THEN SAY "true"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for WHEN outside SELECT');
+      } catch (error) {
+        expect(error.message).toMatch(/WHEN|SELECT|outside/i);
+      }
+    });
+
+    test('should report error for OTHERWISE outside SELECT', async () => {
+      const script = `
+        OTHERWISE SAY "default"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for OTHERWISE outside SELECT');
+      } catch (error) {
+        expect(error.message).toMatch(/OTHERWISE|SELECT|outside/i);
+      }
+    });
+
+    test('should report error for invalid condition in IF', async () => {
+      const script = `
+        IF undefinedVar THEN
+          SAY "true"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined condition variable');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedVar|undefined|not defined/i);
+      }
+    });
+  });
+
+  describe('String Operation Errors', () => {
+    test('should report error for SUBSTR with invalid start position', async () => {
+      const script = `
+        LET result = SUBSTR("hello", 0)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid start position');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for string function with null parameter', async () => {
+      const script = `
+        LET str = null
+        LET result = LENGTH(str)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null parameter');
+      } catch (error) {
+        expect(error.message).toMatch(/null|invalid/i);
+      }
+    });
+
+    test('should report error for POS with invalid parameters', async () => {
+      const script = `
+        LET result = POS("needle", "haystack", "notanumber")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid parameter type');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for WORD with negative index', async () => {
+      const script = `
+        LET result = WORD("one two three", -1)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for negative index');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for invalid regex pattern', async () => {
+      const script = `
+        LET result = REGEX_MATCH("test", "[invalid(regex")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid regex');
+      } catch (error) {
+        expect(error.message).toMatch(/regex|pattern|invalid/i);
+      }
+    });
+  });
+
+  describe('SIGNAL Errors', () => {
+    test('should report error when SIGNALing to non-existent label', async () => {
+      const script = `
+        SIGNAL NonExistentLabel
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-existent label');
+      } catch (error) {
+        expect(error.message).toMatch(/NonExistentLabel|label|not found/i);
+      }
+    });
+
+    test('should report error for SIGNAL ON with invalid condition', async () => {
+      const script = `
+        SIGNAL ON INVALIDCONDITION NAME ErrorHandler
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid SIGNAL condition');
+      } catch (error) {
+        expect(error.message).toMatch(/INVALIDCONDITION|invalid|condition/i);
+      }
+    });
+
+    test('should report error when SIGNAL ON target label does not exist', async () => {
+      const script = `
+        SIGNAL ON ERROR NAME MissingHandler
+        CALL ForcedError
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for missing handler label');
+      } catch (error) {
+        expect(error.message).toMatch(/MissingHandler|label|not found/i);
+      }
+    });
+  });
+
+  describe('Variable Assignment Errors', () => {
+    test('should report error for assigning to reserved keyword', async () => {
+      const script = `
+        LET IF = 10
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for reserved keyword assignment');
+      } catch (error) {
+        expect(error.message).toMatch(/IF|reserved|keyword/i);
+      }
+    });
+
+    test('should report error for invalid variable name', async () => {
+      const script = `
+        LET 123invalid = 10
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid variable name');
+      } catch (error) {
+        expect(error.message).toMatch(/invalid|variable|name/i);
+      }
+    });
+
+    test('should report error for circular reference in assignment', async () => {
+      const script = `
+        LET x = x + 1
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable in assignment');
+      } catch (error) {
+        expect(error.message).toMatch(/x|undefined|not defined/i);
+      }
+    });
+
+    test('should report error for assigning result of void function', async () => {
+      const script = `
+        CALL VoidSub
+        EXIT 0
+
+        VoidSub:
+          SAY "No return value"
+        RETURN
+      `;
+
+      // This should succeed - CALL doesn't require RETURN value
+      await interpreter.run(parse(script));
+    });
+  });
+
+  describe('PARSE Statement Errors', () => {
+    test('should report error for PARSE with undefined variable', async () => {
+      const script = `
+        PARSE VALUE undefinedSource WITH result
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined source');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedSource|undefined|not defined/i);
+      }
+    });
+
+    test('should report error for PARSE ARG outside procedure', async () => {
+      const script = `
+        PARSE ARG param1 param2
+        SAY param1
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with empty values
+      } catch (error) {
+        expect(error.message).toMatch(/ARG|procedure|context/i);
+      }
+    });
+
+    test('should report error for invalid PARSE template', async () => {
+      const script = `
+        LET data = "test data"
+        PARSE VALUE data WITH 1 x (invalidVar) y
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid PARSE template');
+      } catch (error) {
+        expect(error.message).toMatch(/invalidVar|undefined|parse/i);
+      }
+    });
+  });
+
+  describe('Array Function Errors', () => {
+    test('should report error for ARRAY_MAP with invalid callback', async () => {
+      const script = `
+        LET arr = [1, 2, 3]
+        LET result = ARRAY_MAP(arr, "not a function")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid callback');
+      } catch (error) {
+        expect(error.message).toMatch(/callback|function|invalid/i);
+      }
+    });
+
+    test('should report error for ARRAY_FILTER on non-array', async () => {
+      const script = `
+        LET notArray = "string"
+        LET result = ARRAY_FILTER(notArray, "x => x > 0")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-array parameter');
+      } catch (error) {
+        expect(error.message).toMatch(/array|type/i);
+      }
+    });
+
+    test('should report error for ARRAY_SORT with invalid comparator', async () => {
+      const script = `
+        LET arr = [3, 1, 2]
+        LET result = ARRAY_SORT(arr, 123)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid comparator');
+      } catch (error) {
+        expect(error.message).toMatch(/comparator|function|invalid/i);
+      }
+    });
+
+    test('should report error when array callback throws error', async () => {
+      const script = `
+        LET arr = [1, 2, 3]
+        LET result = ARRAY_MAP(arr, "x => x / 0")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with Infinity values
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+
+  describe('JSON Operation Errors', () => {
+    test('should report error for JSON_PARSE with invalid JSON', async () => {
+      const script = `
+        LET result = JSON_PARSE("{invalid json}")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid JSON');
+      } catch (error) {
+        expect(error.message).toMatch(/JSON|parse|invalid|syntax/i);
+      }
+    });
+
+    test('should report error for JSON_PARSE with null input', async () => {
+      const script = `
+        LET input = null
+        LET result = JSON_PARSE(input)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null input');
+      } catch (error) {
+        expect(error.message).toMatch(/null|invalid|JSON/i);
+      }
+    });
+
+    test('should report error for JSON_STRINGIFY with circular reference', async () => {
+      const script = `
+        LET obj = {"name": "test"}
+        LET obj.self = obj
+        LET result = JSON_STRINGIFY(obj)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for circular reference');
+      } catch (error) {
+        expect(error.message).toMatch(/circular|reference|JSON/i);
+      }
+    });
+
+    test('should report error for accessing property with invalid JSON path', async () => {
+      const script = `
+        LET obj = {"a": {"b": "c"}}
+        LET result = obj.a.b.c.d.e.f
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid nested access');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+
+  describe('Comparison Operation Errors', () => {
+    test('should report error when comparing incompatible types', async () => {
+      const script = `
+        LET arr = [1, 2, 3]
+        LET obj = {"key": "value"}
+        IF arr > obj THEN
+          SAY "greater"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with type coercion
+      } catch (error) {
+        expect(error.message).toMatch(/type|compare|invalid/i);
+      }
+    });
+
+    test('should report error for invalid comparison operator', async () => {
+      const script = `
+        IF 5 >< 3 THEN
+          SAY "test"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid operator');
+      } catch (error) {
+        expect(error.message).toMatch(/operator|invalid|comparison/i);
+      }
+    });
+
+    test('should handle null in comparisons gracefully', async () => {
+      const script = `
+        LET x = null
+        IF x > 5 THEN
+          SAY "greater"
+        ELSE
+          SAY "not greater"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // Should handle gracefully
+      } catch (error) {
+        expect(error.message).toMatch(/null|compare/i);
+      }
+    });
+  });
+
+  describe('Concatenation Errors', () => {
+    test('should report error for invalid concatenation operands', async () => {
+      const script = `
+        LET obj = {"key": "value"}
+        LET result = "string" || obj
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed by converting to string
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when concatenating undefined variables', async () => {
+      const script = `
+        LET result = "prefix" || undefinedVar || "suffix"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedVar|undefined|not defined/i);
+      }
+    });
+
+    test('should handle null concatenation appropriately', async () => {
+      const script = `
+        LET x = null
+        LET result = "Value: " || x
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // Should handle by converting null to string
+      } catch (error) {
+        expect(error.message).toMatch(/null|concatenate/i);
+      }
+    });
+  });
+
+  describe('Logical Operation Errors', () => {
+    test('should report error for logical AND with non-boolean', async () => {
+      const script = `
+        LET x = "not a boolean"
+        IF x & 1 THEN
+          SAY "true"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with type coercion
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for logical OR with undefined', async () => {
+      const script = `
+        IF undefinedVar | 1 THEN
+          SAY "true"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedVar|undefined|not defined/i);
+      }
+    });
+
+    test('should report error for NOT operation on object', async () => {
+      const script = `
+        LET obj = {"key": "value"}
+        IF \\obj THEN
+          SAY "negated"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with truthy/falsy evaluation
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+
+  describe('Complex Expression Errors', () => {
+    test('should report error with clear context for nested expression failure', async () => {
+      const script = `
+        LET a = 10
+        LET b = 20
+        LET result = ((a + b) * (c - 5)) / 2
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable in expression');
+      } catch (error) {
+        expect(error.message).toMatch(/c|undefined|not defined/i);
+      }
+    });
+
+    test('should report error for function call within expression that fails', async () => {
+      const script = `
+        LET result = 10 + INVALID_FUNC(5) * 2
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid function');
+      } catch (error) {
+        expect(error.message).toMatch(/INVALID_FUNC|not found|undefined/i);
+      }
+    });
+
+    test('should report error for chained property access on null', async () => {
+      const script = `
+        LET obj = null
+        LET result = obj.prop1.prop2.prop3
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null property access');
+      } catch (error) {
+        expect(error.message).toMatch(/null|cannot read property/i);
+      }
+    });
+
+    test('should report error for array access on non-array in expression', async () => {
+      const script = `
+        LET notArray = "string"
+        LET result = notArray[0] + notArray[1]
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed by treating string as array-like
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+});

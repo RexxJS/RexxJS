@@ -4,7 +4,7 @@
  * Jest tests for R Graphics Functions PNG rendering
  */
 
-const { rGraphicsFunctions } = require('../r-graphics-functions.js');
+const { rGraphicsFunctions } = require('../src/graphics-functions.js');
 const { renderPlotToPNG, renderBoxplotToPNG, renderScatterToPNG, renderBarplotToPNG, renderPieToPNG } = require('./histogram-renderer');
 const fs = require('fs');
 const path = require('path');

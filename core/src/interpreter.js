@@ -300,6 +300,820 @@ class RexxInterpreter {
   formatDateTime(date, timezone = 'UTC', format = 'ISO') {
     return traceFormattingUtils.formatDateTime(date, timezone, format);
   }
+  initializeBuiltInFunctions() {
+    // Import external function modules
+    let importedStringFunctions = {};
+    let importedMathFunctions = {};
+    let importedJsonFunctions = {};
+    let importedArrayFunctions = {};
+    let importedDateTimeFunctions = {};
+    let importedUrlFunctions = {};
+    let importedRandomFunctions = {};
+    let importedRegexFunctions = {};
+    let importedValidationFunctions = {};
+    let importedFileFunctions = {};
+    let importedPathFunctions = {};
+    let importedHttpFunctions = {};
+    let importedStatisticsFunctions = {};
+    let importedLogicFunctions = {};
+    let importedCryptoFunctions = {};
+    let importedDomFunctions = {};
+    let importedDomOperations = {};
+    let importedDataFunctions = {};
+    let importedProbabilityFunctions = {};
+    let importedShellFunctions = {};
+    let importedInterpolationFunctions = {};
+    // R functions, DIFF, SED, and other @extras functions - use REQUIRE statements to load them
+    try {
+      if (typeof require !== 'undefined') {
+        // command line mode (NodeJs) is allowed to use require() but the two web modes are not.
+        // All these are co-located with interpreter.js in the main RexxJS project, we should
+        // auto-load them if so (provisional decision).
+        const { stringFunctions } = require('./string-functions');
+        const { mathFunctions } = require('./math-functions');
+        const { jsonFunctions } = require('./json-functions');
+        const { arrayFunctions } = require('./array-functions');
+        const { dateTimeFunctions } = require('./date-time-functions');
+        const { urlFunctions } = require('./url-functions');
+        const { randomFunctions } = require('./random-functions');
+        const { regexFunctions } = require('./regex-functions');
+        const { validationFunctions } = require('./validation-functions');
+        const { fileFunctions } = require('./file-functions');
+        const { pathFunctions } = require('./path-functions');
+        const { httpFunctions } = require('./http-functions');
+        // Excel functions are loaded via REQUIRE statement in REXX scripts
+        // e.g., REQUIRE "../extras/functions/excel/excel-functions"
+        const { statisticsFunctions } = require('./statistics-functions');
+        const { logicFunctions } = require('./logic-functions');
+        const { cryptoFunctions } = require('./cryptography-functions');
+        const { domFunctions, functions: domFunctionsOnly, operations: domOperations } = require('./dom-functions');
+        const { dataFunctions } = require('./data-functions');
+        const { probabilityFunctions } = require('./probability-functions');
+        const shellFunctions = require('./shell-functions');
+        const interpolationFunctions = require('./interpolation-functions');
+
+        // R functions, DIFF, SED are now available via REQUIRE statements in user scripts
+        // e.g., REQUIRE "r-inspired/math-stats" to load R math functions
+        importedStringFunctions = stringFunctions;
+        importedMathFunctions = mathFunctions;
+        importedJsonFunctions = jsonFunctions;
+        importedArrayFunctions = arrayFunctions;
+        importedDateTimeFunctions = dateTimeFunctions;
+        importedUrlFunctions = urlFunctions;
+        importedRandomFunctions = randomFunctions;
+        importedRegexFunctions = regexFunctions;
+        importedValidationFunctions = validationFunctions;
+        importedFileFunctions = fileFunctions;
+        importedPathFunctions = pathFunctions;
+        importedHttpFunctions = httpFunctions;
+        importedStatisticsFunctions = statisticsFunctions;
+        importedLogicFunctions = logicFunctions;
+        importedCryptoFunctions = cryptoFunctions;
+        importedDomFunctions = domFunctionsOnly || domFunctions;  // Prefer split version, fall back to combined
+        importedDomOperations = domOperations || {};
+        importedDataFunctions = dataFunctions;
+        importedProbabilityFunctions = probabilityFunctions;
+        importedShellFunctions = shellFunctions;
+        importedInterpolationFunctions = interpolationFunctions;
+        // R functions removed - use REQUIRE statements to load them
+      } else if (typeof window !== 'undefined') {
+        // Browser environment
+        importedStringFunctions = window.stringFunctions || {};
+        importedMathFunctions = window.mathFunctions || {};
+        importedJsonFunctions = window.jsonFunctions || {};
+        importedArrayFunctions = window.arrayFunctions || {};
+        importedDateTimeFunctions = window.dateTimeFunctions || {};
+        importedUrlFunctions = window.urlFunctions || {};
+        importedRandomFunctions = window.randomFunctions || {};
+        importedRegexFunctions = window.regexFunctions || {};
+        importedValidationFunctions = window.validationFunctions || {};
+        importedFileFunctions = window.fileFunctions || {};
+        importedPathFunctions = window.pathFunctions || {};
+        importedHttpFunctions = window.httpFunctions || {};
+        importedStatisticsFunctions = window.statisticsFunctions || {};
+        importedLogicFunctions = window.logicFunctions || {};
+        importedCryptoFunctions = window.cryptoFunctions || {};
+        importedDomFunctions = window.domFunctionsOnly || window.domFunctions || {};
+        importedDomOperations = window.domOperations || {};
+        importedDataFunctions = window.dataFunctions || {};
+        importedProbabilityFunctions = window.probabilityFunctions || {};
+        // R functions removed - use REQUIRE statements to load them
+      }
+    } catch (e) {
+      console.warn('Could not import external functions:', e.message);
+    }
+
+    // Create interpreter-aware array functions for pure-REXX callback support
+    const interpreterAwareArrayFunctions = this.createInterpreterAwareArrayFunctions(importedArrayFunctions);
+
+    // Create interpreter-aware PATH_RESOLVE that uses the current script path
+    const interpreterAwarePathFunctions = {
+      'PATH_RESOLVE': (pathStr, contextScriptPath) => {
+        // Use provided context path, or fall back to interpreter's script path
+        const scriptPath = contextScriptPath || this.scriptPath || null;
+        return importedPathFunctions['PATH_RESOLVE'](pathStr, scriptPath);
+      }
+    };
+
+    // Create interpreter-aware FILE functions that automatically resolve paths
+    const interpreterAwareFileFunctions = {};
+    const fileFunctionsToWrap = [
+      'FILE_READ', 'FILE_WRITE', 'FILE_APPEND', 'FILE_COPY', 'FILE_MOVE',
+      'FILE_DELETE', 'FILE_EXISTS', 'FILE_SIZE', 'FILE_LIST', 'FILE_BACKUP'
+    ];
+
+    for (const funcName of fileFunctionsToWrap) {
+      if (importedFileFunctions[funcName]) {
+        const originalFunc = importedFileFunctions[funcName];
+
+        interpreterAwareFileFunctions[funcName] = async (...args) => {
+          // Resolve path arguments (first argument is always a path, some functions have 2 paths)
+          const resolvedArgs = [...args];
+
+          // Helper to check if a path needs resolution
+          // Only resolve root: and cwd: prefixes for FILE_* functions
+          // Let ./  and ../ be handled by file-functions.js as before
+          const needsResolution = (path) => {
+            if (typeof path !== 'string') return false;
+            return path.startsWith('root:') || path.startsWith('cwd:');
+          };
+
+          // Resolve first path argument
+          if (args.length > 0 && needsResolution(args[0])) {
+            try {
+              const { resolvePath } = require('./path-resolver');
+              resolvedArgs[0] = resolvePath(args[0], this.scriptPath);
+            } catch (error) {
+              throw new Error(`${funcName} path resolution failed: ${error.message}`);
+            }
+          }
+
+          // For FILE_COPY and FILE_MOVE, also resolve second path (destination)
+          if ((funcName === 'FILE_COPY' || funcName === 'FILE_MOVE') && args.length > 1 && needsResolution(args[1])) {
+            try {
+              const { resolvePath } = require('./path-resolver');
+              resolvedArgs[1] = resolvePath(args[1], this.scriptPath);
+            } catch (error) {
+              throw new Error(`${funcName} destination path resolution failed: ${error.message}`);
+            }
+          }
+
+          return await originalFunc(...resolvedArgs);
+        };
+      }
+    }
+
+    // Note: DOM functions/operations are NOT added to built-in registries
+    // They route through ADDRESS/RPC system for proper environment handling:
+    // - Node.js tests: Mock RPC intercepts
+    // - Browser: Real DOM manager
+    // - Node.js production: "Not supported" stub
+    // The split into importedDomFunctions/importedDomOperations is kept for semantic clarity
+
+    const builtIns = {
+      // Import external functions
+      ...importedStringFunctions,
+      ...importedMathFunctions,
+      ...importedJsonFunctions,
+      ...interpreterAwareArrayFunctions,
+      ...importedDateTimeFunctions,
+      ...importedUrlFunctions,
+      ...importedRandomFunctions,
+      ...importedRegexFunctions,
+      ...importedValidationFunctions,
+      ...interpreterAwareFileFunctions,
+      ...interpreterAwarePathFunctions,
+      ...importedHttpFunctions,
+      ...importedStatisticsFunctions,
+      ...importedLogicFunctions,
+      ...importedCryptoFunctions,
+      // DOM functions/operations intentionally NOT included - they route through ADDRESS/RPC
+      ...importedDataFunctions,
+      ...importedProbabilityFunctions,
+      ...importedShellFunctions,  // Shell functions last, includes Node.js FILE_EXISTS override
+      ...importedInterpolationFunctions,  // Interpolation pattern configuration functions
+      // R functions, DIFF, SED - use REQUIRE statements to load them
+
+      // Debug function for JavaScript introspection
+      'JS_SHOW': (value) => {
+        const output = [];
+        output.push('=== JS_SHOW Debug Output ===');
+        
+        // Basic type info
+        output.push(`Type: ${typeof value}`);
+        output.push(`Constructor: ${value?.constructor?.name || 'N/A'}`);
+        output.push(`String representation: ${String(value)}`);
+        
+        // JSON representation (if possible)
+        try {
+          output.push(`JSON: ${JSON.stringify(value, null, 2)}`);
+        } catch (e) {
+          output.push(`JSON: [Cannot stringify: ${e.message}]`);
+        }
+        
+        // Object properties (if it's an object)
+        if (typeof value === 'object' && value !== null) {
+          output.push('Properties:');
+          try {
+            const keys = Object.keys(value);
+            if (keys.length === 0) {
+              output.push('  [No enumerable properties]');
+            } else {
+              keys.slice(0, 20).forEach(key => { // Limit to first 20 properties
+                try {
+                  const propValue = value[key];
+                  const propType = typeof propValue;
+                  output.push(`  ${key}: (${propType}) ${String(propValue).slice(0, 100)}`);
+                } catch (e) {
+                  output.push(`  ${key}: [Error accessing: ${e.message}]`);
+                }
+              });
+              if (keys.length > 20) {
+                output.push(`  ... and ${keys.length - 20} more properties`);
+              }
+            }
+          } catch (e) {
+            output.push(`  [Error getting properties: ${e.message}]`);
+          }
+          
+          // Prototype chain
+          try {
+            const proto = Object.getPrototypeOf(value);
+            output.push(`Prototype: ${proto?.constructor?.name || 'N/A'}`);
+          } catch (e) {
+            output.push(`Prototype: [Error: ${e.message}]`);
+          }
+        }
+        
+        // Array-like info
+        if (value && typeof value.length !== 'undefined') {
+          output.push(`Length: ${value.length}`);
+          if (Array.isArray(value) || value.length < 10) {
+            output.push('Array-like contents:');
+            for (let i = 0; i < Math.min(value.length, 10); i++) {
+              try {
+                output.push(`  [${i}]: ${String(value[i]).slice(0, 100)}`);
+              } catch (e) {
+                output.push(`  [${i}]: [Error: ${e.message}]`);
+              }
+            }
+            if (value.length > 10) {
+              output.push(`  ... and ${value.length - 10} more items`);
+            }
+          }
+        }
+        
+        // Function info
+        if (typeof value === 'function') {
+          output.push(`Function name: ${value.name || '[anonymous]'}`);
+          output.push(`Function length (arity): ${value.length}`);
+          const funcStr = value.toString();
+          output.push(`Function source: ${funcStr.slice(0, 200)}${funcStr.length > 200 ? '...' : ''}`);
+        }
+        
+        output.push('=== End JS_SHOW ===');
+        
+        // Console output for immediate visibility
+        console.log(output.join('\n'));
+        
+        // Return the formatted output as a string for REXX
+        return output.join('\n');
+      },
+      
+      'TYPEOF': (value) => {
+        return typeof value;
+      },
+
+      // Environment variable access
+      'GETENV': (varName) => {
+        // Access OS environment variables from process.env
+        // Returns empty string if not found (REXX convention)
+        if (typeof process !== 'undefined' && process.env) {
+          return process.env[varName] || '';
+        }
+        // In browser environment, no process.env access
+        return '';
+      },
+
+      // String functions
+      
+      // Math functions
+      
+      // Modern Date/Time functions with timezone and format support
+      
+      // Date arithmetic functions
+      
+      
+      // JSON Functions
+      
+      // Array/Object Access Functions
+      
+      
+      // URL/Web Functions
+      
+      
+      
+      'BASE64_ENCODE': (string) => {
+        try {
+          // In browser environment, use btoa; in Node.js, use Buffer
+          if (typeof btoa !== 'undefined') {
+            return btoa(string);
+          } else if (typeof Buffer !== 'undefined') {
+            return Buffer.from(string, 'utf8').toString('base64');
+          } else {
+            // Fallback - basic base64 implementation
+            return basicBase64Encode(string);
+          }
+        } catch (e) {
+          return '';
+        }
+      },
+      
+      'BASE64_DECODE': (string) => {
+        try {
+          // In browser environment, use atob; in Node.js, use Buffer
+          if (typeof atob !== 'undefined') {
+            return atob(string);
+          } else if (typeof Buffer !== 'undefined') {
+            return Buffer.from(string, 'base64').toString('utf8');
+          } else {
+            // Fallback - basic base64 implementation
+            return basicBase64Decode(string);
+          }
+        } catch (e) {
+          return '';
+        }
+      },
+      
+      // UUID/ID Generation Functions
+      
+      
+      
+      
+      
+      // Enhanced String Functions
+      
+      
+      
+      
+      
+      
+      
+
+      // Array/Collection Functions
+
+
+
+
+
+
+
+
+
+
+
+
+
+      // File System Functions (Browser-compatible with localStorage fallback)
+
+      // Validation Functions
+
+      // Math/Calculation Functions
+
+      // Date/Time Functions
+      // Duplicate NOW removed - using the version at line 61
+      
+      
+
+      
+
+
+      // Statistical Functions
+
+      // Lookup Functions  
+
+
+
+      // Error Context Functions - Available only within error handlers after SIGNAL ON ERROR
+      'ERROR_LINE': () => {
+        return this.errorContext?.line || 0;
+      },
+
+      'ERROR_MESSAGE': () => {
+        return this.errorContext?.message || '';
+      },
+
+  getVariable(name) {
+    return variableStackUtils.getVariable(name, this.variables);
+  }
+
+      'ERROR_FUNCTION': () => {
+        return this.errorContext?.functionName || 'Unknown';
+      },
+
+      'ERROR_COMMAND': () => {
+        return this.errorContext?.commandText || '';
+      },
+
+      'ERROR_VARIABLES': () => {
+        if (!this.errorContext?.variables) {
+          return '{}';
+        }
+        
+        const vars = {};
+        for (const [key, value] of this.errorContext.variables) {
+          vars[key] = value;
+        }
+        return JSON.stringify(vars);
+      },
+
+      'ERROR_TIMESTAMP': () => {
+        return this.errorContext?.timestamp || '';
+      },
+
+      'ERROR_DETAILS': () => {
+        if (!this.errorContext) {
+          return '{}';
+        }
+        
+        return JSON.stringify({
+          line: this.errorContext.line,
+          message: this.errorContext.message,
+          function: this.errorContext.functionName,
+          command: this.errorContext.commandText,
+          timestamp: this.errorContext.timestamp,
+          hasStack: !!this.errorContext.stack
+        });
+      },
+      
+      // Dynamic Rexx execution
+      'INTERPRET': async (rexxCode, options = {}) => {
+        // Check if INTERPRET is blocked by NO-INTERPRET
+        if (this.interpretBlocked) {
+          throw new Error('INTERPRET is blocked by NO-INTERPRET directive');
+        }
+        
+        try {
+          // Parse options
+          const opts = typeof options === 'string' ? JSON.parse(options) : options;
+          const shareVars = opts.shareVars !== false; // Default to true for compatibility
+          const allowedVars = opts.allowedVars || null; // null means all vars
+          
+          // Convert escaped newlines to actual newlines
+          const normalizedCode = String(rexxCode).replace(/\\n/g, '\n');
+          
+          // Import parser to compile the Rexx code
+          const { parse } = require('./parser');
+          const commands = parse(normalizedCode);
+          
+          // Create new interpreter instance for isolated execution
+          const subInterpreter = new RexxInterpreter(this.addressSender, this.outputHandler);
+          
+          // Share the same address context
+          subInterpreter.address = this.address;
+
+          // Share the same built-in functions, operations, and error handling state
+          subInterpreter.builtInFunctions = this.builtInFunctions;
+          subInterpreter.operations = this.operations;
+          subInterpreter.errorHandlers = new Map(this.errorHandlers);
+          subInterpreter.labels = new Map(this.labels);
+          subInterpreter.subroutines = new Map(this.subroutines);
+          
+          // Handle variable sharing
+          if (shareVars) {
+            if (allowedVars === null) {
+              // Share all variables (classic Rexx behavior)
+              for (const [key, value] of this.variables) {
+                subInterpreter.variables.set(key, value);
+              }
+            } else if (Array.isArray(allowedVars)) {
+              // Share only whitelisted variables
+              for (const varName of allowedVars) {
+                if (this.variables.has(varName)) {
+                  subInterpreter.variables.set(varName, this.variables.get(varName));
+                }
+              }
+            }
+          }
+          
+          // Execute the interpreted code
+          await subInterpreter.run(commands);
+          
+          // Copy back variables from sub-interpreter if sharing enabled
+          if (shareVars) {
+            if (allowedVars === null) {
+              // Copy back all variables
+              for (const [key, value] of subInterpreter.variables) {
+                this.variables.set(key, value);
+              }
+            } else if (Array.isArray(allowedVars)) {
+              // Copy back only whitelisted variables (strict whitelist mode)
+              for (const varName of allowedVars) {
+                if (subInterpreter.variables.has(varName)) {
+                  this.variables.set(varName, subInterpreter.variables.get(varName));
+                }
+              }
+            }
+          }
+          
+          // Return success indicator
+          return true;
+        } catch (e) {
+          throw new Error(`INTERPRET failed: ${e.message}`);
+        }
+      },
+      
+      // JavaScript execution - executes JS code in browser context
+      'INTERPRET_JS': (jsCode, type = 'auto') => {
+        if (typeof jsCode !== 'string') {
+          throw new Error('INTERPRET_JS requires a string parameter');
+        }
+        
+        // Check if INTERPRET is blocked by NO-INTERPRET
+        if (this.interpretBlocked) {
+          throw new Error('INTERPRET_JS is blocked by NO-INTERPRET directive');
+        }
+        
+        try {
+          // Create variable context from Rexx variables
+          const context = Object.fromEntries(this.variables);
+          
+          // Get variable names and values for the function parameters
+          // Filter out invalid variable names and convert values safely
+          const varNames = [];
+          const varValues = [];
+          
+          for (const [name, value] of Object.entries(context)) {
+            // Only include valid JavaScript identifier names
+            if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name)) {
+              varNames.push(name);
+              varValues.push(value);
+            }
+          }
+          
+          let result;
+          const execType = (typeof type === 'string' ? type : 'auto').toLowerCase();
+          
+          switch (execType) {
+            case 'expression':
+              // Force expression mode - always wrap with return
+              const exprFunc = new Function(...varNames, `return (${jsCode})`);
+              result = exprFunc.call(this, ...varValues);
+              break;
+              
+            case 'statement':
+              // Force statement mode - execute as-is
+              const stmtFunc = new Function(...varNames, jsCode);
+              result = stmtFunc.call(this, ...varValues);
+              break;
+              
+            case 'auto':
+            default:
+              // Try expression first, fall back to statement
+              try {
+                const func = new Function(...varNames, `return (${jsCode})`);
+                result = func.call(this, ...varValues);
+              } catch (e) {
+                // If expression fails, try as function body (for statements)
+                try {
+                  const func = new Function(...varNames, jsCode);
+                  result = func.call(this, ...varValues);
+                } catch (e2) {
+                  // If both fail, throw the expression error (more informative)
+                  throw e;
+                }
+              }
+              break;
+          }
+          
+          return result !== undefined ? result : null;
+        } catch (e) {
+          throw new Error(`INTERPRET_JS failed: ${e.message}`);
+        }
+      },
+      
+      // Streaming control function for remote procedure control
+      'CHECKPOINT': (...params) => {
+        // If we have at least 2 parameters, set a variable with the first param as name
+        if (params.length >= 2) {
+          const variableName = String(params[0]);
+          const variableValue = String(params[1]);
+          this.variables.set(variableName, variableValue);
+        }
+        
+        // Send progress update with parameters to streaming controller
+        const progressData = {
+          type: 'rexx-progress',
+          timestamp: Date.now(),
+          variables: Object.fromEntries(this.variables),
+          params: params,
+          line: this.currentLineNumber || 0
+        };
+        
+        // If we have a streaming callback, use it (for streaming execution mode)
+        if (this.streamingProgressCallback) {
+          this.streamingProgressCallback(progressData);
+        } else if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+          // Default: send to parent window for cross-iframe communication
+          window.parent.postMessage(progressData, '*');
+        }
+        
+        // For now, return a default continue response synchronously
+        // The real streaming control will be handled by the worker's override
+        return {
+          action: 'continue',
+          message: 'Default continue response',
+          timestamp: Date.now()
+        };
+      },
+
+      // Graphics display command
+      'SHOW': (value) => {
+        // Check if value has an error (handle error case first)
+        if (value && typeof value === 'object' && value.error) {
+          return `Graphics error: ${value.error}`;
+        }
+        
+        // Check if value is a valid graphics object
+        if (value && typeof value === 'object' && value.type && 
+            ['hist', 'scatter', 'boxplot', 'barplot', 'pie', 'qqplot', 'density', 'heatmap', 'contour', 'pairs'].includes(value.type)) {
+          
+          // Emit graphics event for display systems to handle
+          if (this.options && this.options.onGraphics) {
+            this.options.onGraphics(value);
+          }
+          
+          // Also emit as custom event in browser
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('rexx-graphics', { 
+              detail: { 
+                plotData: value,
+                command: 'SHOW'
+              } 
+            }));
+          }
+          
+          return `Displayed ${value.type} plot`;
+        } else {
+          return `SHOW: Not a graphics object (type: ${typeof value})`;
+        }
+      },
+
+      // Library loading and dependency management
+      'REQUIRE': async (libraryName, asClause = null) => {
+        if (typeof libraryName !== 'string') {
+          throw new Error('REQUIRE requires a string library name');
+        }
+
+        // Strip surrounding quotes if present (handles both single and double quotes)
+        let cleanLibraryName = libraryName.replace(/^['"]|['"]$/g, '');
+        let cleanAsClause = null;
+
+        if (asClause !== null) {
+          if (typeof asClause !== 'string') {
+            throw new Error('AS clause must be a string');
+          }
+          cleanAsClause = asClause.replace(/^['"]|['"]$/g, '');
+        }
+
+        // Resolve path using path-resolver for local file paths
+        // Only resolve if it looks like a file path (not a registry/npm module name)
+        if (cleanLibraryName.startsWith('./') ||
+            cleanLibraryName.startsWith('../') ||
+            cleanLibraryName.startsWith('root:') ||
+            cleanLibraryName.startsWith('cwd:') ||
+            cleanLibraryName.startsWith('/') ||
+            /^[A-Za-z]:[\\/]/.test(cleanLibraryName)) {
+          // Use PATH_RESOLVE to get absolute path
+          try {
+            const { resolvePath } = require('./path-resolver');
+            cleanLibraryName = resolvePath(cleanLibraryName, this.scriptPath);
+          } catch (error) {
+            throw new Error(`REQUIRE path resolution failed: ${error.message}`);
+          }
+        }
+
+        return await this.requireWithDependencies(cleanLibraryName, cleanAsClause);
+      },
+
+      // Stack Operations (PUSH/PULL/QUEUE functions)
+      'STACK_PUSH': (value) => {
+        return variableStackUtils.stackPush(value, this.stack);
+      },
+
+      'STACK_PULL': () => {
+        return variableStackUtils.stackPull(this.stack);
+      },
+
+      'STACK_QUEUE': (value) => {
+        return variableStackUtils.stackQueue(value, this.stack);
+      },
+
+      'STACK_SIZE': () => {
+        return variableStackUtils.stackSize(this.stack);
+      },
+
+      'STACK_PEEK': () => {
+        return variableStackUtils.stackPeek(this.stack);
+      },
+
+      'STACK_CLEAR': () => {
+        return variableStackUtils.stackClear(this.stack);
+      },
+      
+      // Reflection functions
+      'SUBROUTINES': (pattern = null) => {
+        const allSubroutines = Array.from(this.subroutines.keys());
+        const patternStr = (pattern === null || pattern === undefined) ? null : String(pattern).trim();
+
+        const results = allSubroutines
+            .map(name => name.trim().toUpperCase())
+            .filter(name => {
+              if (name.length === 0) return false;
+              if (patternStr === null || patternStr === '') return true;
+
+              // Check if pattern contains regex metacharacters
+              const regexChars = /[.*+?^${}()|[\]\\]/;
+              if (regexChars.test(patternStr)) {
+                // Treat as regex pattern (case-insensitive)
+                try {
+                  const regex = new RegExp(patternStr, 'i');
+                  return regex.test(name);
+                } catch (e) {
+                  // If regex is invalid, fall back to substring matching
+                  return name.includes(patternStr.toUpperCase());
+                }
+              } else {
+                // Simple substring matching (original behavior)
+                return name.includes(patternStr.toUpperCase());
+              }
+            });
+        return results;
+      },
+
+      // ARG function - Classic REXX argument access
+      // Usage:
+      //   ARG()     - returns the count of arguments
+      //   ARG(n)    - returns the nth argument (empty string if not found)
+      //   ARG(n, 'E') - returns 1 if nth argument exists, 0 otherwise
+      //   ARG(n, 'O') - returns 1 if nth argument was omitted, 0 otherwise
+      'ARG': (index = null, option = null) => {
+        // ARG() with no arguments returns argument count
+        if (index === null || index === undefined) {
+          return this.argv.length;
+        }
+
+        // Convert index to number (1-based indexing)
+        const n = typeof index === 'number' ? index : parseInt(String(index), 10);
+
+        if (isNaN(n) || n < 1) {
+          throw new Error(`ARG: Invalid argument index '${index}' (must be positive integer)`);
+        }
+
+        // Get the argument value from argv array (convert 1-based to 0-based)
+        const argValue = this.argv[n - 1];
+
+        // ARG(n) - return argument value (empty string if not found)
+        if (option === null || option === undefined) {
+          return argValue !== undefined ? argValue : '';
+        }
+
+        // ARG(n, option) - check existence or omission
+        const optionStr = String(option).trim().toUpperCase();
+
+        if (optionStr === 'E') {
+          // 'E' option: returns 1 if argument exists, 0 otherwise
+          return argValue !== undefined ? 1 : 0;
+        } else if (optionStr === 'O') {
+          // 'O' option: returns 1 if argument was omitted (exists but empty), 0 otherwise
+          // In REXX, an omitted argument is one that exists in position but has no value
+          // For now, we consider an argument omitted if it's an empty string
+          if (argValue === undefined) {
+            return 0; // Argument doesn't exist at all
+          }
+          return argValue === '' ? 1 : 0;
+        } else {
+          throw new Error(`ARG: Invalid option '${option}' (must be 'E' or 'O')`);
+        }
+      },
+
+    };
+
+    return builtIns;
+  }
+
+  // Helper methods for date/time formatting
+  formatDate(date, timezone = 'UTC', format = 'YYYY-MM-DD') {
+    return traceFormattingUtils.formatDate(date, timezone, format);
+  }
+  
+  formatTime(date, timezone = 'UTC', format = 'HH:MM:SS') {
+    return traceFormattingUtils.formatTime(date, timezone, format);
+  }
+  
+  formatDateTime(date, timezone = 'UTC', format = 'ISO') {
+    return traceFormattingUtils.formatDateTime(date, timezone, format);
+  }
 
   getVariable(name) {
     return variableStackUtils.getVariable(name, this.variables);
@@ -331,7 +1145,8 @@ class RexxInterpreter {
     }
     
     try {
-      return await executeCommands(this, commands);
+      //return await executeCommands(this, commands);
+      return await this.executeCommands(commands);
     } catch (error) {
       // Handle EXIT statement termination
       if (error.isExit) {
@@ -344,6 +1159,508 @@ class RexxInterpreter {
       }
       // This shouldn't normally happen since errors should be caught at command level
       return await this.handleError(error);
+    }
+  }
+
+  discoverLabels(commands) {
+    errorHandlingUtils.discoverLabels(commands, this.labels);
+  }
+
+  async executeCommands(commands, startIndex = 0) {
+    let lastProcessedLine = 0; // Track the last processed source line number
+    
+    for (let i = startIndex; i < commands.length; i++) {
+      const command = commands[i];
+      
+      
+      // Track current line number for error reporting and push execution context
+      if (command && command.lineNumber) {
+        lastProcessedLine = command.lineNumber;
+        
+        // Update execution context if line number changes
+        const currentCtx = this.getCurrentExecutionContext();
+        if (!currentCtx || currentCtx.lineNumber !== command.lineNumber) {
+          const sourceLine = this.sourceLines && command.lineNumber ? 
+            this.sourceLines[command.lineNumber - 1] || '' : '';
+          
+          // Don't push a new context if we're just updating the same main execution
+          if (!currentCtx || currentCtx.type === 'main') {
+            if (currentCtx && currentCtx.type === 'main') {
+              // Update existing main context
+              currentCtx.lineNumber = command.lineNumber;
+              currentCtx.sourceLine = sourceLine;
+              this.currentLineNumber = command.lineNumber;
+            } else {
+              // Push new main context
+              this.pushExecutionContext('main', command.lineNumber, sourceLine, this.sourceFilename || '');
+            }
+          } else {
+            // We're in a subroutine or other context - still update currentLineNumber for error reporting
+            this.currentLineNumber = command.lineNumber;
+          }
+        }
+      }
+      
+      if (command.type === 'LABEL' && this.callStack.length === 0) {
+        
+        // Skip subroutine bodies during main execution  
+        // Skip to the end of this subroutine
+        i++; // Skip the label
+        while (i < commands.length) {
+          const cmd = commands[i];
+          if (cmd.type === 'LABEL') {
+            i--; // Back up one so the outer loop will process this label
+            break;
+          }
+          if (cmd.type === 'RETURN') {
+            break; // Include the RETURN but don't execute it
+          }
+          i++;
+        }
+        continue;
+      }
+      
+      try {
+        const result = await this.executeCommand(command);
+        if (result && result.jump) {
+          // Handle SIGNAL jumps
+          return result;
+        }
+        if (result && result.terminated) {
+          // Handle EXIT (always terminates) or RETURN (only terminates if not in subroutine)
+          if (result.type === 'EXIT' || this.callStack.length === 0) {
+            return result;
+          }
+          // If we're in a subroutine, RETURN should bubble up to executeCall
+          if (result.type === 'RETURN') {
+            return result;
+          }
+        }
+        if (result && result.skipCommands) {
+          // Handle LINES command skipping - skip the next N commands
+          i += result.skipCommands;
+        }
+      } catch (error) {
+        const handled = await this.handleError(error, i);
+        if (handled && handled.jump) {
+          return handled;
+        } else if (!handled) {
+          // Check if this is a DOM/REXX-recognizable error and we have error handlers configured
+          if (errorHandlingUtils.shouldHandleError(error, this.errorHandlers)) {
+            // This is a DOM/REXX error and we have error handlers - handle gracefully
+            // The error variables (RC, ERRORTEXT, SIGL) have already been set by handleError
+            // Include line information in error message
+            const currentCommand = this.currentCommands[i];
+            const lineInfo = currentCommand && currentCommand.lineNumber 
+              ? `Error at line ${currentCommand.lineNumber}: ${this.getCommandText(currentCommand)}`
+              : `Error in command ${i + 1}`;
+            console.log(`${lineInfo}\n${error.message}`);
+            return { 
+              terminated: true, 
+              error: true, 
+              exitCode: this.variables.get('RC') || 1,
+              message: this.variables.get('ERRORTEXT') || error.message
+            };
+          } else {
+            // Add line information to error message before re-throwing
+            const currentCommand = this.currentCommands[i];
+            if (currentCommand && currentCommand.lineNumber) {
+              const lineInfo = `Error at line ${currentCommand.lineNumber}: ${this.getCommandText(currentCommand)}`;
+              error.message = `${lineInfo}\n${error.message}`;
+            }
+            // Mark error as unhandled by adding a flag, then re-throw
+            error.rexxUnhandled = true;
+            throw error;
+          }
+        }
+        // If handled but no jump, continue execution
+      }
+    }
+    
+    
+    return null;
+  }
+
+
+  // Browser-compatible string functions
+  executeBrowserStringFunction(functionName, args) {
+    return stringUtils.executeBrowserStringFunction(functionName, args);
+  }
+
+  async executeCommand(command) {
+    // Add trace output for instruction execution
+    this.addTraceOutput(`${command.type}`, 'instruction');
+    
+    switch (command.type) {
+        case 'ADDRESS':
+          this.address = command.target.toLowerCase();
+          // Clear lines state when switching to default
+          if (this.address === 'default') {
+            this.addressLinesCount = 0;
+            this.addressLinesBuffer = [];
+            this.addressLinesStartLine = 0;
+          }
+          break;
+          
+        case 'ADDRESS_WITH_STRING':
+          // Set the address target and execute the command string immediately
+          this.address = command.target.toLowerCase();
+          await this.executeQuotedString({ type: 'QUOTED_STRING', value: command.commandString });
+          break;
+          
+        // ADDRESS_WITH_MATCHING case removed - use HEREDOC instead
+
+          
+        // ADDRESS_WITH_LINES case removed - use HEREDOC instead
+        
+        case 'SIGNAL':
+          if (command.action === 'ON' || command.action === 'OFF') {
+            errorHandlingUtils.setupErrorHandler(command.condition, command.action, command.label, this.errorHandlers);
+          } else if (command.label) {
+            // Basic SIGNAL jump
+            return this.jumpToLabel(command.label);
+          }
+          break;
+          
+        case 'SIGNAL_JUMP':
+          return this.jumpToLabel(command.label);
+          
+        case 'LABEL':
+          // Execute any command on the same line as the label
+          if (command.statement) {
+            return await this.executeCommand(command.statement);
+          }
+          break;
+          
+        case 'NUMERIC':
+          // Evaluate the value expression to handle variables
+          let evaluatedValue;
+          if (typeof command.value === 'string') {
+            // Handle simple string literals and variable references
+            evaluatedValue = this.variables.get(command.value) || command.value;
+          } else {
+            evaluatedValue = this.evaluateExpression(command.value);
+          }
+          traceFormattingUtils.setNumericSetting(command.setting, evaluatedValue, this.numericSettings);
+          break;
+          
+        case 'PARSE':
+          await parseSubroutineUtils.executeParse(command, this.variables, this.evaluateExpression.bind(this), parseSubroutineUtils.parseTemplate, this.argv);
+          break;
+          
+        case 'PUSH':
+          this.executePush(command);
+          break;
+          
+        case 'PULL':
+          this.executePull(command);
+          break;
+          
+        case 'QUEUE':
+          this.executeQueue(command);
+          break;
+          
+        case 'CALL':
+          this.addTraceOutput(`CALL ${command.subroutine} (${command.arguments.length} args)`, 'call');
+          const callResult = await parseSubroutineUtils.executeCall(
+            command,
+            this.variables,
+            this.subroutines,
+            this.callStack,
+            this.evaluateExpression.bind(this),
+            this.pushExecutionContext.bind(this),
+            this.popExecutionContext.bind(this),
+            this.getCurrentExecutionContext.bind(this),
+            this.executeCommands.bind(this),
+            parseSubroutineUtils.isExternalScriptCall,
+            this.executeExternalScript.bind(this),
+            this.sourceFilename,
+            this.returnValue,
+            this.builtInFunctions,
+            callConvertParamsToArgs,
+            this.argv  // Pass argv array reference for efficient argument storage
+          );
+          if (callResult && callResult.terminated) {
+            return callResult;
+          }
+          // Set RESULT variable if subroutine returned a value
+          if (callResult && callResult.returnValue !== undefined) {
+            this.variables.set('RESULT', callResult.returnValue);
+          }
+          break;
+          
+        case 'RETURN':
+          return await this.executeReturn(command);
+          
+        case 'TRACE':
+          this.traceMode = traceFormattingUtils.executeTrace(command, this.traceOutput, this.addTraceOutput.bind(this));
+          break;
+        
+        case 'FUNCTION_CALL':
+          await this.executeFunctionCall(command);
+          break;
+
+        case 'ASSIGNMENT':
+          if (command.command) {
+            // Check if it's a CALL command assignment
+            if (command.command.type === 'CALL') {
+              // Execute the CALL and get its return value
+              const result = await parseSubroutineUtils.executeCall(
+                command.command,
+                this.variables,
+                this.subroutines,
+                this.callStack,
+                this.evaluateExpression.bind(this),
+                this.pushExecutionContext.bind(this),
+                this.popExecutionContext.bind(this),
+                this.getCurrentExecutionContext.bind(this),
+                this.executeCommands.bind(this),
+                parseSubroutineUtils.isExternalScriptCall,
+                this.executeExternalScript.bind(this),
+                this.sourceFilename,
+                this.returnValue,
+                this.builtInFunctions,
+                callConvertParamsToArgs,
+                this.argv  // Pass argv array reference for efficient argument storage
+              );
+              const variableName = await this.interpolateString(command.variable);
+              
+              // If the result is a return object, extract the value
+              let value;
+              if (result && result.type === 'RETURN' && result.value !== undefined) {
+                value = result.value;
+              } else if (result && typeof result === 'object' && result.success) {
+                // Handle successful external script calls
+                value = result.returnValue || null;
+              } else {
+                value = result;
+              }
+              
+              this.variables.set(variableName, value);
+              this.addTraceOutput(`LET ${variableName} = CALL ${command.command.subroutine}`, 'assignment', null, value);
+            } else {
+              // Function call assignment: LET var = functionCall
+              const result = await this.executeFunctionCall(command.command);
+              const variableName = await this.interpolateString(command.variable);
+              this.variables.set(variableName, result);
+              this.addTraceOutput(`LET ${variableName} = ${command.command.command}()`, 'assignment', null, result);
+            }
+          } else if (command.expression) {
+            // Expression assignment: LET var = expr
+            let result;
+            
+            // Special case: RESULT() with no parameters should be treated as RESULT variable reference
+            if (command.expression.type === 'FUNCTION_CALL' && 
+                command.expression.command === 'RESULT' && 
+                Object.keys(command.expression.params || {}).length === 0) {
+              result = this.variables.get('RESULT');
+            } 
+            // Special case: ADDRESS method call - check if we're in ADDRESS context and expression is a simple variable
+            else if (command.expression.type === 'VARIABLE' && 
+                     this.address && this.address !== 'default') {
+              const addressTarget = this.addressTargets.get(this.address);
+              
+              // If we have an ADDRESS target and the variable name matches a method
+              if (addressTarget && addressTarget.handler &&
+                  addressTarget.methods && addressTarget.methods.includes(command.expression.name.toLowerCase())) {
+                
+                try {
+                  // Execute as ADDRESS method call with empty params (parameterless call)
+                  const params = { params: '' };
+                  const context = Object.fromEntries(this.variables);
+                  const sourceContext = this.currentLineNumber ? {
+                    lineNumber: this.currentLineNumber,
+                    sourceLine: this.sourceLines[this.currentLineNumber - 1] || '',
+                    sourceFilename: this.sourceFilename || '',
+                    interpreter: this,
+                    interpolation: interpolation
+                  } : null;
+                  
+                  // Call the ADDRESS handler directly
+                  result = await addressTarget.handler(command.expression.name, params, sourceContext);
+                  
+                  // Update standard REXX variables like RC
+                  if (result && typeof result === 'object') {
+                    this.variables.set('RC', result.success ? 0 : (result.errorCode || 1));
+                    if (!result.success && result.errorMessage) {
+                      this.variables.set('ERRORTEXT', result.errorMessage);
+                    }
+                  }
+                } catch (error) {
+                  // If ADDRESS method call fails, fall back to normal expression evaluation
+                  result = await this.evaluateExpression(command.expression);
+                }
+              } else {
+                // Not an ADDRESS method or no ADDRESS target, evaluate normally
+                result = await this.evaluateExpression(command.expression);
+              }
+            } else {
+              result = await this.evaluateExpression(command.expression);
+            }
+            
+            const variableName = await this.interpolateString(command.variable);
+            this.variables.set(variableName, result);
+            this.addTraceOutput(`LET ${variableName} = expression`, 'assignment', null, result);
+          } else if (command.value !== undefined) {
+            // Simple value assignment: LET var = value (resolve value in case it's a variable reference)
+            let resolvedValue;
+            
+            // For quoted strings, don't resolve as expressions or function calls - keep as literal
+            if (command.isQuotedString) {
+              resolvedValue = command.value;
+            } else {
+              // Check if we're in an ADDRESS context and the value could be an ADDRESS method call
+              if (this.address && this.address !== 'default' && typeof command.value === 'string') {
+                const addressTarget = this.addressTargets.get(this.address);
+                
+                // If we have an ADDRESS target and the value looks like a method name
+                if (addressTarget && addressTarget.handler && 
+                    addressTarget.methods && addressTarget.methods.includes(command.value.toLowerCase())) {
+                  
+                  try {
+                    // Execute as ADDRESS method call with empty params (parameterless call)
+                    const params = { params: '' };
+                    const context = Object.fromEntries(this.variables);
+                    const sourceContext = this.currentLineNumber ? {
+                      lineNumber: this.currentLineNumber,
+                      sourceLine: this.sourceLines[this.currentLineNumber - 1] || '',
+                      sourceFilename: this.sourceFilename || '',
+                      interpreter: this,
+                    interpolation: interpolation
+                    } : null;
+                    
+                    // Call the ADDRESS handler directly
+                    resolvedValue = await addressTarget.handler(command.value, params, sourceContext);
+                    
+                    // Update standard REXX variables like RC
+                    if (resolvedValue && typeof resolvedValue === 'object') {
+                      this.variables.set('RC', resolvedValue.success ? 0 : (resolvedValue.errorCode || 1));
+                      if (!resolvedValue.success && resolvedValue.errorMessage) {
+                        this.variables.set('ERRORTEXT', resolvedValue.errorMessage);
+                      }
+                    }
+                  } catch (error) {
+                    // If ADDRESS method call fails, fall back to normal variable resolution
+                    resolvedValue = await this.resolveValue(command.value);
+                  }
+                } else {
+                  // Not an ADDRESS method, resolve normally
+                  resolvedValue = await this.resolveValue(command.value);
+                }
+              } else {
+                // Not in ADDRESS context, resolve normally
+                resolvedValue = await this.resolveValue(command.value);
+              }
+            }
+            
+            // Handle JSON parsing for object/array literals in LET assignments
+            // Only parse JSON for unquoted values (not originally quoted strings)
+            if (typeof resolvedValue === 'string' && !command.isQuotedString) {
+              const trimmed = resolvedValue.trim();
+              if ((trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+                  (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                  resolvedValue = JSON.parse(trimmed);
+                } catch (e) {
+                  // If JSON parsing fails, keep as string
+                }
+              }
+            }
+            
+            const variableName = await this.interpolateString(command.variable);
+            this.variables.set(variableName, resolvedValue);
+            this.addTraceOutput(`LET ${variableName} = "${resolvedValue}"`, 'assignment', null, resolvedValue);
+          }
+          break;
+        
+        case 'IF':
+          const ifResult = await controlFlowUtils.executeIfStatement(command, this.evaluateCondition.bind(this), this.run.bind(this));
+          if (ifResult && ifResult.terminated) {
+            if (ifResult.type === 'RETURN') {
+              // RETURN inside IF should bubble up to caller
+              return ifResult;
+            } else {
+              // EXIT inside IF should be handled by throwing error
+              const exitError = new Error(`Script terminated with EXIT ${ifResult.exitCode}`);
+              exitError.isExit = true;
+              exitError.exitCode = ifResult.exitCode;
+              throw exitError;
+            }
+          }
+          break;
+        
+        case 'DO':
+          const doResult = await controlFlowUtils.executeDoStatement(command, this.resolveValue.bind(this), this.evaluateCondition.bind(this), this.run.bind(this), this.variables, {
+            RexxError,
+            currentLineNumber: this.currentLineNumber,
+            sourceLines: this.sourceLines,
+            sourceFilename: this.sourceFilename,
+            interpreter: this,
+                    interpolation: interpolation
+          });
+          if (doResult && doResult.terminated) {
+            if (doResult.type === 'RETURN') {
+              // RETURN inside DO should bubble up to caller
+              return doResult;
+            } else {
+              // EXIT inside DO should be handled by throwing error
+              const exitError = new Error(`Script terminated with EXIT ${doResult.exitCode}`);
+              exitError.isExit = true;
+              exitError.exitCode = doResult.exitCode;
+              throw exitError;
+            }
+          }
+          break;
+        
+        case 'SELECT':
+          const selectResult = await controlFlowUtils.executeSelectStatement(command, this.evaluateCondition.bind(this), this.run.bind(this));
+          if (selectResult && selectResult.terminated) {
+            if (selectResult.type === 'RETURN') {
+              // RETURN inside SELECT should bubble up to caller
+              return selectResult;
+            } else {
+              // EXIT inside SELECT should be handled by throwing error
+              const exitError = new Error(`Script terminated with EXIT ${selectResult.exitCode}`);
+              exitError.isExit = true;
+              exitError.exitCode = selectResult.exitCode;
+              throw exitError;
+            }
+          }
+          break;
+        
+        case 'EXIT':
+          await this.executeExitStatement(command);
+          break;
+
+        case 'EXIT_UNLESS':
+          await this.executeExitUnlessStatement(command);
+          break;
+
+        case 'SAY':
+          await this.executeSayStatement(command);
+          break;
+        
+        case 'INTERPRET_STATEMENT':
+          await this.executeInterpretStatement(command);
+          break;
+          
+        case 'NO_INTERPRET':
+          this.interpretBlocked = true;
+          break;
+          
+        case 'RETRY_ON_STALE':
+          return await this.executeRetryOnStale(command);
+          
+        case 'QUOTED_STRING':
+          await this.executeQuotedString(command);
+          break;
+          
+        case 'HEREDOC_STRING':
+          await this.executeHeredocString(command);
+          break;
+
+        default:
+          break;
     }
   }
 
@@ -595,6 +1912,811 @@ class RexxInterpreter {
   createMissingFunctionError(method) {
     return security.createMissingFunctionError(method);
   }
+
+  async executeIfStatement(ifCommand) {
+    return await controlFlowUtils.executeIfStatement(ifCommand, this.evaluateCondition.bind(this), this.run.bind(this));
+  }
+
+  async executeDoStatement(doCommand) {
+    return await controlFlowUtils.executeDoStatement(doCommand, this.resolveValue.bind(this), this.evaluateCondition.bind(this), this.run.bind(this), this.variables, {
+      RexxError,
+      currentLineNumber: this.currentLineNumber,
+      sourceLines: this.sourceLines,
+      sourceFilename: this.sourceFilename,
+      interpreter: this,
+                    interpolation: interpolation
+    });
+  }
+
+  async executeRangeLoop(loopSpec, bodyCommands) {
+    return await controlFlowUtils.executeRangeLoop(loopSpec, bodyCommands, this.resolveValue.bind(this), this.run.bind(this), this.variables);
+  }
+
+  async executeRangeLoopWithStep(loopSpec, bodyCommands) {
+    return await controlFlowUtils.executeRangeLoopWithStep(loopSpec, bodyCommands, this.resolveValue.bind(this), this.run.bind(this), this.variables);
+  }
+  
+  // Legacy implementation preserved for reference
+  async executeRangeLoopWithStepLegacy(loopSpec, bodyCommands) {
+    const start = await this.resolveValue(loopSpec.start);
+    const end = await this.resolveValue(loopSpec.end);
+    const step = await this.resolveValue(loopSpec.step);
+    const variable = loopSpec.variable;
+    
+    const startNum = parseInt(start);
+    const endNum = parseInt(end);
+    const stepNum = parseInt(step);
+    
+    if (isNaN(startNum) || isNaN(endNum) || isNaN(stepNum)) {
+      throw new Error(`Invalid range values in DO loop: ${start} TO ${end} BY ${step}`);
+    }
+    
+    if (stepNum === 0) {
+      throw new Error('DO loop step cannot be zero');
+    }
+    
+    // Store original value if variable already exists
+    const originalValue = this.variables.get(variable);
+    
+    try {
+      if (stepNum > 0) {
+        for (let i = startNum; i <= endNum; i += stepNum) {
+          this.variables.set(variable, i);
+          await this.run(bodyCommands);
+        }
+      } else {
+        for (let i = startNum; i >= endNum; i += stepNum) {
+          this.variables.set(variable, i);
+          await this.run(bodyCommands);
+        }
+      }
+    } finally {
+      // In Rexx, DO loop variables persist after the loop completes
+      // Only restore the original value if one existed before the loop
+      if (originalValue !== undefined) {
+        this.variables.set(variable, originalValue);
+      }
+      // If no original value existed, keep the loop variable with its final value
+    }
+  }
+
+  async executeWhileLoop(loopSpec, bodyCommands) {
+    return await controlFlowUtils.executeWhileLoop(loopSpec, bodyCommands, this.evaluateCondition.bind(this), this.run.bind(this));
+  }
+  
+  // Legacy implementation preserved for reference
+  async executeWhileLoopLegacy(loopSpec, bodyCommands) {
+    const maxIterations = 10000; // Safety limit
+    let iterations = 0;
+    
+    while (await this.evaluateCondition(loopSpec.condition)) {
+      if (iterations++ > maxIterations) {
+        throw new Error('DO WHILE loop exceeded maximum iterations (safety limit)');
+      }
+      
+      await this.run(bodyCommands);
+    }
+  }
+
+  async executeRepeatLoop(loopSpec, bodyCommands) {
+    return await controlFlowUtils.executeRepeatLoop(loopSpec, bodyCommands, this.run.bind(this));
+  }
+  
+  // Legacy implementation preserved for reference
+  async executeRepeatLoopLegacy(loopSpec, bodyCommands) {
+    const count = loopSpec.count;
+    
+    if (count < 0) {
+      throw new Error('DO repeat count cannot be negative');
+    }
+    
+    for (let i = 0; i < count; i++) {
+      await this.run(bodyCommands);
+    }
+  }
+
+  async executeOverLoop(loopSpec, bodyCommands) {
+    return await controlFlowUtils.executeOverLoop(loopSpec, bodyCommands, this.resolveValue.bind(this), this.run.bind(this), this.variables);
+  }
+  
+  // Legacy implementation preserved for reference
+  async executeOverLoopLegacy(loopSpec, bodyCommands) {
+    const variable = loopSpec.variable;
+    const arrayValue = await this.resolveValue(loopSpec.array);
+    
+    // Handle null or undefined arrays
+    if (arrayValue == null) {
+      throw new Error('DO OVER: Array cannot be null or undefined');
+    }
+    
+    // Handle strings (convert to character array)
+    if (typeof arrayValue === 'string') {
+      const chars = arrayValue.split('');
+      
+      // Store original variable value if it exists
+      const originalValue = this.variables.get(variable);
+      
+      try {
+        for (const char of chars) {
+          this.variables.set(variable, char);
+          await this.run(bodyCommands);
+        }
+      } finally {
+        // Restore original variable value or remove if it didn't exist
+        if (originalValue !== undefined) {
+          this.variables.set(variable, originalValue);
+        } else {
+          this.variables.delete(variable);
+        }
+      }
+      return;
+    }
+    
+    // Handle arrays (both JavaScript arrays and array-like objects)
+    let itemsToIterate = [];
+    
+    if (Array.isArray(arrayValue)) {
+      itemsToIterate = arrayValue;
+    } else if (typeof arrayValue === 'object' && arrayValue.length !== undefined) {
+      // Array-like object (has length property)
+      // Check if it's 1-indexed (like DOM_GET_ALL result) or 0-indexed
+      const hasZeroIndex = arrayValue.hasOwnProperty('0') || arrayValue.hasOwnProperty(0);
+      const hasOneIndex = arrayValue.hasOwnProperty('1') || arrayValue.hasOwnProperty(1);
+      
+      if (hasOneIndex && !hasZeroIndex) {
+        // 1-indexed array-like object (e.g., from DOM_GET_ALL)
+        for (let i = 1; i <= arrayValue.length; i++) {
+          itemsToIterate.push(arrayValue[i]);
+        }
+      } else {
+        // 0-indexed array-like object (standard JavaScript arrays)
+        for (let i = 0; i < arrayValue.length; i++) {
+          itemsToIterate.push(arrayValue[i]);
+        }
+      }
+    } else if (typeof arrayValue === 'object') {
+      // Regular object - iterate over values
+      itemsToIterate = Object.values(arrayValue);
+    } else {
+      // Single value - treat as array with one element
+      itemsToIterate = [arrayValue];
+    }
+    
+    // Store original variable value if it exists
+    const originalValue = this.variables.get(variable);
+    
+    try {
+      for (const item of itemsToIterate) {
+        this.variables.set(variable, item);
+        await this.run(bodyCommands);
+      }
+    } finally {
+      // In REXX, loop variables typically persist after the loop
+      // But we'll restore the original value if one existed before
+      if (originalValue !== undefined) {
+        this.variables.set(variable, originalValue);
+      }
+      // If no original value existed, keep the final loop value
+    }
+  }
+
+  async executeSelectStatement(selectCommand) {
+    return await controlFlowUtils.executeSelectStatement(selectCommand, this.evaluateCondition.bind(this), this.run.bind(this));
+  }
+
+  async executeSayStatement(sayCommand) {
+    const expression = sayCommand.expression;
+    
+    // Check if the expression contains concatenation operators (||)
+    if (expression.includes('||')) {
+      // Handle as a concatenation expression
+      const result = await this.evaluateConcatenation(expression);
+      this.outputHandler.output(String(result));
+      return;
+    }
+    
+    // Parse the expression to handle multiple values and interpolation
+    const outputParts = [];
+    
+    // Split on spaces but preserve quoted strings
+    const parts = parseQuotedParts(expression);
+    
+    for (const part of parts) {
+      if (part.startsWith('"') && part.endsWith('"')) {
+        // Handle quoted string with potential interpolation
+        const rawString = part.substring(1, part.length - 1);
+        // Check for interpolation using current pattern
+        let pattern;
+        try {
+          pattern = require('./interpolation').getCurrentPattern();
+        } catch (error) {
+          // Fallback to handlebars pattern
+          pattern = { hasDelims: (str) => str.includes('{{') };
+        }
+
+        if (pattern.hasDelims(rawString)) {
+          // Interpolated string
+          const interpolated = await this.interpolateString(rawString);
+          outputParts.push(interpolated);
+        } else {
+          // Simple string
+          outputParts.push(rawString);
+        }
+      } else if (part.startsWith("'") && part.endsWith("'")) {
+        // Single quoted string (no interpolation)
+        outputParts.push(part.substring(1, part.length - 1));
+      } else {
+        // Variable reference or literal
+        const resolved = await this.resolveValue(part);
+        outputParts.push(String(resolved));
+      }
+    }
+    
+    // Join all parts with spaces and output
+    const output = outputParts.join(' ');
+    this.outputHandler.output(output);
+  }
+
+  async executeQuotedString(command) {
+    const commandString = command.value;
+    
+    // Check if there's an active ADDRESS target
+    if (this.address && this.address !== 'default') {
+      const addressTarget = this.addressTargets.get(this.address);
+      
+      if (addressTarget && addressTarget.handler) {
+        let finalCommandString = commandString;
+
+        // Conditionally interpolate based on library metadata
+        if (addressTarget.metadata?.libraryMetadata?.interpreterHandlesInterpolation) {
+          finalCommandString = await this.interpolateString(commandString);
+        }
+
+        try {
+          // Execute the command string via the ADDRESS target handler
+          // Pass interpreter variables as context for variable resolution
+          const context = Object.fromEntries(this.variables);
+          // Add matching pattern to context if available
+          // Pass source context for error reporting
+          const sourceContext = this.currentLineNumber ? {
+            lineNumber: this.currentLineNumber,
+            sourceLine: this.sourceLines[this.currentLineNumber - 1] || '',
+            sourceFilename: this.sourceFilename || '',
+            interpreter: this,
+                    interpolation: interpolation
+          } : null;
+          const result = await addressTarget.handler(finalCommandString, context, sourceContext);
+          
+          // Set standard REXX variables for ADDRESS operations
+          if (result && typeof result === 'object') {
+            this.variables.set('RC', result.success ? 0 : (result.errorCode || 1));
+            // Only set RESULT if the ADDRESS target explicitly provides output
+            // Don't overwrite RESULT for operations like EXPECTATIONS that shouldn't affect it
+            if (this.address !== 'expectations') {
+              this.variables.set('RESULT', result);
+            }
+            if (!result.success && result.errorMessage) {
+              this.variables.set('ERRORTEXT', result.errorMessage);
+            }
+            
+            // Handle operation-specific result processing (can be overridden by subclasses)
+            this.handleOperationResult(result);
+            
+            // Set domain-specific variables requested by ADDRESS target
+            if (result.rexxVariables && typeof result.rexxVariables === 'object') {
+              for (const [varName, varValue] of Object.entries(result.rexxVariables)) {
+                this.variables.set(varName, varValue);
+              }
+            }
+          } else {
+            this.variables.set('RC', 0);
+            this.variables.set('RESULT', result);
+          }
+          
+          this.addTraceOutput(`"${finalCommandString}"`, 'address_command', null, result);
+        } catch (error) {
+          // Set error state
+          this.variables.set('RC', 1);
+          this.variables.set('ERRORTEXT', error.message);
+          throw error;
+        }
+      } else {
+        // No ADDRESS target handler, fall back to RPC
+        try {
+          const interpolated = await this.interpolateString(commandString);
+          const result = await this.addressSender.send(this.address, 'execute', { command: interpolated });
+          this.variables.set('RC', 0);
+          this.variables.set('RESULT', result);
+          this.addTraceOutput(`"${interpolated}"`, 'address_command', null, result);
+        } catch (error) {
+          this.variables.set('RC', 1);
+          this.variables.set('ERRORTEXT', error.message);
+          throw error;
+        }
+      }
+    } else {
+      // No ADDRESS target set - perform string interpolation and output
+      const interpolated = await this.interpolateString(commandString);
+      this.outputHandler.output(interpolated);
+    }
+  }
+
+  async executeHeredocString(command) {
+    const commandString = command.value;
+    
+    // Check if there's an active ADDRESS target
+    if (this.address && this.address !== 'default') {
+      const addressTarget = this.addressTargets.get(this.address);
+      
+      if (addressTarget && addressTarget.handler) {
+        let finalCommandString = commandString;
+
+        // Conditionally interpolate based on library metadata
+        if (addressTarget.metadata?.libraryMetadata?.interpreterHandlesInterpolation) {
+          finalCommandString = await this.interpolateString(commandString);
+        }
+
+        try {
+          // Execute the command string via the ADDRESS target handler
+          // Pass interpreter variables as context for variable resolution
+          const context = Object.fromEntries(this.variables);
+          // Add matching pattern to context if available
+          // Pass source context for error reporting
+          const sourceContext = this.currentLineNumber ? {
+            lineNumber: this.currentLineNumber,
+            sourceLine: this.sourceLines[this.currentLineNumber - 1] || '',
+            sourceFilename: this.sourceFilename || '',
+            interpreter: this,
+                    interpolation: interpolation
+          } : null;
+          const result = await addressTarget.handler(finalCommandString, context, sourceContext);
+          
+          // Set standard REXX variables for ADDRESS operations
+          if (result && typeof result === 'object') {
+            this.variables.set('RC', result.success ? 0 : (result.errorCode || 1));
+            // Only set RESULT if the ADDRESS target explicitly provides output
+            // Don't overwrite RESULT for operations like EXPECTATIONS that shouldn't affect it
+            if (this.address !== 'expectations') {
+              this.variables.set('RESULT', result);
+            }
+            if (!result.success && result.errorMessage) {
+              this.variables.set('ERRORTEXT', result.errorMessage);
+            }
+            
+            // Handle operation-specific result processing (can be overridden by subclasses)
+            this.handleOperationResult(result);
+            
+            // Set domain-specific variables requested by ADDRESS target
+            if (result.rexxVariables && typeof result.rexxVariables === 'object') {
+              for (const [varName, varValue] of Object.entries(result.rexxVariables)) {
+                this.variables.set(varName, varValue);
+              }
+            }
+          } else {
+            this.variables.set('RC', 0);
+            this.variables.set('RESULT', result);
+          }
+          
+          this.addTraceOutput(`<<${command.delimiter}`, 'address_heredoc', null, result);
+        } catch (error) {
+          // Set error state
+          this.variables.set('RC', 1);
+          this.variables.set('ERRORTEXT', error.message);
+          throw error;
+        }
+      } else {
+        // No ADDRESS target handler, fall back to RPC
+        try {
+          const interpolated = await this.interpolateString(commandString);
+          const result = await this.addressSender.send(this.address, 'execute', { command: interpolated });
+          this.variables.set('RC', 0);
+          this.variables.set('RESULT', result);
+          this.addTraceOutput(`<<${command.delimiter}`, 'address_heredoc', null, result);
+        } catch (error) {
+          this.variables.set('RC', 1);
+          this.variables.set('ERRORTEXT', error.message);
+          throw error;
+        }
+      }
+    } else {
+      // No ADDRESS target set - perform string interpolation and output
+      const interpolated = await this.interpolateString(commandString);
+      this.outputHandler.output(interpolated);
+    }
+  }
+
+  async executeExitStatement(command) {
+    // Evaluate exit code if provided
+    let exitCode = 0;
+    if (command.code !== undefined) {
+      if (typeof command.code === 'object' && command.code !== null) {
+        // It's an expression object, evaluate it
+        exitCode = await this.evaluateExpression(command.code);
+      } else {
+        // It's a direct value
+        exitCode = await this.resolveValue(command.code);
+      }
+    }
+
+    // Convert to number if possible
+    const numericCode = Number(exitCode);
+    const finalCode = isNaN(numericCode) ? 0 : numericCode;
+
+    // Create and throw special exit exception to terminate execution
+    const exitError = new Error(`Script terminated with EXIT ${finalCode}`);
+    exitError.isExit = true;
+    exitError.exitCode = finalCode;
+    throw exitError;
+  }
+
+  async executeExitUnlessStatement(command) {
+    // Parse the condition string into a condition object
+    // The condition string can be:
+    // - A simple comparison: "status = 200"
+    // - A logical expression: "auth AND valid"
+    // - A boolean variable: "success"
+    // - A complex expression: "(status = 200) AND hasData AND (count > 0)"
+
+    const conditionStr = command.condition;
+
+    // Parse the condition using a simple parser
+    const condition = this.parseConditionString(conditionStr);
+
+    // Evaluate the condition
+    const conditionResult = await this.evaluateCondition(condition);
+
+    // If condition is FALSE, exit with the specified code and message
+    if (!conditionResult) {
+      // Evaluate the message (it may contain concatenation with ||)
+      let message = '';
+      if (command.message.includes('||')) {
+        message = await this.evaluateConcatenation(command.message);
+      } else {
+        message = await this.resolveValue(command.message);
+      }
+
+      // Check if message needs interpolation (double-quoted strings with {{...}} markers)
+      if (typeof message === 'string') {
+        // Get current interpolation pattern
+        try {
+          const interpolationModule = require('./interpolation');
+          const pattern = interpolationModule.getCurrentPattern();
+          if (pattern.hasDelims(message)) {
+            message = await this.interpolateString(message);
+          }
+        } catch (error) {
+          // Interpolation module not available or failed - use message as-is
+        }
+      }
+
+      // Output the message (only if outputHandler is available)
+      if (this.outputHandler && this.outputHandler.output) {
+        this.outputHandler.output(String(message));
+      }
+
+      // Exit with the specified code
+      const exitError = new Error(`Script terminated with EXIT ${command.code}`);
+      exitError.isExit = true;
+      exitError.exitCode = command.code;
+      throw exitError;
+    }
+    // Otherwise, continue execution - return undefined (no result)
+    return undefined;
+  }
+
+  parseConditionString(conditionStr) {
+    // Handle logical operators: AND, OR, NOT
+    // Check for AND first (higher precedence than OR)
+    const andParts = this.splitByLogicalOperator(conditionStr, 'AND');
+    if (andParts.length > 1) {
+      return {
+        type: 'LOGICAL_AND',
+        parts: andParts.map(part => this.parseConditionString(part.trim()))
+      };
+    }
+
+    // Check for OR
+    const orParts = this.splitByLogicalOperator(conditionStr, 'OR');
+    if (orParts.length > 1) {
+      return {
+        type: 'LOGICAL_OR',
+        parts: orParts.map(part => this.parseConditionString(part.trim()))
+      };
+    }
+
+    // Check for NOT prefix
+    const notMatch = conditionStr.trim().match(/^NOT\s+(.+)$/i);
+    if (notMatch) {
+      return {
+        type: 'LOGICAL_NOT',
+        operand: this.parseConditionString(notMatch[1].trim())
+      };
+    }
+
+    // Remove outer parentheses if present
+    let cleanCondition = conditionStr.trim();
+    if (cleanCondition.startsWith('(') && cleanCondition.endsWith(')')) {
+      cleanCondition = cleanCondition.substring(1, cleanCondition.length - 1).trim();
+      return this.parseConditionString(cleanCondition);
+    }
+
+    // Check for comparison operators: =, <>, <, >, <=, >=
+    const comparisonMatch = cleanCondition.match(/^(.+?)\s*([><=]+|<>)\s*(.+)$/);
+    if (comparisonMatch) {
+      return {
+        type: 'COMPARISON',
+        left: comparisonMatch[1].trim(),
+        operator: comparisonMatch[2].trim(),
+        right: comparisonMatch[3].trim()
+      };
+    }
+
+    // Simple boolean expression (variable or literal)
+    return {
+      type: 'BOOLEAN',
+      expression: cleanCondition
+    };
+  }
+
+  splitByLogicalOperator(str, operator) {
+    // Split by logical operator while respecting parentheses and quotes
+    const parts = [];
+    let current = '';
+    let parenDepth = 0;
+    let inQuotes = false;
+    let quoteChar = '';
+
+    const operatorRegex = new RegExp(`\\b${operator}\\b`, 'i');
+    let i = 0;
+
+    while (i < str.length) {
+      const char = str[i];
+
+      if (!inQuotes && (char === '"' || char === "'")) {
+        inQuotes = true;
+        quoteChar = char;
+        current += char;
+        i++;
+      } else if (inQuotes && char === quoteChar) {
+        inQuotes = false;
+        quoteChar = '';
+        current += char;
+        i++;
+      } else if (!inQuotes && char === '(') {
+        parenDepth++;
+        current += char;
+        i++;
+      } else if (!inQuotes && char === ')') {
+        parenDepth--;
+        current += char;
+        i++;
+      } else if (!inQuotes && parenDepth === 0) {
+        // Check if we're at the operator
+        const remaining = str.substring(i);
+        const match = remaining.match(operatorRegex);
+        if (match && match.index === 0) {
+          // Found operator at current position
+          parts.push(current);
+          current = '';
+          i += operator.length;
+          // Skip whitespace after operator
+          while (i < str.length && str[i] === ' ') {
+            i++;
+          }
+        } else {
+          current += char;
+          i++;
+        }
+      } else {
+        current += char;
+        i++;
+      }
+    }
+
+    if (current.trim()) {
+      parts.push(current);
+    }
+
+    return parts.length > 1 ? parts : [str];
+  }
+
+  async executeInterpretStatement(command) {
+    // Check if INTERPRET is blocked
+    if (this.interpretBlocked) {
+      throw new Error('INTERPRET is blocked by NO-INTERPRET directive');
+    }
+
+    // Push INTERPRET context onto execution stack
+    const currentContext = this.getCurrentExecutionContext();
+    const interpretContext = this.pushExecutionContext(
+      'interpret',
+      this.currentLineNumber,
+      this.sourceLines && this.currentLineNumber ? this.sourceLines[this.currentLineNumber - 1] || '' : '',
+      this.sourceFilename || '',
+      { command }
+    );
+    
+    let codeToExecute;
+    let normalizedCode;
+
+    try {
+      // Evaluate the expression to get the code string
+      if (typeof command.expression === 'string' && command.expression.includes('||')) {
+        // Handle concatenation expressions
+        codeToExecute = await this.evaluateConcatenation(command.expression);
+      } else {
+        codeToExecute = await this.resolveValue(command.expression);
+      }
+      
+      normalizedCode = String(codeToExecute).replace(/\\n/g, '\n');
+      
+      // Import parser to compile the Rexx code
+      const { parse } = require('./parser');
+      const commands = parse(normalizedCode);
+      
+      if (command.mode === 'classic') {
+        // Mode C: Full classic behavior - share all variables and context
+        const subInterpreter = new RexxInterpreter(this.addressSender, this.outputHandler);
+        subInterpreter.address = this.address;
+        subInterpreter.builtInFunctions = this.builtInFunctions;
+        subInterpreter.operations = this.operations;
+        subInterpreter.errorHandlers = new Map(this.errorHandlers);
+        subInterpreter.labels = new Map(this.labels);
+        subInterpreter.addressTargets = new Map(this.addressTargets);
+        subInterpreter.subroutines = new Map(this.subroutines);
+        
+        
+        // Share all variables
+        for (const [key, value] of this.variables) {
+          subInterpreter.variables.set(key, value);
+        }
+        
+        // Execute the code with its own source context
+        await subInterpreter.run(commands, normalizedCode, `[interpreted from ${this.sourceFilename || 'unknown'}:${interpretContext.lineNumber}]`);
+        
+        // Copy back all variables
+        for (const [key, value] of subInterpreter.variables) {
+          this.variables.set(key, value);
+        }
+        
+      } else if (command.mode === 'isolated') {
+        // Mode B: Sandboxed scope - controlled variable sharing
+        const subInterpreter = new RexxInterpreter(this.addressSender, this.outputHandler);
+        subInterpreter.address = this.address;
+        subInterpreter.builtInFunctions = this.builtInFunctions;
+        subInterpreter.operations = this.operations;
+        subInterpreter.addressTargets = new Map(this.addressTargets);
+        subInterpreter.errorHandlers = new Map(this.errorHandlers);
+        subInterpreter.labels = new Map(this.labels);
+        subInterpreter.subroutines = new Map(this.subroutines);
+        
+        // Handle IMPORT - share specific variables TO the isolated scope
+        if (command.importVars && Array.isArray(command.importVars)) {
+          for (const varName of command.importVars) {
+            if (this.variables.has(varName)) {
+              subInterpreter.variables.set(varName, this.variables.get(varName));
+            }
+          }
+        }
+        
+        // Execute in isolation with its own source context
+        await subInterpreter.run(commands, normalizedCode, `[interpreted from ${this.sourceFilename || 'unknown'}:${interpretContext.lineNumber}]`);
+        
+        // Handle EXPORT - copy specific variables FROM the isolated scope
+        if (command.exportVars && Array.isArray(command.exportVars)) {
+          for (const varName of command.exportVars) {
+            if (subInterpreter.variables.has(varName)) {
+              this.variables.set(varName, subInterpreter.variables.get(varName));
+            }
+          }
+        }
+      } else {
+        // Default mode: Share variables and context like classic REXX INTERPRET
+        const subInterpreter = new RexxInterpreter(this.addressSender, this.outputHandler);
+        subInterpreter.address = this.address;
+        subInterpreter.builtInFunctions = this.builtInFunctions;
+        subInterpreter.operations = this.operations;
+        subInterpreter.errorHandlers = new Map(this.errorHandlers);
+        subInterpreter.labels = new Map(this.labels);
+        subInterpreter.addressTargets = new Map(this.addressTargets);
+        subInterpreter.subroutines = new Map(this.subroutines);
+        
+        
+        // Share all variables (classic Rexx behavior)
+        for (const [key, value] of this.variables) {
+          subInterpreter.variables.set(key, value);
+        }
+        
+        // Execute the interpreted code with its own source context
+        await subInterpreter.run(commands, normalizedCode, `[interpreted from ${this.sourceFilename || 'unknown'}:${interpretContext.lineNumber}]`);
+        
+        // Copy back all variables
+        for (const [key, value] of subInterpreter.variables) {
+          this.variables.set(key, value);
+        }
+      }
+      
+      // Pop the INTERPRET context on successful completion
+      this.popExecutionContext();
+      
+    } catch (e) {
+      // Get the INTERPRET context from the execution stack
+      const interpretCtx = this.getInterpretContext();
+      const sourceContext = interpretCtx ? {
+        lineNumber: interpretCtx.lineNumber,
+        sourceLine: interpretCtx.sourceLine,
+        sourceFilename: interpretCtx.sourceFilename,
+        interpreter: this,
+                    interpolation: interpolation
+      } : null;
+      
+      // Pop the INTERPRET context on error
+      this.popExecutionContext();
+      
+      // Try to extract more context about what was being interpreted
+      let detailedMessage = `INTERPRET failed: ${e.message}`;
+      
+      // Add information about what code was being interpreted
+      if (typeof codeToExecute === 'string' && codeToExecute.trim()) {
+        detailedMessage += `\nInterpreting code: "${codeToExecute.trim()}"`;
+        
+        // If it's a CALL statement, mention what's being called
+        if (codeToExecute.trim().startsWith('CALL ')) {
+          const callTarget = codeToExecute.trim().substring(5).trim();
+          detailedMessage += `\nCalling subroutine: ${callTarget}`;
+        }
+      }
+      
+      // If this is a property access error, try to identify the variable
+      if (e.message && e.message.includes("Cannot read properties of undefined")) {
+        const propertyMatch = e.message.match(/Cannot read properties of undefined \(reading '(.+?)'\)/);
+        if (propertyMatch) {
+          detailedMessage += `\nTrying to access property '${propertyMatch[1]}' on undefined variable`;
+        }
+      }
+      
+      // Include stack trace from sub-interpreter if available
+      if (e.stack) {
+        const relevantStack = e.stack.split('\n').slice(0, 3).join('\n');
+        detailedMessage += `\nSub-interpreter error: ${relevantStack}`;
+        
+        // Try to extract more context from the stack trace
+        if (e.stack.includes('executeCall')) {
+          detailedMessage += `\nLikely error in subroutine call execution`;
+        }
+        if (e.stack.includes('executeCommands')) {
+          detailedMessage += `\nError during command execution (possibly accessing undefined commands array)`;
+        }
+      }
+      
+      // Add debug info showing execution stack context
+      if (interpretCtx) {
+        detailedMessage += `\nINTERPRET statement: line ${interpretCtx.lineNumber} ("${interpretCtx.sourceLine.trim()}")`;
+      }
+      
+      const currentCtx = this.getCurrentExecutionContext();
+      if (currentCtx && currentCtx !== interpretCtx) {
+        detailedMessage += `\nCurrent execution: line ${currentCtx.lineNumber} ("${currentCtx.sourceLine.trim()}")`;
+      }
+      
+      // Show execution stack
+      if (this.executionStack.length > 0) {
+        detailedMessage += `\nExecution stack (${this.executionStack.length} levels):`;
+        for (let i = this.executionStack.length - 1; i >= 0; i--) {
+          const ctx = this.executionStack[i];
+          detailedMessage += `\n  [${i}] ${ctx.type} at ${ctx.sourceFilename}:${ctx.lineNumber}`;
+        }
+      }
+      
+      // Show what we're trying to interpret
+      if (normalizedCode) {
+        detailedMessage += `\nCode being interpreted: "${normalizedCode}"`;
+      }
+      
+      throw new RexxError(detailedMessage, 'INTERPRET', sourceContext);
+    }
+  }
+
 
   async evaluateCondition(condition) {
     return await expressionValueUtils.evaluateCondition(

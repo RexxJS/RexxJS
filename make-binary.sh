@@ -3,6 +3,18 @@
 # RexxJS Binary Builder
 # Creates standalone executable using pkg with deterministic mode-aware cli.js
 # Usage: ./make-binary.sh [target]
+#
+# Supported targets:
+#   linux-x64          Linux 64-bit (static, universal)
+#   macos-x64          macOS Intel 64-bit
+#   macos-arm64        macOS Apple Silicon (M1/M2/M3)
+#   win-x64            Windows 64-bit
+#   all                Build all platforms
+#
+# Examples:
+#   ./make-binary.sh                    # Default: linux-x64 static
+#   ./make-binary.sh macos-arm64        # macOS Apple Silicon
+#   ./make-binary.sh all                # All platforms
 
 set -e
 
@@ -32,6 +44,18 @@ print_warning() {
 # Default target
 TARGET=${1:-linux-x64}
 
+# Handle 'all' target
+if [ "$TARGET" = "all" ]; then
+    print_info "Building for all platforms..."
+    for platform in linux-x64 macos-x64 macos-arm64 win-x64; do
+        print_info "========================================="
+        print_info "Building $platform"
+        print_info "========================================="
+        $0 $platform
+    done
+    exit 0
+fi
+
 print_info "Building RexxJS standalone binary for $TARGET..."
 
 # Directories
@@ -60,9 +84,12 @@ cat > "$BUILD_DIR/package.json" <<'EOF'
     "targets": ["node18-linux-x64"],
     "assets": [
       "src/**/*",
-      "../../dist/addresses/system-address.bundle.js"
+      "addresses/**/*"
     ],
-    "scripts": "src/**/*.js"
+    "scripts": [
+      "src/**/*.js",
+      "addresses/**/*.js"
+    ]
   }
 }
 EOF
@@ -76,6 +103,11 @@ cp -r "$CORE_DIR/src/"* "$BUILD_DIR/src/"
 
 # Copy CLI without modification - it's mode-aware and handles pkg vs nodejs deterministically
 cp "$CORE_DIR/src/cli.js" "$BUILD_DIR/cli.js"
+
+# Copy system-address.js into build directory for pkg inclusion
+print_info "Copying system-address.js..."
+mkdir -p "$BUILD_DIR/addresses"
+cp "./extras/addresses/system/src/system-address.js" "$BUILD_DIR/addresses/"
 
 # Fix source files with relative requires for pkg snapshot
 print_info "Making source files PKG-compatible..."
@@ -97,29 +129,56 @@ fi
 
 # Step 5: Run pkg to create binary
 print_info "Running pkg to create binary..."
-OUTPUT_NAME="rexx-${TARGET}"
 
-cd "$BUILD_DIR"
-npx pkg . --target "node18-${TARGET}" --output "../${OUTPUT_NAME}" 2>&1 | grep -v "Warning Cannot resolve"
-cd ..
-
-if [ ! -f "${OUTPUT_NAME}" ]; then
-    print_error "Binary creation failed"
+# Determine binary name and target based on platform
+if [[ "$TARGET" == *"linux"* ]]; then
+    # Linux: use static version for universal compatibility
+    print_info "Building static version for universal compatibility (Alpine/musl/distroless)..."
+    OUTPUT_NAME="rexx-${TARGET}static"
+    PKG_TARGET="node18-${TARGET/linux/linuxstatic}"
+    BINARY_EXT=""
+elif [[ "$TARGET" == *"win"* ]]; then
+    # Windows: standard binary
+    print_info "Building Windows binary..."
+    OUTPUT_NAME="rexx-${TARGET}"
+    PKG_TARGET="node18-${TARGET}"
+    BINARY_EXT=".exe"
+elif [[ "$TARGET" == *"macos"* ]]; then
+    # macOS: standard binary
+    print_info "Building macOS binary..."
+    OUTPUT_NAME="rexx-${TARGET}"
+    PKG_TARGET="node18-${TARGET}"
+    BINARY_EXT=""
+else
+    print_error "Unknown target: $TARGET"
     exit 1
 fi
 
-SIZE=$(du -h "${OUTPUT_NAME}" | cut -f1)
-print_success "Binary created: ${OUTPUT_NAME} (${SIZE})"
+cd "$BUILD_DIR"
+npx pkg . --target "${PKG_TARGET}" --output "../${OUTPUT_NAME}${BINARY_EXT}" 2>&1 | grep -v "Warning Cannot resolve"
+cd ..
 
-# Make executable
-chmod +x "${OUTPUT_NAME}"
+if [ -f "${OUTPUT_NAME}${BINARY_EXT}" ]; then
+    SIZE=$(du -h "${OUTPUT_NAME}${BINARY_EXT}" | cut -f1)
+    print_success "Binary created: ${OUTPUT_NAME}${BINARY_EXT} (${SIZE})"
 
-# Test the binary
-print_info "Testing binary..."
-if ./"${OUTPUT_NAME}" --help >/dev/null 2>&1; then
-    print_success "Binary test passed"
+    # Make executable (not needed for Windows, but doesn't hurt)
+    chmod +x "${OUTPUT_NAME}${BINARY_EXT}"
+
+    # Test the binary only on matching platform
+    if [[ "$TARGET" == *"linux"* ]] && [ "$(uname -s)" = "Linux" ]; then
+        print_info "Testing binary..."
+        if ./"${OUTPUT_NAME}${BINARY_EXT}" --help >/dev/null 2>&1; then
+            print_success "Binary test passed"
+        else
+            print_warning "Binary test failed, but binary was created"
+        fi
+    else
+        print_info "Skipping test (cross-compiled for different platform)"
+    fi
 else
-    print_warning "Binary test failed, but binary was created"
+    print_error "Binary creation failed"
+    exit 1
 fi
 
 # Create bin directory if it doesn't exist
@@ -127,16 +186,17 @@ mkdir -p bin
 
 # Generate timestamp for binary name (ccyy-mm-dd-hh-mm-ss format)
 TIMESTAMP=$(date +"%Y-%m-%d-%H-%M-%S")
-TIMESTAMPED_NAME="rexx-$TARGET-$TIMESTAMP"
 
-# Move binary to bin/ with timestamp suffix
-mv "${OUTPUT_NAME}" "bin/$TIMESTAMPED_NAME"
+# Move binary with timestamp
+TIMESTAMPED_NAME="${OUTPUT_NAME}-$TIMESTAMP${BINARY_EXT}"
+mv "${OUTPUT_NAME}${BINARY_EXT}" "bin/$TIMESTAMPED_NAME"
 print_success "Binary moved to: bin/$TIMESTAMPED_NAME"
 
-# Create symlink to most recent binary for this target
+# Create symlink to latest version
 cd bin
-ln -sf "$TIMESTAMPED_NAME" "rexx-$TARGET-bin"
-print_success "Symlink created: bin/rexx-$TARGET-bin -> $TIMESTAMPED_NAME"
+SYMLINK_NAME="${OUTPUT_NAME}-bin${BINARY_EXT}"
+ln -sf "$TIMESTAMPED_NAME" "$SYMLINK_NAME"
+print_success "Symlink created: bin/$SYMLINK_NAME -> $TIMESTAMPED_NAME"
 
 # Create generic bin/rexx symlink only if system architecture matches
 SYSTEM_ARCH=$(uname -m)
@@ -153,10 +213,11 @@ case "$SYSTEM_ARCH" in
 esac
 
 if [ "$TARGET" = "$SYSTEM_TARGET" ]; then
-    ln -sf "$TIMESTAMPED_NAME" "rexx"
-    print_success "Generic symlink created: bin/rexx -> $TIMESTAMPED_NAME (matches system $SYSTEM_ARCH)"
+    # Create generic symlink
+    ln -sf "$TIMESTAMPED_NAME" "rexx${BINARY_EXT}"
+    print_success "Generic symlink created: bin/rexx${BINARY_EXT} -> $TIMESTAMPED_NAME"
 else
-    print_info "Skipping generic bin/rexx symlink (target $TARGET doesn't match system $SYSTEM_ARCH)"
+    print_info "Skipping generic bin/rexx symlink (target $TARGET doesn't match system)"
 fi
 
 # Create rexxt wrapper symlink for test runner mode
@@ -187,9 +248,13 @@ cd ..
 # Keep only the last 10 binaries for this target
 print_info "Cleaning up old binaries for $TARGET..."
 cd bin
-ls -1t rexx-$TARGET-20* 2>/dev/null | tail -n +11 | xargs -r rm -f
-REMAINING=$(ls -1 rexx-$TARGET-20* 2>/dev/null | wc -l)
-print_success "Kept $REMAINING most recent $TARGET binaries"
+
+# Build glob pattern based on OUTPUT_NAME
+CLEANUP_PATTERN="${OUTPUT_NAME}-20*${BINARY_EXT}"
+ls -1t $CLEANUP_PATTERN 2>/dev/null | tail -n +11 | xargs -r rm -f
+REMAINING=$(ls -1 $CLEANUP_PATTERN 2>/dev/null | wc -l)
+print_success "Kept $REMAINING binaries for $TARGET"
+
 cd ..
 
 # Cleanup build directory
@@ -200,10 +265,7 @@ print_success "Build artifacts cleaned"
 print_success "Build complete!"
 echo
 echo "Usage:"
-echo "  ./bin/rexx-$TARGET-bin script.rexx"
-echo "  ./bin/rexx-$TARGET-bin --help"
-echo "  ./bin/$TIMESTAMPED_NAME script.rexx  (direct access to this version)"
 if [ "$TARGET" = "$SYSTEM_TARGET" ]; then
-echo "  ./bin/rexx script.rexx  (generic symlink for current system)"
-echo "  ./bin/rexxt test.rexx   (test runner wrapper - sets REXXJS_TEST_RUNNER=true)"
+echo "  ./bin/rexx script.rexx                           (generic symlink - uses static version)"
+echo "  ./bin/rexxt test.rexx                            (test runner wrapper - sets REXXJS_TEST_RUNNER=true)"
 fi

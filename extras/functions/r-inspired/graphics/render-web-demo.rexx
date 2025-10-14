@@ -15,7 +15,7 @@ SAY "The actual DOM manipulation requires a browser environment."
 SAY ""
 
 /* Load graphics functions */
-REQUIRE "./graphics-functions.js"
+REQUIRE "./r-graphics-functions.js"
 
 /* Create sample data */
 LET salesData = JSON_PARSE text="[12.5, 23.1, 28.7, 31.4, 29.8, 35.2, 41.1]"

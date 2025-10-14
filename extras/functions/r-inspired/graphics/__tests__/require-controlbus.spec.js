@@ -229,8 +229,8 @@ describe('REQUIRE Control Bus Integration', () => {
     const originalDetectEnvironment = interpreter.detectEnvironment;
     interpreter.detectEnvironment = jest.fn(() => 'web-controlbus');
     
-    // Mock fetchFromUrl
-    interpreter.fetchFromUrl = jest.fn().mockResolvedValue(`
+    // Mock both fetchFromUrl and loadLibraryFromUrl
+    const mockLibraryContent = `
       function HISTOGRAM() { 
         // Return library info when called with no parameters (detection mode)
         if (arguments.length === 0) {
@@ -258,7 +258,14 @@ describe('REQUIRE Control Bus Integration', () => {
           window.registerLibraryDetectionFunction('r-graphing', 'HISTOGRAM');
         }
       }
-    `);
+    `;
+    
+    interpreter.fetchFromUrl = jest.fn().mockResolvedValue(mockLibraryContent);
+    interpreter.loadLibraryFromUrl = jest.fn().mockImplementation(async (url, libraryName) => {
+      // Execute the mock content to set up global functions
+      eval(mockLibraryContent);
+      return { loaded: true };
+    });
     
     const script = `
       REQUIRE "r-graphing"
@@ -296,7 +303,7 @@ describe('REQUIRE Control Bus Integration', () => {
         type: 'library-response',
         requestId: libraryRequest.requestId,
         approved: true,
-        libraryUrl: '/libs/r-graphing.js'
+        libraryUrl: 'https://example.com/libs/r-graphing.js'
       };
       
       messageEventListener({
@@ -307,8 +314,8 @@ describe('REQUIRE Control Bus Integration', () => {
     
     await executionPromise;
     
-    // Verify fetchFromUrl was called
-    expect(interpreter.fetchFromUrl).toHaveBeenCalledWith('/libs/r-graphing.js');
+    // Verify loadLibraryFromUrl was called
+    expect(interpreter.loadLibraryFromUrl).toHaveBeenCalledWith('https://example.com/libs/r-graphing.js', 'r-graphing');
     expect(typeof global.HISTOGRAM).toBe('function');
     
     // Restore original method

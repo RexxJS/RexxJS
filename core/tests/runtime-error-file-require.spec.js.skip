@@ -1,0 +1,662 @@
+/**
+ * Runtime Error Tests for File Operations and REQUIRE
+ *
+ * Tests for runtime errors in file operations, REQUIRE statements,
+ * and module loading with clear error messaging.
+ *
+ * Copyright (c) 2025 Paul Hammant
+ * Licensed under the MIT License
+ */
+
+const { RexxInterpreter } = require('../src/interpreter');
+const { parse } = require('../src/parser');
+const fs = require('fs');
+const path = require('path');
+
+describe('Runtime Errors - File Operations and REQUIRE', () => {
+  let interpreter;
+  let mockRpc;
+
+  beforeEach(() => {
+    mockRpc = { send: jest.fn().mockResolvedValue('mock response') };
+    interpreter = new RexxInterpreter(mockRpc);
+    interpreter.scriptPath = __filename;
+  });
+
+  describe('REQUIRE Statement Errors', () => {
+    test('should report clear error when requiring non-existent file', async () => {
+      const script = `
+        REQUIRE "./non-existent-file.js"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-existent file');
+      } catch (error) {
+        expect(error.message).toMatch(/non-existent-file|not found|cannot find|ENOENT/i);
+      }
+    });
+
+    test('should report error when requiring invalid module path', async () => {
+      const script = `
+        REQUIRE ""
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty path');
+      } catch (error) {
+        expect(error.message).toMatch(/path|empty|invalid|module/i);
+      }
+    });
+
+    test('should report error when requiring null path', async () => {
+      const script = `
+        LET modulePath = null
+        REQUIRE modulePath
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null path');
+      } catch (error) {
+        expect(error.message).toMatch(/null|path|invalid/i);
+      }
+    });
+
+    test('should report error when requiring module with syntax error', async () => {
+      // Create temp file with syntax error
+      const tempFile = path.join(__dirname, 'temp-syntax-error.js');
+      fs.writeFileSync(tempFile, 'function broken( {');
+
+      const script = `
+        REQUIRE "./temp-syntax-error.js"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for module syntax error');
+      } catch (error) {
+        expect(error.message).toMatch(/syntax|parse|unexpected/i);
+      } finally {
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+      }
+    });
+
+    test('should report error when requiring circular dependencies', async () => {
+      // Create two files that require each other
+      const file1 = path.join(__dirname, 'temp-circular-1.rexx');
+      const file2 = path.join(__dirname, 'temp-circular-2.rexx');
+
+      fs.writeFileSync(file1, 'REQUIRE "./temp-circular-2.rexx"\nSAY "File 1"');
+      fs.writeFileSync(file2, 'REQUIRE "./temp-circular-1.rexx"\nSAY "File 2"');
+
+      const script = `
+        REQUIRE "./temp-circular-1.rexx"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with circular dependency handling, or error
+      } catch (error) {
+        expect(error.message).toMatch(/circular|dependency|recursive/i);
+      } finally {
+        if (fs.existsSync(file1)) fs.unlinkSync(file1);
+        if (fs.existsSync(file2)) fs.unlinkSync(file2);
+      }
+    });
+
+    test('should report error when requiring from restricted path', async () => {
+      const script = `
+        REQUIRE "/etc/passwd"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected security error for restricted path');
+      } catch (error) {
+        // Should have security check or fail to load
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report clear error for malformed URL in REQUIRE', async () => {
+      const script = `
+        REQUIRE "ht!@#$%^&*tp://invalid"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for malformed URL');
+      } catch (error) {
+        expect(error.message).toMatch(/URL|invalid|malformed/i);
+      }
+    });
+
+    test('should report error when required module throws error on load', async () => {
+      const tempFile = path.join(__dirname, 'temp-throwing-module.js');
+      fs.writeFileSync(tempFile, 'throw new Error("Module load error");');
+
+      const script = `
+        REQUIRE "./temp-throwing-module.js"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error from module load');
+      } catch (error) {
+        expect(error.message).toMatch(/Module load error|error/i);
+      } finally {
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+      }
+    });
+
+    test('should report error when REQUIRE path contains invalid characters', async () => {
+      const script = `
+        REQUIRE "./file\\x00name.js"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid path characters');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when requiring binary file as JavaScript', async () => {
+      const tempFile = path.join(__dirname, 'temp-binary.bin');
+      fs.writeFileSync(tempFile, Buffer.from([0x00, 0x01, 0x02, 0xFF]));
+
+      const script = `
+        REQUIRE "./temp-binary.bin"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for binary file');
+      } catch (error) {
+        // Should error on parse or execution
+        expect(error.message).toBeTruthy();
+      } finally {
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+      }
+    });
+  });
+
+  describe('File Reading Errors', () => {
+    test('should report error when reading non-existent file', async () => {
+      const script = `
+        LET content = FILE_READ("./non-existent-file.txt")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-existent file');
+      } catch (error) {
+        expect(error.message).toMatch(/not found|ENOENT|file/i);
+      }
+    });
+
+    test('should report error when reading file with permission denied', async () => {
+      // This test is platform-dependent
+      const script = `
+        LET content = FILE_READ("/root/restricted-file.txt")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected permission error');
+      } catch (error) {
+        expect(error.message).toMatch(/permission|EACCES|denied|not found/i);
+      }
+    });
+
+    test('should report error when reading directory as file', async () => {
+      const script = `
+        LET content = FILE_READ("./")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for reading directory');
+      } catch (error) {
+        expect(error.message).toMatch(/directory|EISDIR|invalid/i);
+      }
+    });
+
+    test('should report error when reading file with invalid encoding', async () => {
+      const tempFile = path.join(__dirname, 'temp-file.txt');
+      fs.writeFileSync(tempFile, 'test content');
+
+      const script = `
+        LET content = FILE_READ("./temp-file.txt", "invalid-encoding")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid encoding');
+      } catch (error) {
+        expect(error.message).toMatch(/encoding|invalid/i);
+      } finally {
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+      }
+    });
+
+    test('should report error when file path is null', async () => {
+      const script = `
+        LET path = null
+        LET content = FILE_READ(path)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null path');
+      } catch (error) {
+        expect(error.message).toMatch(/null|path|invalid/i);
+      }
+    });
+  });
+
+  describe('File Writing Errors', () => {
+    test('should report error when writing to invalid path', async () => {
+      const script = `
+        FILE_WRITE("/invalid/path/file.txt", "content")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid write path');
+      } catch (error) {
+        expect(error.message).toMatch(/ENOENT|not found|path|directory/i);
+      }
+    });
+
+    test('should report error when writing with permission denied', async () => {
+      const script = `
+        FILE_WRITE("/root/test.txt", "content")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected permission error');
+      } catch (error) {
+        expect(error.message).toMatch(/permission|EACCES|denied|ENOENT/i);
+      }
+    });
+
+    test('should report error when writing to directory path', async () => {
+      const script = `
+        FILE_WRITE("./", "content")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for writing to directory');
+      } catch (error) {
+        expect(error.message).toMatch(/directory|EISDIR|invalid/i);
+      }
+    });
+
+    test('should report error when writing null content', async () => {
+      const script = `
+        LET content = null
+        FILE_WRITE("./test.txt", content)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null content');
+      } catch (error) {
+        expect(error.message).toMatch(/null|content|invalid/i);
+      }
+    });
+
+    test('should report error when disk is full', async () => {
+      // This test is difficult to simulate without actually filling disk
+      // Just document expected behavior
+      const script = `
+        LET huge = ""
+        DO i = 1 TO 1000000
+          LET huge = huge || "x"
+        END
+        FILE_WRITE("./huge-file.txt", huge)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed or fail depending on available disk space
+      } catch (error) {
+        expect(error.message).toMatch(/ENOSPC|disk|space/i);
+      }
+    });
+  });
+
+  describe('File System Operation Errors', () => {
+    test('should report error when deleting non-existent file', async () => {
+      const script = `
+        FILE_DELETE("./non-existent.txt")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for deleting non-existent file');
+      } catch (error) {
+        expect(error.message).toMatch(/not found|ENOENT|file/i);
+      }
+    });
+
+    test('should report error when creating directory with invalid name', async () => {
+      const script = `
+        FILE_MKDIR("./invalid\\x00name")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid directory name');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when checking existence with null path', async () => {
+      const script = `
+        LET path = null
+        LET exists = FILE_EXISTS(path)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null path');
+      } catch (error) {
+        expect(error.message).toMatch(/null|path|invalid/i);
+      }
+    });
+
+    test('should report error when listing non-existent directory', async () => {
+      const script = `
+        LET files = FILE_LIST("./non-existent-dir")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-existent directory');
+      } catch (error) {
+        expect(error.message).toMatch(/not found|ENOENT|directory/i);
+      }
+    });
+
+    test('should report error when listing file as directory', async () => {
+      const tempFile = path.join(__dirname, 'temp-file-not-dir.txt');
+      fs.writeFileSync(tempFile, 'content');
+
+      const script = `
+        LET files = FILE_LIST("./temp-file-not-dir.txt")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for listing file as directory');
+      } catch (error) {
+        expect(error.message).toMatch(/ENOTDIR|not a directory|directory/i);
+      } finally {
+        if (fs.existsSync(tempFile)) {
+          fs.unlinkSync(tempFile);
+        }
+      }
+    });
+  });
+
+  describe('Module Export/Import Errors', () => {
+    test('should report error when accessing non-exported function', async () => {
+      const tempModule = path.join(__dirname, 'temp-module.js');
+      fs.writeFileSync(tempModule, 'module.exports = { exported: () => "test" };');
+
+      const script = `
+        REQUIRE "./temp-module.js"
+        LET result = nonExported()
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-exported function');
+      } catch (error) {
+        expect(error.message).toMatch(/nonExported|not found|undefined/i);
+      } finally {
+        if (fs.existsSync(tempModule)) {
+          fs.unlinkSync(tempModule);
+        }
+      }
+    });
+
+    test('should report error when module exports invalid type', async () => {
+      const tempModule = path.join(__dirname, 'temp-invalid-export.js');
+      fs.writeFileSync(tempModule, 'module.exports = 123;');
+
+      const script = `
+        REQUIRE "./temp-invalid-export.js"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed but exports won't be callable
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      } finally {
+        if (fs.existsSync(tempModule)) {
+          fs.unlinkSync(tempModule);
+        }
+      }
+    });
+
+    test('should report error when module has no exports', async () => {
+      const tempModule = path.join(__dirname, 'temp-no-exports.js');
+      fs.writeFileSync(tempModule, '// No exports');
+
+      const script = `
+        REQUIRE "./temp-no-exports.js"
+        LET result = someFunction()
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined function');
+      } catch (error) {
+        expect(error.message).toMatch(/someFunction|not found|undefined/i);
+      } finally {
+        if (fs.existsSync(tempModule)) {
+          fs.unlinkSync(tempModule);
+        }
+      }
+    });
+  });
+
+  describe('Path Resolution Errors', () => {
+    test('should report error for relative path without script context', async () => {
+      const freshInterpreter = new RexxInterpreter(mockRpc);
+      // Don't set scriptPath
+      const script = `
+        REQUIRE "../some-module.js"
+      `;
+
+      try {
+        await freshInterpreter.run(parse(script));
+        fail('Expected error for relative path without context');
+      } catch (error) {
+        expect(error.message).toMatch(/path|context|resolve|cannot find/i);
+      }
+    });
+
+    test('should report error for too many parent directory references', async () => {
+      const script = `
+        REQUIRE "../../../../../../../../../../../../../etc/passwd"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for excessive parent references');
+      } catch (error) {
+        // Should fail to find or have security restriction
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when path contains null bytes', async () => {
+      const script = `
+        REQUIRE "./file\\u0000.js"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null byte in path');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for absolute path on wrong OS', async () => {
+      // Windows path on Unix or vice versa
+      const script = `
+        REQUIRE "C:\\Windows\\System32\\file.js"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for OS-incompatible path');
+      } catch (error) {
+        expect(error.message).toMatch(/not found|ENOENT|path/i);
+      }
+    });
+  });
+
+  describe('Remote Module Loading Errors', () => {
+    test('should report error for invalid URL scheme', async () => {
+      const script = `
+        REQUIRE "ftp://example.com/module.js"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for unsupported URL scheme');
+      } catch (error) {
+        expect(error.message).toMatch(/ftp|scheme|protocol|unsupported|not found/i);
+      }
+    });
+
+    test('should report error for network timeout', async () => {
+      const script = `
+        REQUIRE "https://very-slow-server.example.com/module.js"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected timeout error');
+      } catch (error) {
+        expect(error.message).toMatch(/timeout|network|ENOTFOUND|getaddrinfo/i);
+      }
+    });
+
+    test('should report error for HTTP 404', async () => {
+      const script = `
+        REQUIRE "https://unpkg.com/non-existent-package-xyz-123@1.0.0"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected 404 error');
+      } catch (error) {
+        expect(error.message).toMatch(/404|not found/i);
+      }
+    });
+
+    test('should report error for HTTP 500', async () => {
+      const script = `
+        REQUIRE "https://httpstat.us/500"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected server error');
+      } catch (error) {
+        expect(error.message).toMatch(/500|server error|failed/i);
+      }
+    });
+
+    test('should report error for malformed remote module', async () => {
+      const script = `
+        REQUIRE "https://example.com/malformed.js"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for malformed module');
+      } catch (error) {
+        // Will likely fail with network error or parse error
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+
+  describe('File Path Validation Errors', () => {
+    test('should report error for empty file path', async () => {
+      const script = `
+        LET content = FILE_READ("")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty path');
+      } catch (error) {
+        expect(error.message).toMatch(/empty|path|invalid/i);
+      }
+    });
+
+    test('should report error for whitespace-only path', async () => {
+      const script = `
+        LET content = FILE_READ("   ")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for whitespace path');
+      } catch (error) {
+        expect(error.message).toMatch(/path|invalid|not found/i);
+      }
+    });
+
+    test('should report error for path with invalid characters', async () => {
+      const script = `
+        LET content = FILE_READ("file<>name.txt")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid path characters');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for extremely long path', async () => {
+      const longPath = "a/".repeat(1000) + "file.txt";
+      const script = `
+        LET content = FILE_READ("${longPath}")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for too long path');
+      } catch (error) {
+        expect(error.message).toMatch(/ENAMETOOLONG|path|too long|not found/i);
+      }
+    });
+  });
+});

@@ -4,7 +4,7 @@
  * Test script to generate a histogram PNG using the R Graphics Functions
  */
 
-const { rGraphicsFunctions } = require('./r-graphics-functions');
+const { rGraphicsFunctions } = require('./src/graphics-functions');
 const { renderHistogramToPNG } = require('./histogram-renderer');
 const path = require('path');
 

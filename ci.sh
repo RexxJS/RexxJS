@@ -167,6 +167,7 @@ run_test "extras/functions/jq-wasm-functions" "jq-wasm-functions"
 run_test "extras/functions/minimatch" "minimatch"
 run_test "extras/functions/diff" "diff"
 run_test "extras/functions/sed" "sed"
+run_test "extras/functions/matlab-inspired" "matlab-inspired"
 
 echo ""
 echo "📁 Running extras/addresses tests..."

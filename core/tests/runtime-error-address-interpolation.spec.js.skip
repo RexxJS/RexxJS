@@ -1,0 +1,744 @@
+/**
+ * Runtime Error Tests for ADDRESS Commands and Interpolation
+ *
+ * Tests for runtime errors in ADDRESS commands, string interpolation,
+ * and related operations with clear error messaging.
+ *
+ * Copyright (c) 2025 Paul Hammant
+ * Licensed under the MIT License
+ */
+
+const { RexxInterpreter } = require('../src/interpreter');
+const { parse } = require('../src/parser');
+
+describe('Runtime Errors - ADDRESS and Interpolation', () => {
+  let interpreter;
+  let mockRpc;
+
+  beforeEach(() => {
+    mockRpc = { send: jest.fn().mockResolvedValue('mock response') };
+    interpreter = new RexxInterpreter(mockRpc);
+  });
+
+  describe('ADDRESS Command Errors', () => {
+    test('should report error for undefined ADDRESS environment', async () => {
+      const script = `
+        ADDRESS NONEXISTENT "some command"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined ADDRESS environment');
+      } catch (error) {
+        expect(error.message).toMatch(/NONEXISTENT|address|handler|not found/i);
+      }
+    });
+
+    test('should report error when ADDRESS command string is undefined variable', async () => {
+      const script = `
+        ADDRESS SYSTEM undefinedCommand
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined command variable');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedCommand|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when ADDRESS command is null', async () => {
+      const script = `
+        LET cmd = null
+        ADDRESS SYSTEM cmd
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null command');
+      } catch (error) {
+        expect(error.message).toMatch(/null|command|invalid/i);
+      }
+    });
+
+    test('should report error when ADDRESS environment is invalid type', async () => {
+      const script = `
+        LET env = 123
+        ADDRESS env "command"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for numeric environment');
+      } catch (error) {
+        expect(error.message).toMatch(/environment|invalid|type/i);
+      }
+    });
+
+    test('should report clear error when ADDRESS handler throws', async () => {
+      // Register a handler that throws
+      interpreter.registerAddressHandler('THROWING', () => {
+        throw new Error('Handler intentionally failed');
+      });
+
+      const script = `
+        ADDRESS THROWING "test"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error from handler');
+      } catch (error) {
+        expect(error.message).toMatch(/Handler intentionally failed|error/i);
+      }
+    });
+
+    test('should report error when ADDRESS handler returns invalid type', async () => {
+      interpreter.registerAddressHandler('INVALID_RETURN', () => {
+        return 12345; // Should return object or undefined
+      });
+
+      const script = `
+        ADDRESS INVALID_RETURN "test"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed if interpreter handles numeric return
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when ADDRESS WITH variable is undefined', async () => {
+      const script = `
+        ADDRESS SYSTEM WITH undefinedVar "echo test"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined WITH variable');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedVar|undefined|not defined/i);
+      }
+    });
+
+    test('should provide context when ADDRESS command fails in subroutine', async () => {
+      const script = `
+        CALL TestAddress
+
+        TestAddress:
+          ADDRESS NONEXISTENT "command"
+        RETURN
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error in subroutine');
+      } catch (error) {
+        expect(error.message).toMatch(/NONEXISTENT|address|not found/i);
+      }
+    });
+
+    test('should report error when ADDRESS heredoc has syntax error', async () => {
+      const script = `
+        ADDRESS SQL <<EOSQL
+          SELECT * FROM users WHERE
+        EOSQL
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // SQL handler may report syntax error
+      } catch (error) {
+        // Depends on SQL handler implementation
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when ADDRESS environment name is empty', async () => {
+      const script = `
+        ADDRESS "" "command"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty environment name');
+      } catch (error) {
+        expect(error.message).toMatch(/empty|environment|invalid/i);
+      }
+    });
+
+    test('should report error when ADDRESS used with incompatible options', async () => {
+      const script = `
+        ADDRESS SYSTEM QUIETLY NOISILY "echo test"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for conflicting options');
+      } catch (error) {
+        expect(error.message).toMatch(/QUIETLY|NOISILY|conflict|invalid/i);
+      }
+    });
+  });
+
+  describe('String Interpolation Errors', () => {
+    test('should report error when interpolating undefined variable', async () => {
+      const script = `
+        SAY "Value is {{undefinedVar}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined interpolation variable');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedVar|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when interpolation has unmatched braces', async () => {
+      const script = `
+        LET name = "test"
+        SAY "Value is {{name"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for unmatched braces');
+      } catch (error) {
+        expect(error.message).toMatch(/brace|interpolation|syntax/i);
+      }
+    });
+
+    test('should report error when interpolation variable is null', async () => {
+      const script = `
+        LET value = null
+        SAY "Result: {{value}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed by converting null to string
+      } catch (error) {
+        expect(error.message).toMatch(/null|interpolation/i);
+      }
+    });
+
+    test('should report error for nested interpolation syntax', async () => {
+      const script = `
+        LET outer = "value"
+        LET inner = "outer"
+        SAY "{{{{inner}}}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for nested interpolation');
+      } catch (error) {
+        expect(error.message).toMatch(/nested|interpolation|brace/i);
+      }
+    });
+
+    test('should report error when interpolating object without toString', async () => {
+      const script = `
+        LET obj = {"key": "value"}
+        SAY "Object: {{obj}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with [object Object]
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for invalid interpolation expression', async () => {
+      const script = `
+        LET x = 10
+        SAY "Value: {{x +}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid expression');
+      } catch (error) {
+        expect(error.message).toMatch(/expression|syntax|invalid/i);
+      }
+    });
+
+    test('should report error when interpolation refers to function without calling', async () => {
+      const script = `
+        SAY "Length function: {{LENGTH}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed by converting function to string
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should handle interpolation with special characters', async () => {
+      const script = `
+        LET special = "line1\\nline2"
+        SAY "Text: {{special}}"
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed
+    });
+
+    test('should report error for empty interpolation marker', async () => {
+      const script = `
+        SAY "Empty: {{}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty interpolation');
+      } catch (error) {
+        expect(error.message).toMatch(/empty|interpolation|invalid/i);
+      }
+    });
+
+    test('should report error when interpolation uses wrong delimiters', async () => {
+      const script = `
+        LET value = "test"
+        SAY "Wrong: [[value]]"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // Should succeed - not interpolation syntax
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+
+  describe('HEREDOC Errors', () => {
+    test('should report error for unterminated HEREDOC', async () => {
+      const script = `
+        LET text = <<EOTEXT
+        This is the content
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for unterminated HEREDOC');
+      } catch (error) {
+        expect(error.message).toMatch(/HEREDOC|EOTEXT|unterminated|delimiter/i);
+      }
+    });
+
+    test('should report error for HEREDOC with undefined interpolation', async () => {
+      const script = `
+        LET text = <<EOTEXT
+        Value is {{undefinedInHeredoc}}
+        EOTEXT
+        SAY text
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable in HEREDOC');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedInHeredoc|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when HEREDOC delimiter is empty', async () => {
+      const script = `
+        LET text = <<
+        Content here
+
+        SAY text
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty HEREDOC delimiter');
+      } catch (error) {
+        expect(error.message).toMatch(/delimiter|HEREDOC|empty/i);
+      }
+    });
+
+    test('should report error when HEREDOC delimiter contains spaces', async () => {
+      const script = `
+        LET text = <<"END OF TEXT"
+        Content
+        END OF TEXT
+        SAY text
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for delimiter with spaces');
+      } catch (error) {
+        expect(error.message).toMatch(/delimiter|space|invalid/i);
+      }
+    });
+
+    test('should report error for nested HEREDOC', async () => {
+      const script = `
+        LET outer = <<OUTER
+        Start
+        LET inner = <<INNER
+        Nested
+        INNER
+        End
+        OUTER
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for nested HEREDOC');
+      } catch (error) {
+        expect(error.message).toMatch(/nested|HEREDOC|invalid/i);
+      }
+    });
+
+    test('should report error when HEREDOC is assigned to invalid variable', async () => {
+      const script = `
+        LET 123invalid = <<EOTEXT
+        Content
+        EOTEXT
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid variable name');
+      } catch (error) {
+        expect(error.message).toMatch(/123invalid|variable|invalid/i);
+      }
+    });
+  });
+
+  describe('Template String Errors', () => {
+    test('should report error for unclosed template string', async () => {
+      const script = `
+        LET name = "test
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for unclosed string');
+      } catch (error) {
+        expect(error.message).toMatch(/unclosed|string|quote/i);
+      }
+    });
+
+    test('should report error for invalid escape sequence', async () => {
+      const script = `
+        LET text = "invalid \\x sequence"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed by treating as literal
+      } catch (error) {
+        expect(error.message).toMatch(/escape|sequence|invalid/i);
+      }
+    });
+
+    test('should report error for unescaped quotes in string', async () => {
+      const script = `
+        LET text = "She said "hello""
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for unescaped quotes');
+      } catch (error) {
+        expect(error.message).toMatch(/quote|escape|string|syntax/i);
+      }
+    });
+
+    test('should handle very long template strings', async () => {
+      const longString = "x".repeat(10000);
+      const script = `
+        LET long = "${longString}"
+        SAY LENGTH(long)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed
+    });
+  });
+
+  describe('Variable Expansion Errors', () => {
+    test('should report error when expanding undefined stem variable', async () => {
+      const script = `
+        SAY undefinedStem.1
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined stem');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedStem|undefined|not defined/i);
+      }
+    });
+
+    test('should report error for invalid stem index', async () => {
+      const script = `
+        LET stem.1 = "value1"
+        SAY stem["invalid"]
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with string key
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when accessing property of primitive', async () => {
+      const script = `
+        LET num = 42
+        SAY num.property
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for property access on primitive');
+      } catch (error) {
+        expect(error.message).toMatch(/property|primitive|undefined/i);
+      }
+    });
+
+    test('should report error for compound variable with undefined parts', async () => {
+      const script = `
+        LET base.1 = "value"
+        SAY base[undefinedIndex]
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined index variable');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedIndex|undefined|not defined/i);
+      }
+    });
+  });
+
+  describe('Expression Interpolation Errors', () => {
+    test('should report error when interpolating expression with undefined variable', async () => {
+      const script = `
+        LET x = 10
+        SAY "Sum: {{x + undefinedY}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable in expression');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedY|undefined|not defined/i);
+      }
+    });
+
+    test('should report error for division by zero in interpolation', async () => {
+      const script = `
+        LET x = 10
+        SAY "Result: {{x / 0}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with Infinity
+      } catch (error) {
+        expect(error.message).toMatch(/division|zero/i);
+      }
+    });
+
+    test('should report error for invalid function call in interpolation', async () => {
+      const script = `
+        SAY "Length: {{INVALID_FUNC('test')}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid function in interpolation');
+      } catch (error) {
+        expect(error.message).toMatch(/INVALID_FUNC|not found|undefined/i);
+      }
+    });
+
+    test('should report error for method call on null in interpolation', async () => {
+      const script = `
+        LET obj = null
+        SAY "Property: {{obj.method()}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for method call on null');
+      } catch (error) {
+        expect(error.message).toMatch(/null|cannot read property|method/i);
+      }
+    });
+
+    test('should report error for malformed expression in interpolation', async () => {
+      const script = `
+        LET x = 10
+        SAY "Result: {{x + + 5}}"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for malformed expression');
+      } catch (error) {
+        expect(error.message).toMatch(/expression|syntax|invalid/i);
+      }
+    });
+  });
+
+  describe('ADDRESS Context Errors', () => {
+    test('should report error when ADDRESS context is corrupted', async () => {
+      const script = `
+        ADDRESS SYSTEM "echo test"
+        ADDRESS
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // Second ADDRESS with no args should restore default
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when switching to ADDRESS that was unregistered', async () => {
+      interpreter.registerAddressHandler('TEMP', () => ({ success: true }));
+      interpreter.unregisterAddressHandler('TEMP');
+
+      const script = `
+        ADDRESS TEMP "command"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for unregistered handler');
+      } catch (error) {
+        expect(error.message).toMatch(/TEMP|handler|not found/i);
+      }
+    });
+
+    test('should report error when ADDRESS inherits corrupt context', async () => {
+      const script = `
+        CALL AddressSub
+
+        AddressSub:
+          ADDRESS INVALID "test"
+        RETURN
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid ADDRESS');
+      } catch (error) {
+        expect(error.message).toMatch(/INVALID|address|handler/i);
+      }
+    });
+  });
+
+  describe('Interpolation Configuration Errors', () => {
+    test('should report error when setting invalid interpolation delimiters', async () => {
+      const script = `
+        SET_INTERPOLATION_DELIMITERS("{{", "")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty closing delimiter');
+      } catch (error) {
+        expect(error.message).toMatch(/delimiter|empty|invalid/i);
+      }
+    });
+
+    test('should report error when delimiters are same as string quotes', async () => {
+      const script = `
+        SET_INTERPOLATION_DELIMITERS('"', '"')
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid delimiter choice');
+      } catch (error) {
+        expect(error.message).toMatch(/delimiter|quote|invalid/i);
+      }
+    });
+
+    test('should report error when using non-string delimiters', async () => {
+      const script = `
+        SET_INTERPOLATION_DELIMITERS(123, 456)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-string delimiters');
+      } catch (error) {
+        expect(error.message).toMatch(/delimiter|string|type/i);
+      }
+    });
+  });
+
+  describe('Complex ADDRESS Scenarios', () => {
+    test('should report error when ADDRESS command throws in callback', async () => {
+      interpreter.registerAddressHandler('CALLBACK', (content, context, callback) => {
+        callback(new Error('Callback failed'));
+      });
+
+      const script = `
+        ADDRESS CALLBACK "test"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error from callback');
+      } catch (error) {
+        expect(error.message).toMatch(/Callback failed|error/i);
+      }
+    });
+
+    test('should report error when ADDRESS modifies context incorrectly', async () => {
+      interpreter.registerAddressHandler('CORRUPT', (content, context) => {
+        context.variables = null; // Corrupt context
+        return { success: true };
+      });
+
+      const script = `
+        ADDRESS CORRUPT "test"
+        LET x = 10
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error from corrupted context');
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error when ADDRESS handler returns Promise that rejects', async () => {
+      interpreter.registerAddressHandler('PROMISE', async () => {
+        throw new Error('Promise rejected');
+      });
+
+      const script = `
+        ADDRESS PROMISE "test"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error from rejected Promise');
+      } catch (error) {
+        expect(error.message).toMatch(/Promise rejected|error/i);
+      }
+    });
+  });
+});

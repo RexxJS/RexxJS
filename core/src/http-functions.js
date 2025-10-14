@@ -24,65 +24,113 @@
  */
 
 const httpFunctions = {
-  'HTTP_GET': async (url, headers = {}) => {
-    try {
-      // Validate URL
-      if (typeof url !== 'string' || !url.trim()) {
-        throw new Error('HTTP_GET requires a valid URL string');
-      }
+  'HTTP_GET': async (url, headers = {}, timeout = 30000, retryInterval = 0, maxRetries = 0) => {
+    // Parse retry parameters
+    const retryIntervalMs = typeof retryInterval === 'number' ? retryInterval : parseInt(retryInterval) || 0;
+    const maxAttempts = typeof maxRetries === 'number' ? maxRetries : parseInt(maxRetries) || 0;
+    const totalAttempts = maxAttempts + 1; // maxRetries=0 means 1 attempt, maxRetries=3 means 4 attempts
 
-      // Check if fetch is available
-      if (typeof fetch === 'undefined') {
-        throw new Error('HTTP_GET requires fetch API (available in browsers and modern Node.js)');
-      }
+    let lastError = null;
 
-      // Prepare headers object
-      const fetchHeaders = {};
-      if (headers && typeof headers === 'object') {
-        // Convert Rexx compound variable to JavaScript object
-        for (const [key, value] of Object.entries(headers)) {
-          if (typeof value === 'string' || typeof value === 'number') {
-            fetchHeaders[key] = String(value);
+    for (let attempt = 0; attempt < totalAttempts; attempt++) {
+      try {
+        // Validate URL
+        if (typeof url !== 'string' || !url.trim()) {
+          throw new Error('HTTP_GET requires a valid URL string');
+        }
+
+        // Check if fetch is available
+        if (typeof fetch === 'undefined') {
+          throw new Error('HTTP_GET requires fetch API (available in browsers and modern Node.js)');
+        }
+
+        // Prepare headers object
+        const fetchHeaders = {};
+        if (headers && typeof headers === 'object') {
+          // Convert Rexx compound variable to JavaScript object
+          for (const [key, value] of Object.entries(headers)) {
+            if (typeof value === 'string' || typeof value === 'number') {
+              fetchHeaders[key] = String(value);
+            }
           }
         }
+
+        // Parse timeout value
+        const timeoutMs = typeof timeout === 'number' ? timeout : parseInt(timeout) || 30000;
+
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+          // Make the HTTP GET request with timeout
+          const response = await fetch(url.trim(), {
+            method: 'GET',
+            headers: fetchHeaders,
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          // Get response body
+          const body = await response.text();
+
+          // Convert headers to plain object
+          const responseHeaders = {};
+          response.headers.forEach((value, key) => {
+            responseHeaders[key] = value;
+          });
+
+          // Return structured response object
+          return {
+            status: response.status,
+            body: body,
+            headers: responseHeaders,
+            ok: response.ok,
+            attempt: attempt + 1
+          };
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          if (fetchError.name === 'AbortError') {
+            throw new Error(`Request timeout after ${timeoutMs}ms`);
+          }
+          throw fetchError;
+        }
+
+      } catch (error) {
+        lastError = error;
+
+        // If this was the last attempt, return error
+        if (attempt === totalAttempts - 1) {
+          return {
+            status: 0,
+            body: '',
+            headers: {},
+            ok: false,
+            error: error.message,
+            attempt: attempt + 1
+          };
+        }
+
+        // Wait before retrying (if retryInterval > 0)
+        if (retryIntervalMs > 0) {
+          await new Promise(resolve => setTimeout(resolve, retryIntervalMs));
+        }
       }
-
-      // Make the HTTP GET request
-      const response = await fetch(url.trim(), {
-        method: 'GET',
-        headers: fetchHeaders
-      });
-
-      // Get response body
-      const body = await response.text();
-
-      // Convert headers to plain object
-      const responseHeaders = {};
-      response.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
-
-      // Return structured response object
-      return {
-        status: response.status,
-        body: body,
-        headers: responseHeaders,
-        ok: response.ok
-      };
-
-    } catch (error) {
-      // Return error object for Rexx to handle
-      return {
-        status: 0,
-        body: '',
-        headers: {},
-        ok: false,
-        error: error.message
-      };
     }
+
+    // Should not reach here, but return error just in case
+    return {
+      status: 0,
+      body: '',
+      headers: {},
+      ok: false,
+      error: lastError ? lastError.message : 'Unknown error',
+      attempt: totalAttempts
+    };
   },
 
-  'HTTP_POST': async (url, body = '', headers = {}) => {
+  'HTTP_POST': async (url, body = '', headers = {}, timeout = 30000) => {
     try {
       // Validate URL
       if (typeof url !== 'string' || !url.trim()) {
@@ -113,29 +161,47 @@ const httpFunctions = {
       // Convert body to string
       const requestBody = body ? String(body) : '';
 
-      // Make the HTTP POST request
-      const response = await fetch(url.trim(), {
-        method: 'POST',
-        headers: fetchHeaders,
-        body: requestBody
-      });
+      // Parse timeout value
+      const timeoutMs = typeof timeout === 'number' ? timeout : parseInt(timeout) || 30000;
 
-      // Get response body
-      const responseBody = await response.text();
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      // Convert headers to plain object
-      const responseHeaders = {};
-      response.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
+      try {
+        // Make the HTTP POST request with timeout
+        const response = await fetch(url.trim(), {
+          method: 'POST',
+          headers: fetchHeaders,
+          body: requestBody,
+          signal: controller.signal
+        });
 
-      // Return structured response object
-      return {
-        status: response.status,
-        body: responseBody,
-        headers: responseHeaders,
-        ok: response.ok
-      };
+        clearTimeout(timeoutId);
+
+        // Get response body
+        const responseBody = await response.text();
+
+        // Convert headers to plain object
+        const responseHeaders = {};
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+
+        // Return structured response object
+        return {
+          status: response.status,
+          body: responseBody,
+          headers: responseHeaders,
+          ok: response.ok
+        };
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error(`Request timeout after ${timeoutMs}ms`);
+        }
+        throw fetchError;
+      }
 
     } catch (error) {
       // Return error object for Rexx to handle
@@ -149,7 +215,7 @@ const httpFunctions = {
     }
   },
 
-  'HTTP_PUT': async (url, body = '', headers = {}) => {
+  'HTTP_PUT': async (url, body = '', headers = {}, timeout = 30000) => {
     try {
       // Validate URL
       if (typeof url !== 'string' || !url.trim()) {
@@ -180,29 +246,47 @@ const httpFunctions = {
       // Convert body to string
       const requestBody = body ? String(body) : '';
 
-      // Make the HTTP PUT request
-      const response = await fetch(url.trim(), {
-        method: 'PUT',
-        headers: fetchHeaders,
-        body: requestBody
-      });
+      // Parse timeout value
+      const timeoutMs = typeof timeout === 'number' ? timeout : parseInt(timeout) || 30000;
 
-      // Get response body
-      const responseBody = await response.text();
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      // Convert headers to plain object
-      const responseHeaders = {};
-      response.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
+      try {
+        // Make the HTTP PUT request with timeout
+        const response = await fetch(url.trim(), {
+          method: 'PUT',
+          headers: fetchHeaders,
+          body: requestBody,
+          signal: controller.signal
+        });
 
-      // Return structured response object
-      return {
-        status: response.status,
-        body: responseBody,
-        headers: responseHeaders,
-        ok: response.ok
-      };
+        clearTimeout(timeoutId);
+
+        // Get response body
+        const responseBody = await response.text();
+
+        // Convert headers to plain object
+        const responseHeaders = {};
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+
+        // Return structured response object
+        return {
+          status: response.status,
+          body: responseBody,
+          headers: responseHeaders,
+          ok: response.ok
+        };
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error(`Request timeout after ${timeoutMs}ms`);
+        }
+        throw fetchError;
+      }
 
     } catch (error) {
       // Return error object for Rexx to handle
@@ -216,7 +300,7 @@ const httpFunctions = {
     }
   },
 
-  'HTTP_DELETE': async (url, headers = {}) => {
+  'HTTP_DELETE': async (url, headers = {}, timeout = 30000) => {
     try {
       // Validate URL
       if (typeof url !== 'string' || !url.trim()) {
@@ -239,28 +323,46 @@ const httpFunctions = {
         }
       }
 
-      // Make the HTTP DELETE request
-      const response = await fetch(url.trim(), {
-        method: 'DELETE',
-        headers: fetchHeaders
-      });
+      // Parse timeout value
+      const timeoutMs = typeof timeout === 'number' ? timeout : parseInt(timeout) || 30000;
 
-      // Get response body
-      const body = await response.text();
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      // Convert headers to plain object
-      const responseHeaders = {};
-      response.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
+      try {
+        // Make the HTTP DELETE request with timeout
+        const response = await fetch(url.trim(), {
+          method: 'DELETE',
+          headers: fetchHeaders,
+          signal: controller.signal
+        });
 
-      // Return structured response object
-      return {
-        status: response.status,
-        body: body,
-        headers: responseHeaders,
-        ok: response.ok
-      };
+        clearTimeout(timeoutId);
+
+        // Get response body
+        const body = await response.text();
+
+        // Convert headers to plain object
+        const responseHeaders = {};
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+
+        // Return structured response object
+        return {
+          status: response.status,
+          body: body,
+          headers: responseHeaders,
+          ok: response.ok
+        };
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error(`Request timeout after ${timeoutMs}ms`);
+        }
+        throw fetchError;
+      }
 
     } catch (error) {
       // Return error object for Rexx to handle

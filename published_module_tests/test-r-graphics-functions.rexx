@@ -3,14 +3,14 @@
 // Copyright (c) 2025 Paul Hammant
 // Licensed under the MIT License
 
-/* @test-tags published-modules, graphics-functions, registry, integration */
-/* @description Test loading graphics-functions from published registry */
+/* @test-tags published-modules, r-graphics-functions, registry, integration */
+/* @description Test loading r-graphics-functions from published registry */
 
-SAY "🧪 Testing Published Module: org.rexxjs/graphics-functions"
+SAY "🧪 Testing Published Module: org.rexxjs/r-graphics-functions"
 SAY "Loading module from registry..."
 
-// Load graphics-functions from the published registry
-REQUIRE "registry:org.rexxjs/graphics-functions"
+// Load r-graphics-functions from the published registry
+REQUIRE "registry:org.rexxjs/r-graphics-functions"
 
 SAY "✓ Module loaded successfully"
 SAY ""
@@ -49,4 +49,4 @@ ELSE DO
 END
 
 SAY ""
-SAY "🎉 All tests passed for org.rexxjs/graphics-functions!"
+SAY "🎉 All tests passed for org.rexxjs/r-graphics-functions!"

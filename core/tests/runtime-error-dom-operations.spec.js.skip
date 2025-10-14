@@ -1,0 +1,791 @@
+/**
+ * Runtime Error Tests for DOM Operations
+ *
+ * Tests for runtime errors in DOM-related operations with clear error messaging.
+ * These tests focus on browser environment operations and DOM manipulation errors.
+ *
+ * Copyright (c) 2025 Paul Hammant
+ * Licensed under the MIT License
+ */
+
+const { RexxInterpreter } = require('../src/interpreter');
+const { parse } = require('../src/parser');
+
+describe('Runtime Errors - DOM Operations', () => {
+  let interpreter;
+  let mockRpc;
+
+  beforeEach(() => {
+    mockRpc = { send: jest.fn().mockResolvedValue('mock response') };
+    interpreter = new RexxInterpreter(mockRpc);
+  });
+
+  describe('Element Selection Errors', () => {
+    test('should report error when selecting non-existent element', async () => {
+      const script = `
+        LET element = DOM_SELECT("#non-existent-id")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-existent element');
+      } catch (error) {
+        expect(error.message).toMatch(/non-existent|element|not found|selector/i);
+      }
+    });
+
+    test('should report error for invalid CSS selector', async () => {
+      const script = `
+        LET element = DOM_SELECT("###invalid..selector")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid selector');
+      } catch (error) {
+        expect(error.message).toMatch(/selector|invalid|syntax/i);
+      }
+    });
+
+    test('should report error when selector is null', async () => {
+      const script = `
+        LET selector = null
+        LET element = DOM_SELECT(selector)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null selector');
+      } catch (error) {
+        expect(error.message).toMatch(/null|selector|invalid/i);
+      }
+    });
+
+    test('should report error when selector is undefined', async () => {
+      const script = `
+        LET element = DOM_SELECT(undefinedSelector)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined selector');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedSelector|undefined|not defined/i);
+      }
+    });
+
+    test('should report error for empty selector string', async () => {
+      const script = `
+        LET element = DOM_SELECT("")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty selector');
+      } catch (error) {
+        expect(error.message).toMatch(/empty|selector|invalid/i);
+      }
+    });
+
+    test('should report error when selecting from detached element', async () => {
+      const script = `
+        LET parent = DOM_CREATE("div")
+        LET child = DOM_SELECT_FROM(parent, ".child")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for selecting from detached element');
+      } catch (error) {
+        expect(error.message).toMatch(/detached|not attached|not found/i);
+      }
+    });
+
+    test('should report error when using XPath selector incorrectly', async () => {
+      const script = `
+        LET element = DOM_SELECT("//div[@id='test'")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid XPath');
+      } catch (error) {
+        expect(error.message).toMatch(/XPath|selector|invalid|syntax/i);
+      }
+    });
+  });
+
+  describe('Element Manipulation Errors', () => {
+    test('should report error when setting attribute on null element', async () => {
+      const script = `
+        LET element = null
+        DOM_SET_ATTRIBUTE(element, "id", "test")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null element');
+      } catch (error) {
+        expect(error.message).toMatch(/null|element|invalid/i);
+      }
+    });
+
+    test('should report error when getting attribute from undefined element', async () => {
+      const script = `
+        LET value = DOM_GET_ATTRIBUTE(undefinedElement, "id")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined element');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedElement|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when setting invalid attribute name', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_SET_ATTRIBUTE(element, "", "value")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty attribute name');
+      } catch (error) {
+        expect(error.message).toMatch(/attribute|empty|invalid|name/i);
+      }
+    });
+
+    test('should report error when setting attribute value to undefined', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_SET_ATTRIBUTE(element, "data-test", undefinedValue)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined attribute value');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedValue|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when manipulating detached element', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_REMOVE(element)
+        DOM_SET_TEXT(element, "Should fail")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed on detached element
+      } catch (error) {
+        expect(error.message).toMatch(/detached|removed|element/i);
+      }
+    });
+
+    test('should report error when appending null child', async () => {
+      const script = `
+        LET parent = DOM_CREATE("div")
+        LET child = null
+        DOM_APPEND(parent, child)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null child');
+      } catch (error) {
+        expect(error.message).toMatch(/null|child|element/i);
+      }
+    });
+
+    test('should report error when inserting element into null parent', async () => {
+      const script = `
+        LET child = DOM_CREATE("div")
+        LET parent = null
+        DOM_APPEND(parent, child)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null parent');
+      } catch (error) {
+        expect(error.message).toMatch(/null|parent|element/i);
+      }
+    });
+  });
+
+  describe('Element Creation Errors', () => {
+    test('should report error for invalid tag name', async () => {
+      const script = `
+        LET element = DOM_CREATE("invalid tag name")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid tag name');
+      } catch (error) {
+        expect(error.message).toMatch(/tag|invalid|name/i);
+      }
+    });
+
+    test('should report error when creating element with empty tag', async () => {
+      const script = `
+        LET element = DOM_CREATE("")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty tag name');
+      } catch (error) {
+        expect(error.message).toMatch(/tag|empty|invalid/i);
+      }
+    });
+
+    test('should report error when creating element with null tag', async () => {
+      const script = `
+        LET tag = null
+        LET element = DOM_CREATE(tag)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null tag');
+      } catch (error) {
+        expect(error.message).toMatch(/null|tag|invalid/i);
+      }
+    });
+
+    test('should report error for creating element with numeric tag', async () => {
+      const script = `
+        LET element = DOM_CREATE(123)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for numeric tag');
+      } catch (error) {
+        expect(error.message).toMatch(/tag|type|invalid|string/i);
+      }
+    });
+
+    test('should report error when creating custom element with invalid name', async () => {
+      const script = `
+        LET element = DOM_CREATE("Custom-Element")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed or fail depending on browser support
+      } catch (error) {
+        expect(error.message).toMatch(/custom|element|invalid/i);
+      }
+    });
+  });
+
+  describe('Event Handling Errors', () => {
+    test('should report error when adding event listener to null element', async () => {
+      const script = `
+        LET element = null
+        DOM_ON(element, "click", "handleClick")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null element');
+      } catch (error) {
+        expect(error.message).toMatch(/null|element|invalid/i);
+      }
+    });
+
+    test('should report error when event type is undefined', async () => {
+      const script = `
+        LET element = DOM_CREATE("button")
+        DOM_ON(element, undefinedEvent, "handler")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined event type');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedEvent|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when event handler is not callable', async () => {
+      const script = `
+        LET element = DOM_CREATE("button")
+        DOM_ON(element, "click", 123)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-callable handler');
+      } catch (error) {
+        expect(error.message).toMatch(/handler|function|callable/i);
+      }
+    });
+
+    test('should report error when removing non-existent event listener', async () => {
+      const script = `
+        LET element = DOM_CREATE("button")
+        DOM_OFF(element, "click", "nonExistentHandler")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed silently
+      } catch (error) {
+        expect(error.message).toMatch(/handler|not found|listener/i);
+      }
+    });
+
+    test('should report error when event type is empty string', async () => {
+      const script = `
+        LET element = DOM_CREATE("button")
+        DOM_ON(element, "", "handler")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty event type');
+      } catch (error) {
+        expect(error.message).toMatch(/event|empty|invalid|type/i);
+      }
+    });
+  });
+
+  describe('Style Manipulation Errors', () => {
+    test('should report error when setting style on null element', async () => {
+      const script = `
+        LET element = null
+        DOM_SET_STYLE(element, "color", "red")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null element');
+      } catch (error) {
+        expect(error.message).toMatch(/null|element|invalid/i);
+      }
+    });
+
+    test('should report error when style property is undefined', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_SET_STYLE(element, undefinedProperty, "value")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined property');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedProperty|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when setting invalid CSS property', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_SET_STYLE(element, "invalid-css-property", "value")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed but have no effect
+      } catch (error) {
+        expect(error.message).toMatch(/property|invalid|CSS/i);
+      }
+    });
+
+    test('should report error when getting style from undefined element', async () => {
+      const script = `
+        LET color = DOM_GET_STYLE(undefinedElement, "color")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined element');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedElement|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when setting style value to object', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        LET value = {"color": "red"}
+        DOM_SET_STYLE(element, "background", value)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for object style value');
+      } catch (error) {
+        expect(error.message).toMatch(/value|type|invalid|string/i);
+      }
+    });
+  });
+
+  describe('Class Manipulation Errors', () => {
+    test('should report error when adding class to null element', async () => {
+      const script = `
+        LET element = null
+        DOM_ADD_CLASS(element, "active")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null element');
+      } catch (error) {
+        expect(error.message).toMatch(/null|element|invalid/i);
+      }
+    });
+
+    test('should report error when class name is undefined', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_ADD_CLASS(element, undefinedClass)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined class name');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedClass|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when removing class from undefined element', async () => {
+      const script = `
+        DOM_REMOVE_CLASS(undefinedElement, "active")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined element');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedElement|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when class name contains spaces', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_ADD_CLASS(element, "class with spaces")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for class name with spaces');
+      } catch (error) {
+        expect(error.message).toMatch(/class|space|invalid|name/i);
+      }
+    });
+
+    test('should report error when toggling class with empty name', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_TOGGLE_CLASS(element, "")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for empty class name');
+      } catch (error) {
+        expect(error.message).toMatch(/class|empty|invalid|name/i);
+      }
+    });
+  });
+
+  describe('DOM Navigation Errors', () => {
+    test('should report error when getting parent of null element', async () => {
+      const script = `
+        LET element = null
+        LET parent = DOM_PARENT(element)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null element');
+      } catch (error) {
+        expect(error.message).toMatch(/null|element|invalid/i);
+      }
+    });
+
+    test('should report error when getting children of undefined element', async () => {
+      const script = `
+        LET children = DOM_CHILDREN(undefinedElement)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined element');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedElement|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when navigating from detached element', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        LET parent = DOM_PARENT(element)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May return null rather than error
+      } catch (error) {
+        expect(error.message).toMatch(/parent|detached|not found/i);
+      }
+    });
+
+    test('should report error when getting sibling of null element', async () => {
+      const script = `
+        LET element = null
+        LET next = DOM_NEXT_SIBLING(element)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null element');
+      } catch (error) {
+        expect(error.message).toMatch(/null|element|invalid/i);
+      }
+    });
+  });
+
+  describe('Text Content Errors', () => {
+    test('should report error when setting text on null element', async () => {
+      const script = `
+        LET element = null
+        DOM_SET_TEXT(element, "text")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null element');
+      } catch (error) {
+        expect(error.message).toMatch(/null|element|invalid/i);
+      }
+    });
+
+    test('should report error when getting text from undefined element', async () => {
+      const script = `
+        LET text = DOM_GET_TEXT(undefinedElement)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined element');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedElement|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when setting innerHTML with invalid markup', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_SET_HTML(element, "<div><span>unclosed")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // Browser may auto-close tags
+      } catch (error) {
+        expect(error.message).toMatch(/HTML|markup|invalid/i);
+      }
+    });
+
+    test('should report error when setting text to undefined', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_SET_TEXT(element, undefinedText)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined text');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedText|undefined|not defined/i);
+      }
+    });
+  });
+
+  describe('Element State Errors', () => {
+    test('should report error when checking state of null element', async () => {
+      const script = `
+        LET element = null
+        LET visible = DOM_IS_VISIBLE(element)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null element');
+      } catch (error) {
+        expect(error.message).toMatch(/null|element|invalid/i);
+      }
+    });
+
+    test('should report error when checking disabled state of undefined element', async () => {
+      const script = `
+        LET disabled = DOM_IS_DISABLED(undefinedElement)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined element');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedElement|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when accessing stale element', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        DOM_REMOVE(element)
+        LET text = DOM_GET_TEXT(element)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed on detached element
+      } catch (error) {
+        expect(error.message).toMatch(/STALE_ELEMENT|detached|removed/i);
+      }
+    });
+  });
+
+  describe('Form Element Errors', () => {
+    test('should report error when getting value from non-form element', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        LET value = DOM_GET_VALUE(element)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May return undefined rather than error
+      } catch (error) {
+        expect(error.message).toMatch(/value|form|input/i);
+      }
+    });
+
+    test('should report error when setting value on null element', async () => {
+      const script = `
+        LET element = null
+        DOM_SET_VALUE(element, "test")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null element');
+      } catch (error) {
+        expect(error.message).toMatch(/null|element|invalid/i);
+      }
+    });
+
+    test('should report error when checking form element without form', async () => {
+      const script = `
+        LET input = DOM_CREATE("input")
+        LET valid = DOM_IS_VALID(input)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed or return false
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+  });
+
+  describe('DOM Query Errors', () => {
+    test('should report error when querying all with null selector', async () => {
+      const script = `
+        LET selector = null
+        LET elements = DOM_SELECT_ALL(selector)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null selector');
+      } catch (error) {
+        expect(error.message).toMatch(/null|selector|invalid/i);
+      }
+    });
+
+    test('should report error when filtering elements with invalid callback', async () => {
+      const script = `
+        LET elements = DOM_SELECT_ALL("div")
+        LET filtered = DOM_FILTER(elements, 123)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for invalid callback');
+      } catch (error) {
+        expect(error.message).toMatch(/callback|function|invalid/i);
+      }
+    });
+
+    test('should report error when finding with undefined predicate', async () => {
+      const script = `
+        LET elements = DOM_SELECT_ALL("div")
+        LET found = DOM_FIND(elements, undefinedPredicate)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined predicate');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedPredicate|undefined|not defined/i);
+      }
+    });
+  });
+
+  describe('Element Measurement Errors', () => {
+    test('should report error when measuring null element', async () => {
+      const script = `
+        LET element = null
+        LET width = DOM_GET_WIDTH(element)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for null element');
+      } catch (error) {
+        expect(error.message).toMatch(/null|element|invalid/i);
+      }
+    });
+
+    test('should report error when getting dimensions of undefined element', async () => {
+      const script = `
+        LET rect = DOM_GET_RECT(undefinedElement)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined element');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedElement|undefined|not defined/i);
+      }
+    });
+
+    test('should report error when measuring detached element', async () => {
+      const script = `
+        LET element = DOM_CREATE("div")
+        LET height = DOM_GET_HEIGHT(element)
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May return 0 rather than error
+      } catch (error) {
+        expect(error.message).toMatch(/detached|not attached|element/i);
+      }
+    });
+  });
+});

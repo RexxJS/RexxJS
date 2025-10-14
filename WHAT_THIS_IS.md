@@ -210,7 +210,7 @@ ADDRESS GCP
 - Functional programming constructs (`MAP`, `FILTER`, `REDUCE`)
 - Async/await patterns for browser operations
 - Real-time progress monitoring with `CHECKPOINT()`
-- Configurable string interpolation patterns (handlebars `{{var}}`, shell `${var}`, batch `%var%`, custom delimiters)
+- Configurable string interpolation patterns - switch between `{{var}}`, `${var}`, `%var%`, or custom delimiters with `SET_INTERPOLATION('pattern')`
 
 ## Architecture
 

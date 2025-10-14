@@ -288,7 +288,7 @@ test('REPL functionality works with web loader', async ({ page }) => {
   await page.waitForTimeout(2000);
   
   // Load the graphics library
-  await replInput.fill('REQUIRE "../../extras/functions/r-inspired/graphics/graphics-functions.js"');
+  await replInput.fill('REQUIRE "../../extras/functions/r-inspired/graphics/r-graphics-functions.js"');
   await replInput.press('Enter');
   await page.waitForTimeout(1000);
   

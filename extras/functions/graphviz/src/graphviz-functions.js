@@ -64,6 +64,34 @@ async function renderGraphviz(dot, engine, format) {
 
     try {
         const result = graphviz.layout(dot, format, engine);
+
+        if (typeof window !== 'undefined' && window.rexxjs) {
+            // Clear any previous renderer suggestion
+            delete window.rexxjs.suggestedRenderFunction;
+
+            // The REPL environment provides a createGraphicsContainer function
+            const createGraphicsContainer = window.createGraphicsContainer || (() => {
+                const div = document.createElement('div');
+                div.className = 'repl-graphics';
+                document.body.appendChild(div); // Fallback if not in REPL
+                return div;
+            });
+
+            if (format === 'svg') {
+                window.rexxjs.suggestedRenderFunction = () => {
+                    const targetElement = createGraphicsContainer();
+                    targetElement.innerHTML = result;
+                };
+            } else if (format === 'png') {
+                window.rexxjs.suggestedRenderFunction = () => {
+                    const targetElement = createGraphicsContainer();
+                    const img = document.createElement('img');
+                    img.src = `data:image/png;base64,${result}`;
+                    targetElement.appendChild(img);
+                };
+            }
+        }
+
         return result;
     } catch (error) {
         console.error(`Error rendering Graphviz DOT string with ${engine}:`, error);

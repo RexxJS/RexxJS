@@ -4,7 +4,7 @@
  * Tests for R Visualization & Graphics Functions
  */
 
-const { rGraphicsFunctions } = require('../r-graphics-functions.js');
+const { rGraphicsFunctions } = require('../src/graphics-functions.js');
 
 describe('R Visualization & Graphics Functions', () => {
   describe('PAR', () => {

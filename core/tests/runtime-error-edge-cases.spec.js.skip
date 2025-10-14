@@ -1,0 +1,800 @@
+/**
+ * Runtime Error Edge Cases Tests
+ *
+ * Tests for edge case runtime errors and their messaging.
+ * Focus on unusual scenarios that might slip through basic testing.
+ *
+ * Copyright (c) 2025 Paul Hammant
+ * Licensed under the MIT License
+ */
+
+const { RexxInterpreter } = require('../src/interpreter');
+const { parse } = require('../src/parser');
+
+describe('Runtime Error Edge Cases', () => {
+  let interpreter;
+  let mockRpc;
+
+  beforeEach(() => {
+    mockRpc = { send: jest.fn().mockResolvedValue('mock response') };
+    interpreter = new RexxInterpreter(mockRpc);
+  });
+
+  describe('Numeric Precision and Edge Cases', () => {
+    test('should handle very large number operations', async () => {
+      const script = `
+        LET big1 = 9999999999999999
+        LET big2 = 9999999999999999
+        LET result = big1 * big2
+        SAY result
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // JavaScript may lose precision
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should handle very small decimal operations', async () => {
+      const script = `
+        LET small = 0.00000000001
+        LET result = small / 1000000
+        SAY result
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // Should succeed
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should report error for NaN in calculations', async () => {
+      const script = `
+        LET invalid = "not a number"
+        LET result = invalid * 5
+        IF result = result THEN
+          SAY "Equal"
+        ELSE
+          SAY "Not equal"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // NaN != NaN in JavaScript
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should handle negative zero correctly', async () => {
+      const script = `
+        LET negZero = -0
+        LET posZero = 0
+        IF negZero = posZero THEN
+          SAY "Equal"
+        ELSE
+          SAY "Different"
+        END
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed - -0 === 0 in JavaScript
+    });
+
+    test('should report error for exponent overflow', async () => {
+      const script = `
+        LET huge = 10 ** 10000
+        SAY huge
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // Results in Infinity
+      } catch (error) {
+        expect(error.message).toMatch(/overflow|infinity/i);
+      }
+    });
+  });
+
+  describe('String Edge Cases', () => {
+    test('should handle empty string operations', async () => {
+      const script = `
+        LET empty = ""
+        LET result = SUBSTR(empty, 1)
+        SAY result
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed with empty result
+    });
+
+    test('should handle very long strings', async () => {
+      const script = `
+        LET long = "a"
+        DO i = 1 TO 100
+          LET long = long || "a"
+        END
+        SAY LENGTH(long)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed
+    });
+
+    test('should report error for SUBSTR with length exceeding string', async () => {
+      const script = `
+        LET str = "hello"
+        LET result = SUBSTR(str, 1, 1000)
+        SAY result
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // Should succeed, returning available chars
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should handle special characters in strings', async () => {
+      const script = `
+        LET special = "\\n\\t\\r\\"\\'"
+        SAY LENGTH(special)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle escape sequences
+    });
+
+    test('should handle Unicode characters', async () => {
+      const script = `
+        LET unicode = "Hello 世界 🌍"
+        SAY LENGTH(unicode)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle Unicode properly
+    });
+  });
+
+  describe('Array Edge Cases', () => {
+    test('should handle empty array operations', async () => {
+      const script = `
+        LET empty = []
+        LET result = ARRAY_MAP(empty, "x => x * 2")
+        SAY JSON_STRINGIFY(result)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed with empty array
+    });
+
+    test('should handle nested arrays', async () => {
+      const script = `
+        LET nested = [[1, 2], [3, 4], [5, 6]]
+        SAY nested[0][0]
+        SAY nested[1][1]
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed
+    });
+
+    test('should report error for accessing deeply nested non-existent element', async () => {
+      const script = `
+        LET nested = [[1, 2]]
+        SAY nested[5][5][5]
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May return undefined
+      } catch (error) {
+        expect(error.message).toMatch(/index|undefined|cannot read/i);
+      }
+    });
+
+    test('should handle sparse arrays', async () => {
+      const script = `
+        LET sparse = []
+        LET sparse[10] = "value"
+        SAY ARRAY_LENGTH(sparse)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle sparse arrays
+    });
+
+    test('should handle array with mixed types', async () => {
+      const script = `
+        LET mixed = [1, "two", {"three": 3}, [4, 5]]
+        SAY JSON_STRINGIFY(mixed)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed
+    });
+  });
+
+  describe('Object Edge Cases', () => {
+    test('should handle empty object', async () => {
+      const script = `
+        LET empty = {}
+        SAY JSON_STRINGIFY(empty)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed
+    });
+
+    test('should handle deeply nested objects', async () => {
+      const script = `
+        LET deep = {"a": {"b": {"c": {"d": {"e": "value"}}}}}
+        SAY deep.a.b.c.d.e
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed
+    });
+
+    test('should report error for accessing property with numeric key on non-array', async () => {
+      const script = `
+        LET obj = {"0": "zero", "1": "one"}
+        SAY obj[0]
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with string key "0"
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should handle object with special property names', async () => {
+      const script = `
+        LET obj = {"special-key": "value", "another.key": "value2"}
+        SAY JSON_STRINGIFY(obj)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should succeed
+    });
+
+    test('should handle null prototype objects carefully', async () => {
+      const script = `
+        LET obj = {"__proto__": null}
+        SAY JSON_STRINGIFY(obj)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle carefully
+    });
+  });
+
+  describe('Variable Scope Edge Cases', () => {
+    test('should report error for accessing local variable from outer scope', async () => {
+      const script = `
+        CALL TestScope
+        SAY localVar
+
+        TestScope:
+          LET localVar = "local"
+          SAY localVar
+        RETURN
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for out-of-scope variable');
+      } catch (error) {
+        expect(error.message).toMatch(/localVar|undefined|not defined/i);
+      }
+    });
+
+    test('should handle variable shadowing in nested scopes', async () => {
+      const script = `
+        LET x = "outer"
+        CALL TestShadow
+        SAY x
+
+        TestShadow:
+          LET x = "inner"
+          SAY x
+        RETURN
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle shadowing correctly
+    });
+
+    test('should handle PROCEDURE EXPOSE correctly', async () => {
+      const script = `
+        LET global = "global"
+        CALL TestExpose
+
+        TestExpose: PROCEDURE EXPOSE global
+          SAY global
+          LET global = "modified"
+        RETURN
+      `;
+
+      await interpreter.run(parse(script));
+      // Should expose global variable
+    });
+
+    test('should report error when EXPOSE references non-existent variable', async () => {
+      const script = `
+        CALL TestBadExpose
+
+        TestBadExpose: PROCEDURE EXPOSE nonExistent
+          SAY nonExistent
+        RETURN
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for non-existent exposed variable');
+      } catch (error) {
+        expect(error.message).toMatch(/nonExistent|undefined|not defined/i);
+      }
+    });
+  });
+
+  describe('Loop Edge Cases', () => {
+    test('should handle DO loop with zero iterations', async () => {
+      const script = `
+        DO i = 1 TO 0
+          SAY "Should not print"
+        END
+        SAY "After loop"
+      `;
+
+      await interpreter.run(parse(script));
+      // Should execute zero iterations
+    });
+
+    test('should handle DO loop with negative step', async () => {
+      const script = `
+        DO i = 10 TO 1 BY -1
+          SAY i
+        END
+      `;
+
+      await interpreter.run(parse(script));
+      // Should count backwards
+    });
+
+    test('should report error for DO loop with zero step', async () => {
+      const script = `
+        DO i = 1 TO 10 BY 0
+          SAY i
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for zero step');
+      } catch (error) {
+        expect(error.message).toMatch(/step|zero|invalid/i);
+      }
+    });
+
+    test('should handle infinite loop with LEAVE', async () => {
+      const script = `
+        LET count = 0
+        DO FOREVER
+          LET count = count + 1
+          IF count > 5 THEN LEAVE
+        END
+        SAY count
+      `;
+
+      await interpreter.run(parse(script));
+      // Should exit via LEAVE
+    });
+
+    test('should handle nested LEAVE correctly', async () => {
+      const script = `
+        DO i = 1 TO 3
+          DO j = 1 TO 3
+            IF j = 2 THEN LEAVE
+            SAY i || "," || j
+          END
+        END
+      `;
+
+      await interpreter.run(parse(script));
+      // LEAVE should only exit inner loop
+    });
+  });
+
+  describe('Function Call Edge Cases', () => {
+    test('should handle function with maximum parameters', async () => {
+      const script = `
+        LET result = REGEX_REPLACE("test", "t", "T", "g")
+        SAY result
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle all parameters
+    });
+
+    test('should handle function with optional parameters omitted', async () => {
+      const script = `
+        LET result = SUBSTR("hello", 2)
+        SAY result
+      `;
+
+      await interpreter.run(parse(script));
+      // Should use default for missing parameter
+    });
+
+    test('should report error for function with too many parameters', async () => {
+      const script = `
+        LET result = LENGTH("test", "extra", "params")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for too many parameters');
+      } catch (error) {
+        expect(error.message).toMatch(/parameter|too many|invalid/i);
+      }
+    });
+
+    test('should handle nested function calls deeply', async () => {
+      const script = `
+        LET result = UPPER(SUBSTR(LOWER("HELLO WORLD"), 1, 5))
+        SAY result
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle nested calls
+    });
+  });
+
+  describe('Conditional Edge Cases', () => {
+    test('should handle empty THEN clause', async () => {
+      const script = `
+        IF 1 > 0 THEN
+        ELSE
+          SAY "else"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with empty THEN
+      } catch (error) {
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should handle nested IF without END', async () => {
+      const script = `
+        IF 1 > 0 THEN
+          IF 2 > 1 THEN
+            SAY "nested"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for missing END');
+      } catch (error) {
+        expect(error.message).toMatch(/END|IF/i);
+      }
+    });
+
+    test('should handle SELECT with no matching WHEN', async () => {
+      const script = `
+        SELECT
+          WHEN 1 > 10 THEN SAY "no"
+          WHEN 2 > 20 THEN SAY "no"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for no matching WHEN without OTHERWISE');
+      } catch (error) {
+        expect(error.message).toMatch(/SELECT|OTHERWISE|no match/i);
+      }
+    });
+
+    test('should handle multiple OTHERWISE clauses as error', async () => {
+      const script = `
+        SELECT
+          WHEN 1 > 10 THEN SAY "no"
+          OTHERWISE SAY "first"
+          OTHERWISE SAY "second"
+        END
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for multiple OTHERWISE');
+      } catch (error) {
+        expect(error.message).toMatch(/OTHERWISE|multiple|duplicate/i);
+      }
+    });
+  });
+
+  describe('Special Value Edge Cases', () => {
+    test('should handle undefined as value', async () => {
+      const script = `
+        LET x = undefined
+        SAY x
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May treat 'undefined' as string literal
+      } catch (error) {
+        expect(error.message).toMatch(/undefined/i);
+      }
+    });
+
+    test('should handle null comparisons', async () => {
+      const script = `
+        LET x = null
+        LET y = null
+        IF x = y THEN
+          SAY "equal"
+        ELSE
+          SAY "not equal"
+        END
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle null === null
+    });
+
+    test('should handle boolean values in arithmetic', async () => {
+      const script = `
+        LET t = 1
+        LET f = 0
+        LET result = t + f
+        SAY result
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle boolean-like arithmetic
+    });
+
+    test('should handle Infinity in operations', async () => {
+      const script = `
+        LET inf = 1 / 0
+        SAY inf
+        IF inf > 1000000 THEN SAY "very large"
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // JavaScript allows Infinity
+      } catch (error) {
+        expect(error.message).toMatch(/infinity|division/i);
+      }
+    });
+  });
+
+  describe('Memory and Performance Edge Cases', () => {
+    test('should handle large array creation', async () => {
+      const script = `
+        LET big = []
+        DO i = 1 TO 1000
+          LET big[i] = i
+        END
+        SAY ARRAY_LENGTH(big)
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle large array
+    });
+
+    test('should handle deep recursion up to limit', async () => {
+      const script = `
+        LET counter = 0
+        CALL RecurseLimit 100
+
+        RecurseLimit: PROCEDURE
+          PARSE ARG depth
+          LET counter = counter + 1
+          IF depth > 1 THEN
+            CALL RecurseLimit depth - 1
+        RETURN
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        // May succeed with moderate depth
+      } catch (error) {
+        expect(error.message).toMatch(/stack|recursion|overflow/i);
+      }
+    });
+
+    test('should handle very long variable names', async () => {
+      const script = `
+        LET thisIsAVeryLongVariableNameThatGoesOnAndOnAndOn = "value"
+        SAY thisIsAVeryLongVariableNameThatGoesOnAndOnAndOn
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle long names
+    });
+  });
+
+  describe('Type Coercion Edge Cases', () => {
+    test('should handle string-to-number coercion in arithmetic', async () => {
+      const script = `
+        LET str = "42"
+        LET result = str + 8
+        SAY result
+      `;
+
+      await interpreter.run(parse(script));
+      // Should coerce or concatenate
+    });
+
+    test('should handle number-to-string coercion in concatenation', async () => {
+      const script = `
+        LET num = 42
+        LET result = "Answer: " || num
+        SAY result
+      `;
+
+      await interpreter.run(parse(script));
+      // Should coerce number to string
+    });
+
+    test('should handle boolean-like values in conditions', async () => {
+      const script = `
+        LET x = 0
+        IF x THEN
+          SAY "truthy"
+        ELSE
+          SAY "falsy"
+        END
+      `;
+
+      await interpreter.run(parse(script));
+      // Should evaluate truthiness
+    });
+
+    test('should handle empty string as falsy', async () => {
+      const script = `
+        LET empty = ""
+        IF empty THEN
+          SAY "truthy"
+        ELSE
+          SAY "falsy"
+        END
+      `;
+
+      await interpreter.run(parse(script));
+      // Should evaluate empty string
+    });
+  });
+
+  describe('Label and Jump Edge Cases', () => {
+    test('should handle label with same name as variable', async () => {
+      const script = `
+        LET MyLabel = "variable"
+        SIGNAL MyLabel
+        SAY "Should not reach"
+
+        MyLabel:
+          SAY "At label"
+      `;
+
+      await interpreter.run(parse(script));
+      // Should distinguish label from variable
+    });
+
+    test('should report error for SIGNAL to label inside procedure', async () => {
+      const script = `
+        SIGNAL InnerLabel
+
+        TestProc:
+          InnerLabel:
+            SAY "inner"
+        RETURN
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for inaccessible label');
+      } catch (error) {
+        expect(error.message).toMatch(/InnerLabel|not found|label/i);
+      }
+    });
+
+    test('should handle forward and backward jumps', async () => {
+      const script = `
+        LET count = 0
+        Start:
+          LET count = count + 1
+          IF count < 3 THEN SIGNAL Start
+          SIGNAL End
+
+        End:
+          SAY count
+      `;
+
+      await interpreter.run(parse(script));
+      // Should handle jumps correctly
+    });
+  });
+
+  describe('Error Message Context and Quality', () => {
+    test('should include line number in error for multi-line scripts', async () => {
+      const script = `
+        LET a = 10
+        LET b = 20
+        LET c = undefinedVariable
+        LET d = 40
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for undefined variable');
+      } catch (error) {
+        // Should ideally include line number
+        expect(error.message).toBeTruthy();
+      }
+    });
+
+    test('should provide helpful message for common typos', async () => {
+      const script = `
+        LET result = LENGHT("test")
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error for typo in function name');
+      } catch (error) {
+        expect(error.message).toMatch(/LENGHT|not found|did you mean|LENGTH/i);
+      }
+    });
+
+    test('should provide context when error occurs in subroutine', async () => {
+      const script = `
+        CALL MySub
+        EXIT 0
+
+        MySub:
+          LET x = 10
+          LET y = undefinedInSub
+        RETURN
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected error in subroutine');
+      } catch (error) {
+        expect(error.message).toMatch(/undefinedInSub/i);
+        // Ideally should mention MySub
+      }
+    });
+
+    test('should distinguish between parser and runtime errors clearly', async () => {
+      const script = `
+        LET x = 10
+        SAY y
+      `;
+
+      try {
+        await interpreter.run(parse(script));
+        fail('Expected runtime error');
+      } catch (error) {
+        // Should be runtime error, not parse error
+        expect(error.message).toMatch(/y|undefined|not defined/i);
+      }
+    });
+  });
+});

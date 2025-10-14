@@ -7,7 +7,7 @@
  */
 
 const { RexxInterpreter } = require('../../../../../core/src/interpreter');
-const { rGraphicsFunctions } = require('../r-graphics-functions');
+const { rGraphicsFunctions } = require('../src/graphics-functions');
 const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage } = require('canvas');
@@ -101,7 +101,7 @@ describe('RENDER Function Integration Tests', () => {
         LET result = RENDER plot=histogram output=outputPath width=800 height=600
       `;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands = parse(rexxCode);
       await interpreter.run(commands);
 
@@ -131,7 +131,7 @@ describe('RENDER Function Integration Tests', () => {
         LET result = RENDER plot=barplot output=outputPath width=1000 height=600
       `;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands = parse(rexxCode);
       await interpreter.run(commands);
 
@@ -157,7 +157,7 @@ describe('RENDER Function Integration Tests', () => {
         LET result = RENDER plot=scatter output=outputPath width=800 height=600
       `;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands = parse(rexxCode);
       await interpreter.run(commands);
 
@@ -177,7 +177,7 @@ describe('RENDER Function Integration Tests', () => {
         LET result = RENDER plot=histogram output=outputPath width=1600 height=1200 margin=margins
       `;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands = parse(rexxCode);
       await interpreter.run(commands);
 
@@ -199,7 +199,7 @@ describe('RENDER Function Integration Tests', () => {
         LET result = RENDER plot=histogram output="base64" width=400 height=300
       `;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands = parse(rexxCode);
       await interpreter.run(commands);
 
@@ -214,7 +214,7 @@ describe('RENDER Function Integration Tests', () => {
         LET result1 = RENDER output="/tmp/test.png"
       `;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands1 = parse(rexxCode1);
       await interpreter.run(commands1);
 
@@ -371,10 +371,10 @@ describe('RENDER Function Integration Tests', () => {
       `;
 
       // Need to load stats functions for COR
-      const { rRegressionFunctions } = require('../advanced-analytics/r-regression-functions');
+      const { rRegressionFunctions } = require('../../advanced-analytics/src/r-regression-functions');
       interpreter.builtInFunctions['COR'] = rRegressionFunctions.COR;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands = parse(rexxCode);
       await interpreter.run(commands);
 
@@ -398,10 +398,10 @@ describe('RENDER Function Integration Tests', () => {
       `;
 
       // Need to load ML functions for PCA
-      const { rMlFunctions } = require('../advanced-analytics/r-ml-functions');
+      const { rMlFunctions } = require('../../advanced-analytics/r-ml-functions');
       interpreter.builtInFunctions['PCA'] = rMlFunctions.PCA;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands = parse(rexxCode);
       await interpreter.run(commands);
 
@@ -427,10 +427,10 @@ describe('RENDER Function Integration Tests', () => {
       `;
 
       // Need to load signal functions for FFT
-      const { rSignalFunctions } = require('../signal-processing/r-signal-functions');
+      const { rSignalFunctions } = require('../../signal-processing/r-signal-functions');
       interpreter.builtInFunctions['FFT'] = rSignalFunctions.FFT;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands = parse(rexxCode);
       await interpreter.run(commands);
 
@@ -455,11 +455,11 @@ describe('RENDER Function Integration Tests', () => {
       `;
 
       // Need to load summary functions
-      const { rSummaryFunctions } = require('../math-stats/r-summary-functions');
+      const { rSummaryFunctions } = require('../../math-stats/src/r-summary-functions');
       interpreter.builtInFunctions['MEAN'] = rSummaryFunctions.MEAN;
       interpreter.builtInFunctions['MEDIAN'] = rSummaryFunctions.MEDIAN;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands = parse(rexxCode);
       await interpreter.run(commands);
 
@@ -482,7 +482,7 @@ describe('RENDER Function Integration Tests', () => {
         LET result = RENDER plot=timeseries output=outputPath width=1000 height=400
       `;
 
-      const { parse } = require('../../../../core/src/parser');
+      const { parse } = require('../../../../../core/src/parser');
       const commands = parse(rexxCode);
       await interpreter.run(commands);
 

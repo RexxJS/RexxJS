@@ -73,9 +73,10 @@ class AddressPodmanHandler {
       this.spawn = require('child_process').spawn;
       this.fs = require('fs');
       this.path = require('path');
-      
+
       // Import shared utilities
-      const sharedUtils = require('../_shared/provisioning-shared-utils');
+      const sharedUtilsPath = this.path.join(__dirname, '../_shared/provisioning-shared-utils.js');
+      const sharedUtils = require(sharedUtilsPath);
       this.interpolateMessage = sharedUtils.interpolateMessage;
       this.logActivity = sharedUtils.logActivity;
       this.createLogFunction = sharedUtils.createLogFunction;
@@ -146,22 +147,7 @@ class AddressPodmanHandler {
       return str;
     }
 
-    if (interpolationConfig) {
-      const pattern = interpolationConfig.getCurrentPattern();
-      if (!pattern.hasDelims(str)) {
-        return str;
-      }
-
-      return str.replace(pattern.regex, (match) => {
-        const varName = pattern.extractVar(match);
-        if (varName in variablePool) {
-          return variablePool[varName];
-        }
-        return match; // Variable not found - leave as-is
-      });
-    }
-
-    // Fallback to simple {var} pattern when interpolationConfig not available
+    // Use simple {var} pattern for variable interpolation
     return str.replace(/\{([^}]+)\}/g, (match, varName) => {
       return (variablePool[varName] !== undefined ? String(variablePool[varName]) : match);
     });
@@ -282,7 +268,7 @@ class AddressPodmanHandler {
    * Create a new container
    */
   async createContainer(params, context) {
-    const { image, name, interactive = 'false', memory, cpus, volumes, environment } = params;
+    const { image, name, interactive = 'false', memory, cpus, volumes, environment, command, ports } = params;
     
     if (!image) {
       throw new Error('Missing required parameter: image');
@@ -314,7 +300,7 @@ class AddressPodmanHandler {
     
     // Real podman container creation with enhanced options
     const createArgs = ['create', '--name', containerName];
-    
+
     // Add resource limits
     if (memory) {
       createArgs.push('--memory', memory);
@@ -322,7 +308,15 @@ class AddressPodmanHandler {
     if (cpus) {
       createArgs.push('--cpus', cpus);
     }
-    
+
+    // Add port mappings
+    if (ports) {
+      const portMappings = ports.split(',');
+      for (const mapping of portMappings) {
+        createArgs.push('-p', mapping.trim());
+      }
+    }
+
     // Add volume mounts
     if (volumes) {
       const volumeMounts = volumes.split(',');
@@ -330,7 +324,7 @@ class AddressPodmanHandler {
         createArgs.push('-v', mount.trim());
       }
     }
-    
+
     // Add environment variables
     if (environment) {
       const envVars = environment.split(',');
@@ -338,16 +332,20 @@ class AddressPodmanHandler {
         createArgs.push('-e', envVar.trim());
       }
     }
-    
+
     // Add interactive flags
     if (interactive === 'true') {
       createArgs.push('-i', '-t'); // interactive and pseudo-TTY
     }
-    
+
     createArgs.push(image);
-    
-    // If interactive, start with bash
-    if (interactive === 'true') {
+
+    // Add command if provided, otherwise use default behavior
+    if (command) {
+      // Split command into shell invocation
+      createArgs.push('sh', '-c', command);
+    } else if (interactive === 'true') {
+      // If interactive but no command, start with bash
       createArgs.push('bash');
     }
     
@@ -472,35 +470,124 @@ class AddressPodmanHandler {
   }
 
   /**
-   * Remove a container
+   * Remove a container (supports comma-separated names, force, ignore_missing)
    */
   async removeContainer(params, context) {
-    const { name } = params;
-    
+    const { name, force = 'false', ignore_missing = 'false' } = params;
+
     if (!name) {
       throw new Error('Missing required parameter: name');
     }
 
-    if (!this.activeContainers.has(name)) {
-      throw new Error(`Container not found: ${name}`);
+    // Handle comma-separated container names
+    const containerNames = name.split(',').map(n => n.trim()).filter(n => n.length > 0);
+    const forceRemove = force === 'true';
+    const ignoreMissing = ignore_missing === 'true';
+
+    const results = [];
+    let successCount = 0;
+    let skipCount = 0;
+    let errorCount = 0;
+
+    for (const containerName of containerNames) {
+      try {
+        // Check if container exists in our tracking
+        const exists = this.activeContainers.has(containerName);
+
+        if (!exists && ignoreMissing) {
+          this.log('container_skip', { name: containerName, reason: 'not tracked' });
+          results.push({
+            container: containerName,
+            success: true,
+            skipped: true,
+            reason: 'Container not tracked (ignore_missing=true)'
+          });
+          skipCount++;
+          continue;
+        }
+
+        if (!exists && !ignoreMissing) {
+          throw new Error(`Container not found: ${containerName}`);
+        }
+
+        // Build podman rm command
+        const rmArgs = ['rm'];
+        if (forceRemove) {
+          rmArgs.push('-f'); // Force removal even if running
+        }
+        rmArgs.push(containerName);
+
+        const result = await this.execPodmanCommand(rmArgs);
+
+        if (result.exitCode === 0) {
+          this.activeContainers.delete(containerName);
+          this.log('container_removed', { name: containerName, forced: forceRemove });
+
+          results.push({
+            container: containerName,
+            success: true,
+            forced: forceRemove
+          });
+          successCount++;
+        } else {
+          throw new Error(`Failed to remove: ${result.stderr}`);
+        }
+      } catch (error) {
+        this.log('container_remove_error', { name: containerName, error: error.message });
+
+        if (ignoreMissing && error.message.includes('not found')) {
+          results.push({
+            container: containerName,
+            success: true,
+            skipped: true,
+            reason: 'Container not found (ignore_missing=true)'
+          });
+          skipCount++;
+        } else {
+          results.push({
+            container: containerName,
+            success: false,
+            error: error.message
+          });
+          errorCount++;
+        }
+      }
     }
 
-    const result = await this.execPodmanCommand(['rm', name]);
+    // If all operations failed and we're not ignoring missing, throw error
+    if (errorCount > 0 && errorCount === containerNames.length && !ignoreMissing) {
+      throw new Error(`Failed to remove all containers: ${results.map(r => r.error).join('; ')}`);
+    }
 
-    if (result.exitCode === 0) {
-        this.activeContainers.delete(name);
+    const returnValue = {
+      success: errorCount === 0,
+      operation: 'remove',
+      containers: containerNames,
+      results: results,
+      summary: {
+        total: containerNames.length,
+        success: successCount,
+        skipped: skipCount,
+        failed: errorCount
+      }
+    };
 
-        this.log('container_removed', { name });
-
-        return {
-          success: true,
-          operation: 'remove',
-          container: name,
-          output: `Container ${name} removed successfully`
-        };
+    // For single container removal, provide simpler output and include 'container' field
+    if (containerNames.length === 1) {
+      returnValue.container = containerNames[0];
+      if (successCount === 1) {
+        returnValue.output = `Container ${containerNames[0]} removed successfully`;
+      } else if (skipCount === 1) {
+        returnValue.output = `Container ${containerNames[0]} skipped`;
+      } else {
+        returnValue.output = `Failed to remove container ${containerNames[0]}`;
+      }
     } else {
-        throw new Error(`Failed to remove container: ${result.stderr}`);
+      // Multi-container removal: use summary output
+      returnValue.output = `Removed ${successCount} containers, skipped ${skipCount}, failed ${errorCount}`;
     }
+
+    return returnValue;
   }
 
   /**
@@ -1681,7 +1768,7 @@ async function ADDRESS_PODMAN_HANDLER(commandOrMethod, params, sourceContext) {
   }
   
   let commandString = commandOrMethod;
-  let context = sourceContext ? Object.fromEntries(sourceContext.variables) : {};
+  let context = (sourceContext && sourceContext.variables) ? Object.fromEntries(sourceContext.variables) : {};
 
   if (params) { // Method call style
       const paramsString = Object.entries(params)
@@ -1698,14 +1785,28 @@ async function ADDRESS_PODMAN_HANDLER(commandOrMethod, params, sourceContext) {
 
   try {
     const result = await podmanHandlerInstance.handleAddressCommand(commandString, context);
-    
-    // Convert to REXX-style result
+
+    // Convert to REXX-style result - flatten important fields to top level for easy access
     return {
       success: result.success,
       errorCode: result.success ? 0 : 1,
       errorMessage: result.error || null,
       output: result.output || '',
       result: result,
+      // Flatten commonly accessed fields to top level
+      operation: result.operation,
+      runtime: result.runtime,
+      activeContainers: result.activeContainers,
+      maxContainers: result.maxContainers,
+      container: result.container,
+      status: result.status,
+      count: result.count,
+      exitCode: result.exitCode,
+      stdout: result.stdout,
+      stderr: result.stderr,
+      error: result.error,
+      binary: result.binary,
+      target: result.target,
       rexxVariables: {
         'PODMAN_OPERATION': result.operation || '',
         'PODMAN_CONTAINER': result.container || '',
@@ -1725,6 +1826,7 @@ async function ADDRESS_PODMAN_HANDLER(commandOrMethod, params, sourceContext) {
       errorMessage: error.message,
       output: error.message,
       result: { error: error.message },
+      error: error.message,
       rexxVariables: {
         'PODMAN_ERROR': error.message
       }

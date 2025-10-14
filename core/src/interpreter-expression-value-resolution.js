@@ -499,7 +499,7 @@ async function evaluateCondition(condition, resolveValueFn, compareValuesFn, isT
     case 'COMPARISON':
       const leftValue = await resolveValueFn(condition.left);
       const rightValue = await resolveValueFn(condition.right);
-      
+
       switch (condition.operator) {
         case '>':
           return compareValuesFn(leftValue, rightValue) > 0;
@@ -521,11 +521,36 @@ async function evaluateCondition(condition, resolveValueFn, compareValuesFn, isT
         default:
           throw new Error(`Unknown comparison operator: ${condition.operator}`);
       }
-      
+
     case 'BOOLEAN':
       const value = await resolveValueFn(condition.expression);
       return isTruthyFn(value);
-      
+
+    case 'LOGICAL_AND':
+      // Evaluate all parts and return true only if all are true
+      for (const part of condition.parts) {
+        const partResult = await evaluateCondition(part, resolveValueFn, compareValuesFn, isTruthyFn);
+        if (!partResult) {
+          return false;
+        }
+      }
+      return true;
+
+    case 'LOGICAL_OR':
+      // Evaluate all parts and return true if any is true
+      for (const part of condition.parts) {
+        const partResult = await evaluateCondition(part, resolveValueFn, compareValuesFn, isTruthyFn);
+        if (partResult) {
+          return true;
+        }
+      }
+      return false;
+
+    case 'LOGICAL_NOT':
+      // Evaluate the operand and negate it
+      const operandResult = await evaluateCondition(condition.operand, resolveValueFn, compareValuesFn, isTruthyFn);
+      return !operandResult;
+
     default:
       throw new Error(`Unknown condition type: ${condition.type}`);
   }

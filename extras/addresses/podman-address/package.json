@@ -5,6 +5,6 @@
   "description": "RexxJS Podman ADDRESS handler for rootless container operations",
   "main": "podman-address.js",
   "scripts": {
-    "test": "echo \"No tests yet\""
+    "test": "jest"
   }
 }

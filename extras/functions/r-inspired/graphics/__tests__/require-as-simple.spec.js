@@ -14,7 +14,7 @@ describe('REQUIRE AS Clause Basic Tests', () => {
   test('should apply simple function prefix', async () => {
     // Call REQUIRE function directly
     try {
-      await interpreter.builtInFunctions.REQUIRE('../graphics-functions.js', 'gfx');
+      await interpreter.builtInFunctions.REQUIRE('../r-graphics-functions.js', 'gfx');
       
       // Check that functions are registered with prefix
       expect(interpreter.builtInFunctions['gfx_HIST']).toBeDefined();
@@ -32,7 +32,7 @@ describe('REQUIRE AS Clause Basic Tests', () => {
 
   test('should apply regex pattern prefix', async () => {
     try {
-      await interpreter.builtInFunctions.REQUIRE('../graphics-functions.js', 'math_(.*)');
+      await interpreter.builtInFunctions.REQUIRE('../r-graphics-functions.js', 'math_(.*)');
       
       // Check that functions are registered with regex prefix
       expect(interpreter.builtInFunctions['math_HIST']).toBeDefined();
@@ -48,7 +48,7 @@ describe('REQUIRE AS Clause Basic Tests', () => {
 
   test('should work without AS clause (backward compatibility)', async () => {
     try {
-      await interpreter.builtInFunctions.REQUIRE('../graphics-functions.js');
+      await interpreter.builtInFunctions.REQUIRE('../r-graphics-functions.js');
       
       // Functions should be registered with original names
       expect(interpreter.builtInFunctions['HIST']).toBeDefined();
@@ -61,7 +61,7 @@ describe('REQUIRE AS Clause Basic Tests', () => {
 
   test('should validate AS clause type', async () => {
     await expect(
-      interpreter.builtInFunctions.REQUIRE('../graphics-functions.js', 123)
+      interpreter.builtInFunctions.REQUIRE('../r-graphics-functions.js', 123)
     ).rejects.toThrow(/AS clause must be a string/);
   });
 
