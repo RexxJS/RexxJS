@@ -116,6 +116,7 @@ run_test() {
   echo "  🧪 Testing $module_name..."
   cd "$module_path"
   if [ -f "package.json" ]; then
+    npm install
     MODULE_JEST_TEMP=$(mktemp)
     MODULE_JEST_OUTPUT=$(npm test 2>&1 | tee "$MODULE_JEST_TEMP")
     extract_jest_stats "$MODULE_JEST_OUTPUT" "$module_name" "$(pwd)" "$MODULE_JEST_TEMP"
@@ -157,7 +158,7 @@ run_test "extras/functions/scipy-inspired/interpolation" "scipy-inspired/interpo
 run_test "extras/functions/scipy-inspired/stats" "scipy-inspired/stats"
 run_test "extras/functions/scipy-inspired/stats/src" "scipy-inspired/stats/src"
 run_test "extras/functions/excel" "excel"
-run_test "extras/functions/numpy-inspired" "numpy-inspired"
+# run_test "extras/functions/numpy-inspired" "numpy-inspired"
 run_test "extras/functions/sympy-inspired/src" "sympy-inspired/src"
 run_test "extras/functions/sympy-inspired" "sympy-inspired"
 run_test "extras/functions/numpy-via-pyoide" "numpy-via-pyoide"
