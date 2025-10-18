@@ -80,7 +80,7 @@
         /* Example 7: Pipeline with type conversion */
         SAY "7. Type Conversion Pipeline:"
         LET words = ["100", "200", "300", "400"]
-        LET numbers = words |> ARRAY_MAP("parseInt(x)") |> ARRAY_MAP("x / 2")
+        LET numbers = words |> ARRAY_MAP("x / 2")
         SAY "  String array: " || JSON_STRINGIFY(words)
         SAY "  Parsed and halved: " || JSON_STRINGIFY(numbers)
         SAY ""

@@ -35,6 +35,7 @@ require('../logic-functions.js');
 require('../data-functions.js');
 require('../validation-functions.js');
 require('../cryptography-functions.js');
+require('../shell-functions.js');
 require('../dom-functions.js');
 
 // Main interpreter - must be loaded last
