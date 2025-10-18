@@ -24,7 +24,7 @@ jobs:
       run: cd core && npm ci
 
     - name: Install Playwright browsers with system dependencies
-      run: cd core && npx playwright install --with-deps chromium
+      run: cd core && sudo npx playwright install --with-deps chromium
 
     - name: Run CI tests
       run: ./ci.sh
