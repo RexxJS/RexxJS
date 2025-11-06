@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS DOM Interop Demo</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for DOM interop demonstration -->
+    <script type="text/rexx" id="dom-interop-script">
+        /* Auto-executing REXX DOM Interop Demo - Actual DOM Operations */
+
+        SAY "=== REXX DOM Interop Functions Demo ===\n"
+
+        /* 1. Query existing elements */
+        SAY "1. DOM Element Querying:"
+        LET button = DOM_QUERY(selector="#demo-button")
+        SAY "  DOM_QUERY('#demo-button'): " || (button ? "Found" : "Not found")
+        SAY ""
+
+        /* 2. Create new elements */
+        SAY "2. Creating DOM Elements:"
+        LET newDiv = DOM_CREATE_ELEMENT(tag="div")
+        SAY "  DOM_CREATE_ELEMENT('div'): " || (newDiv ? "Success" : "Failed")
+        SAY ""
+
+        /* 3. Set and get attributes */
+        SAY "3. Element Attributes:"
+        DOM_ELEMENT_SET_ATTR(element=newDiv, name="id", value="test-element")
+        DOM_ELEMENT_SET_ATTR(element=newDiv, name="data-demo", value="demo-value")
+        LET idVal = DOM_ELEMENT_GET_ATTR(element=newDiv, name="id")
+        LET dataVal = DOM_ELEMENT_GET_ATTR(element=newDiv, name="data-demo")
+        SAY "  Set id='test-element', retrieved: " || idVal
+        SAY "  Set data-demo='demo-value', retrieved: " || dataVal
+        SAY ""
+
+        /* 4. Set styles */
+        SAY "4. Setting Styles:"
+        DOM_ELEMENT_SET_STYLE(element=newDiv, property="background-color", value="#f0f0f0")
+        DOM_ELEMENT_SET_STYLE(element=newDiv, property="padding", value="10px")
+        DOM_ELEMENT_SET_STYLE(element=newDiv, property="border", value="1px solid #ccc")
+        SAY "  Applied background-color, padding, and border"
+        SAY ""
+
+        /* 5. Text content */
+        SAY "5. Element Text Content:"
+        DOM_ELEMENT_TEXT(element=newDiv, text="Hello from REXX DOM interop!")
+        LET text = DOM_ELEMENT_TEXT(element=newDiv)
+        SAY "  Set text: " || text
+        SAY ""
+
+        /* 6. Element tag and properties */
+        SAY "6. Element Tag and Properties:"
+        LET tag = DOM_ELEMENT_TAG(element=newDiv)
+        SAY "  DOM_ELEMENT_TAG: " || tag
+        SAY ""
+
+        /* 7. Clone element */
+        SAY "7. Element Cloning:"
+        LET cloned = DOM_ELEMENT_CLONE(element=newDiv)
+        SAY "  DOM_ELEMENT_CLONE: " || (cloned ? "Success" : "Failed")
+        SAY ""
+
+        /* 8. Create another element */
+        SAY "8. Appending Elements:"
+        LET container = DOM_CREATE_ELEMENT(tag="div")
+        DOM_ELEMENT_SET_ATTR(element=container, name="id", value="container")
+        DOM_ELEMENT_SET_STYLE(element=container, property="border", value="2px dashed #999")
+        DOM_ELEMENT_SET_STYLE(element=container, property="margin", value="10px")
+        DOM_ELEMENT_APPEND(element=container, child=newDiv)
+        SAY "  Created container and appended newDiv"
+        SAY ""
+
+        /* 9. Create and prepend */
+        SAY "9. Prepending Elements:"
+        LET header = DOM_CREATE_ELEMENT(tag="span")
+        DOM_ELEMENT_TEXT(element=header, text="[Header] ")
+        DOM_ELEMENT_SET_STYLE(element=header, property="font-weight", value="bold")
+        DOM_ELEMENT_PREPEND(element=container, child=header)
+        SAY "  Created span and prepended to container"
+        SAY ""
+
+        /* 10. Get children */
+        SAY "10. Navigating Element Hierarchy:"
+        LET children = DOM_ELEMENT_CHILDREN(element=container)
+        SAY "  DOM_ELEMENT_CHILDREN count: " || (children ? LENGTH(children) : "0")
+        SAY ""
+
+        /* 11. Add CSS class */
+        SAY "11. CSS Class Operations:"
+        DOM_ADD_CLASS(selector="#demo-button", className="highlight-demo")
+        SAY "  DOM_ADD_CLASS('#demo-button', 'highlight-demo'): Success"
+        SAY ""
+
+        /* 12. Element bounds */
+        SAY "12. Element Bounds:"
+        LET bounds = DOM_ELEMENT_BOUNDS(element=button)
+        SAY "  DOM_ELEMENT_BOUNDS(button): " || (bounds ? "Retrieved" : "Failed")
+        SAY ""
+
+        /* 13. Element visibility */
+        SAY "13. Element Visibility:"
+        LET visible = DOM_ELEMENT_VISIBLE(element=button)
+        SAY "  DOM_ELEMENT_VISIBLE(button): " || visible
+        SAY ""
+
+        /* 14. Create text node */
+        SAY "14. Text Nodes:"
+        LET textNode = DOM_CREATE_TEXT(text="Sample text node")
+        SAY "  DOM_CREATE_TEXT: " || (textNode ? "Success" : "Failed")
+        SAY ""
+
+        /* 15. Query multiple elements */
+        SAY "15. Query Multiple Elements:"
+        LET allDivs = DOM_GET_ALL(selector="div")
+        SAY "  DOM_GET_ALL('div'): Found elements"
+        SAY ""
+
+        SAY "=== DOM Interop Demo Complete ===\n"
+        SAY "All DOM functions executed successfully from REXX code!"
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS DOM Interop Demo</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating browser DOM interoperability functions.</p>
+        <p>RexxJS provides 30+ functions for querying, creating, and manipulating DOM elements directly from REXX code.</p>
+        <p>These functions enable browser automation, dynamic page generation, and interactive REXX applications.</p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+        <button id="demo-button">Demo Button</button>
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('dom-interop-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>DOM Query Functions</h2>
+    <ul>
+        <li><strong>DOM_QUERY(selector)</strong> - Find single element by CSS selector</li>
+        <li><strong>DOM_GET_ALL(selector)</strong> - Find all elements matching selector</li>
+        <li><strong>DOM_ELEMENT_QUERY(element, selector)</strong> - Query within an element</li>
+        <li><strong>DOM_ELEMENT_QUERY_ALL(element, selector)</strong> - Query all within element</li>
+    </ul>
+
+    <h2>DOM Creation Functions</h2>
+    <ul>
+        <li><strong>DOM_CREATE_ELEMENT(tag)</strong> - Create new element</li>
+        <li><strong>DOM_CREATE_TEXT(text)</strong> - Create text node</li>
+        <li><strong>DOM_ELEMENT_CLONE(element)</strong> - Clone an element</li>
+    </ul>
+
+    <h2>DOM Manipulation Functions</h2>
+    <ul>
+        <li><strong>DOM_ELEMENT_SET_ATTR(element, name, value)</strong> - Set attribute</li>
+        <li><strong>DOM_ELEMENT_GET_ATTR(element, name)</strong> - Get attribute value</li>
+        <li><strong>DOM_ELEMENT_SET_STYLE(element, property, value)</strong> - Set CSS style</li>
+        <li><strong>DOM_ELEMENT_TEXT(element, text)</strong> - Get/set text content</li>
+        <li><strong>DOM_ADD_CLASS(selector, className)</strong> - Add CSS class</li>
+        <li><strong>DOM_REMOVE_CLASS(selector, className)</strong> - Remove CSS class</li>
+    </ul>
+
+    <h2>DOM Tree Navigation</h2>
+    <ul>
+        <li><strong>DOM_ELEMENT_PARENT(element)</strong> - Get parent element</li>
+        <li><strong>DOM_ELEMENT_CHILDREN(element)</strong> - Get child elements</li>
+        <li><strong>DOM_ELEMENT_SIBLINGS(element)</strong> - Get sibling elements</li>
+        <li><strong>DOM_ELEMENT_NEXT_SIBLING(element)</strong> - Get next sibling</li>
+        <li><strong>DOM_ELEMENT_PREV_SIBLING(element)</strong> - Get previous sibling</li>
+    </ul>
+
+    <h2>DOM Tree Modification</h2>
+    <ul>
+        <li><strong>DOM_ELEMENT_APPEND(element, child)</strong> - Add child element</li>
+        <li><strong>DOM_ELEMENT_PREPEND(element, child)</strong> - Add as first child</li>
+        <li><strong>DOM_ELEMENT_INSERT_BEFORE(element, newNode, refNode)</strong> - Insert before reference</li>
+        <li><strong>DOM_ELEMENT_INSERT_AFTER(element, newNode, refNode)</strong> - Insert after reference</li>
+        <li><strong>DOM_ELEMENT_REMOVE(element)</strong> - Remove element from DOM</li>
+        <li><strong>DOM_ELEMENT_REPLACE(element, newElement)</strong> - Replace with another element</li>
+    </ul>
+
+    <h2>DOM Events & Interaction</h2>
+    <ul>
+        <li><strong>DOM_ELEMENT_ON_CLICK(element, callback)</strong> - Handle click events</li>
+        <li><strong>DOM_ELEMENT_ON_CHANGE(element, callback)</strong> - Handle change events</li>
+        <li><strong>DOM_ELEMENT_ON_EVENT(element, eventType, callback)</strong> - Generic event handler</li>
+        <li><strong>DOM_ELEMENT_OFF_EVENT(element, eventType, callback)</strong> - Remove event listener</li>
+        <li><strong>DOM_ELEMENT_TRIGGER_EVENT(element, eventType)</strong> - Trigger event programmatically</li>
+        <li><strong>DOM_CLICK(selector)</strong> - Programmatically click element</li>
+        <li><strong>DOM_TYPE(selector, text)</strong> - Type text into input</li>
+        <li><strong>DOM_SELECT_OPTION(selector, value)</strong> - Select option in dropdown</li>
+    </ul>
+
+    <h2>DOM Element Properties</h2>
+    <ul>
+        <li><strong>DOM_ELEMENT_TAG(element)</strong> - Get element tag name</li>
+        <li><strong>DOM_ELEMENT_ID(element)</strong> - Get/set element ID</li>
+        <li><strong>DOM_ELEMENT_CLASS(element)</strong> - Get/set element classes</li>
+        <li><strong>DOM_ELEMENT_CLASSES(element)</strong> - Get array of classes</li>
+        <li><strong>DOM_ELEMENT_VISIBLE(element)</strong> - Check visibility</li>
+        <li><strong>DOM_ELEMENT_BOUNDS(element)</strong> - Get position and size</li>
+    </ul>
+
+    <h2>Waiting Functions</h2>
+    <ul>
+        <li><strong>DOM_WAIT_FOR(selector, timeout)</strong> - Wait for element to appear</li>
+        <li><strong>DOM_WAIT(milliseconds)</strong> - Wait for time period</li>
+        <li><strong>DOM_SLEEP(milliseconds)</strong> - High-precision delay</li>
+    </ul>
+
+    <h2>Use Cases</h2>
+    <ul>
+        <li><strong>Web Automation</strong> - Automate browser interactions from REXX</li>
+        <li><strong>Dynamic Page Generation</strong> - Build HTML/DOM from REXX logic</li>
+        <li><strong>Testing</strong> - Automated UI testing and validation</li>
+        <li><strong>Interactive Applications</strong> - Build fully interactive REXX web apps</li>
+        <li><strong>Data Visualization</strong> - Generate charts and visualizations dynamically</li>
+        <li><strong>Form Automation</strong> - Fill and submit forms programmatically</li>
+    </ul>
+
+</body>
+</html>

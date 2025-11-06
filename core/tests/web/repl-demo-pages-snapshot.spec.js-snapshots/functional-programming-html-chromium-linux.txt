@@ -1,0 +1,31 @@
+>> 3 SAY "=== REXX Functional Programming Demo ==="
+=== REXX Functional Programming Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "MAP - Transform each element:"
+MAP - Transform each element:
+>> 8 LET numbers = [1, 2, 3, 4, 5]
+>> 9 LET doubled = MAP(numbers, "x * 2")
+>> 10 SAY "  Original: " || JSON_STRINGIFY(numbers)
+  Original: [1,2,3,4,5]
+>> 11 SAY "  Doubled (MAP): " || JSON_STRINGIFY(doubled)
+  Doubled (MAP): [1,2,3,4,5]
+>> 12 SAY ""
+
+>> 15 SAY "FILTER - Select matching elements:"
+FILTER - Select matching elements:
+>> 16 LET values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+>> 17 LET evens = FILTER(values, "x % 2 = 0")
+>> 18 SAY "  Original: " || JSON_STRINGIFY(values)
+  Original: [1,2,3,4,5,6,7,8,9,10]
+>> 19 SAY "  Even numbers (FILTER): " || JSON_STRINGIFY(evens)
+  Even numbers (FILTER): []
+>> 20 SAY ""
+
+>> 23 SAY "REDUCE - Combine to single value:"
+REDUCE - Combine to single value:
+>> 24 LET nums = [1, 2, 3, 4, 5]
+>> 25 LET sum = REDUCE(nums, "acc + x", 0)
+Script Error: Error at line 25: LET sum = undefined
+Rexx FUNCTION: LET sum = REDUCE(nums, "acc + x", 0) (script#functional-script: 25)
+Function REDUCE is not available: See https://rexxjs.org/functions/missing/ for help with missing functions and REQUIRE.

@@ -14,6 +14,9 @@
     <!-- Load the document write styled output handler -->
     <script src="../output/document-write-styled-output-handler.js"></script>
 
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
     <!-- REXX Script for procedures and functions demonstration -->
     <script type="text/rexx" id="procedures-functions-script">
         /* Auto-executing REXX Procedures and Functions Demo */
@@ -133,28 +136,36 @@
     <div class="output-section">
 
         <script>
-            // Auto-execute - DOM is already loaded since script is at bottom of page
-            (async function() {
-                // Create styled output handler with null container to trigger document.write
-                const outputHandler = new DocumentWriteStyledOutputHandler(
-                    false,         // No timestamps - we want clean output
-                    'rexx-output', // CSS class
-                    null          // trigger document.write!
-                );
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
 
-                // Create interpreter with the output handler
-                const interpreter = new RexxInterpreterBuilder(null)
-                .withOutputHandler({
-                    output: (text) => {
-                        outputHandler.output(text);
-                    }
-                })
-                .withTraceToOutput(true)  // Enable trace mode - shows executed REXX lines
-                .build();
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
 
-                // Execute the REXX script directly by ID
-                await interpreter.runScriptInId('procedures-functions-script');
-            })();
+                try {
+                    await executeRexxDemo('procedures-functions-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
         </script>
     </div>
 

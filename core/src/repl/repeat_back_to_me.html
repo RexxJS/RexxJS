@@ -3,92 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <title>RexxJS REPEAT_BACK_TO_ME Demo - ADDRESS AS Clause</title>
-    
 
     <!-- Shared demo CSS -->
     <link rel="stylesheet" href="demo-common.css">
+
     <!-- Load the RexxJS bundle -->
     <script src="dist/rexxjs.bundle.js"></script>
 
     <!-- Load the document write styled output handler -->
     <script src="../output/document-write-styled-output-handler.js"></script>
 
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
     <!-- REXX Script for ADDRESS AS clause demonstration -->
     <script type="text/rexx" id="repeat-back-script">
         /* Auto-executing REXX ADDRESS AS Clause Script */
 
+        SAY "=== REXX ADDRESS AS Clause Demo ===\n"
+
         /* Load echo ADDRESS handler but rename it to REPEAT_BACK_TO_ME */
+        SAY "Loading echo ADDRESS from GitHub...\n"
         REQUIRE "https://raw.githubusercontent.com/RexxJS/dist/latest/addresses/echo-address.bundle.js" AS REPEAT_BACK_TO_ME
+        SAY "✓ Loaded as REPEAT_BACK_TO_ME\n"
 
         /* Now use the renamed ADDRESS target */
+        SAY "1. Using renamed ADDRESS (REPEAT_BACK_TO_ME):"
         ADDRESS REPEAT_BACK_TO_ME
         "Hello from my custom ADDRESS name"
-        
-        /* Exit on error, otherwise show result */
-        IF RC <> 0 THEN EXIT RC
-        SAY "Custom ADDRESS response: " || RESULT
+
+        IF RC <> 0 THEN DO
+          SAY "  Error: RC=" || RC
+        END ELSE DO
+          SAY "  Response: " || RESULT
+        END
+        SAY ""
 
         /* Try another message */
+        SAY "2. Second message via renamed ADDRESS:"
         ADDRESS REPEAT_BACK_TO_ME
         "Testing the renamed echo functionality"
-        
-        IF RC <> 0 THEN EXIT RC
-        SAY "Second response: " || RESULT
-        
+
+        IF RC <> 0 THEN DO
+          SAY "  Error: RC=" || RC
+        END ELSE DO
+          SAY "  Response: " || RESULT
+        END
+        SAY ""
+
         /* Demonstrate empty command */
+        SAY "3. Empty command via renamed ADDRESS:"
         ADDRESS REPEAT_BACK_TO_ME
         ""
-        
-        IF RC <> 0 THEN EXIT RC
-        SAY "Empty command result: '" || RESULT || "'"
+
+        IF RC <> 0 THEN DO
+          SAY "  Error: RC=" || RC
+        END ELSE DO
+          SAY "  Response: '" || RESULT || "'"
+        END
+        SAY ""
+
+        SAY "=== ADDRESS AS Clause Demo Complete ==="
     </script>
 
 </head>
 <body>
-    <h1>RexxJS REPEAT_BACK_TO_ME Demo</h1>
+    <h1>RexxJS ADDRESS AS Clause Demo</h1>
     <div class="intro">
-        <p><strong>Auto-executing REXX script</strong> demonstrating ADDRESS target renaming with AS clause.</p>
-        <p>Loads the echo ADDRESS handler from GitHub Pages but renames it to <code>REPEAT_BACK_TO_ME</code> for semantic clarity.</p>
+        <p><strong>Auto-executing REXX script</strong> demonstrating ADDRESS target renaming with the AS clause.</p>
+        <p>Loads the echo ADDRESS handler from GitHub Pages and renames it to <code>REPEAT_BACK_TO_ME</code> for semantic clarity.</p>
         <p>Shows how ADDRESS operations set standard REXX variables: <code>RC</code> (return code) and <code>RESULT</code> (response content).</p>
     </div>
-    
-    <h2>REXX Output (via document.write, with styling):</h2>
-    <!-- Note: No rexx-output-container div here - this triggers document.write path -->
 
-    <script>
-        // Auto-execute - DOM is already loaded since script is at bottom of page
-        (async function() {
-            // Create styled output handler with null container to trigger document.write
-            const outputHandler = new DocumentWriteStyledOutputHandler(
-                false,         // No timestamps - we want clean output
-                'rexx-output', // CSS class
-                null          // trigger document.write!
-            );
+    <h2>REXX Output:</h2>
+    <div class="output-section">
 
-            // Create interpreter with the output handler
-            const interpreter = new RexxInterpreterBuilder(null)
-                .withOutputHandler({
-                    output: (text) => {
-                        outputHandler.output(text);
-                    }
-                })
-                .withTraceToOutput(true)  // Enable trace mode - shows executed REXX lines
-                .build();
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
 
-            // Execute the REXX script directly by ID
-            await interpreter.runScriptInId('repeat-back-script');
-        })();
-    </script>
-    
-    <h2>About This Demo</h2>
-    <p>This page demonstrates loading an ADDRESS handler module from a direct GitHub Pages URL and using the AS clause to rename the ADDRESS target from <code>echo</code> to <code>REPEAT_BACK_TO_ME</code>. This showcases:</p>
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('repeat-back-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>Key Features Demonstrated</h2>
     <ul>
-        <li><strong>Direct URL module loading</strong> - Fetching RexxJS modules from GitHub Pages</li>
-        <li><strong>ADDRESS target renaming</strong> - Using AS clause to give semantic names to ADDRESS targets</li>
-        <li><strong>Standard REXX variables</strong> - How ADDRESS operations automatically set RC and RESULT</li>
-        <li><strong>Cross-environment compatibility</strong> - Same module works in both Node.js and web contexts</li>
+        <li><strong>Direct URL Module Loading</strong> - Fetching RexxJS ADDRESS handlers from GitHub Pages</li>
+        <li><strong>ADDRESS Target Renaming</strong> - Using the AS clause to give semantic names to ADDRESS targets</li>
+        <li><strong>Standard REXX Variables</strong> - How ADDRESS operations automatically set RC (return code) and RESULT (response)</li>
+        <li><strong>Cross-environment Compatibility</strong> - Same module works in both Node.js and web environments</li>
+        <li><strong>Error Handling</strong> - Checking RC for errors and handling appropriately</li>
     </ul>
-    
-    
+
+    <h2>Syntax</h2>
+    <pre>
+/* Load a module from HTTPS URL and rename it */
+REQUIRE "https://..." AS NEW_NAME
+
+/* Use the renamed ADDRESS target */
+ADDRESS NEW_NAME
+"command string"
+
+/* Check result */
+IF RC <> 0 THEN
+  SAY "Error: " || RC
+ELSE
+  SAY "Success: " || RESULT
+ENDIF
+    </pre>
+
+    <h2>About the Echo ADDRESS</h2>
+    <p>The echo ADDRESS is a simple testing utility that echoes back its input. It demonstrates:</p>
+    <ul>
+        <li>How to create custom ADDRESS handlers in RexxJS</li>
+        <li>Module distribution via GitHub Pages</li>
+        <li>Remote code loading and execution</li>
+        <li>Semantic renaming for clarity</li>
+    </ul>
+
 </body>
 </html>

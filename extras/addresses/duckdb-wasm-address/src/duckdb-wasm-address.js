@@ -176,3 +176,12 @@ if (typeof window !== 'undefined') {
     global.ADDRESS_DUCKDB_WASM_HANDLER = ADDRESS_DUCKDB_WASM_HANDLER;
     global.ADDRESS_DUCKDB_WASM_METHODS = ADDRESS_DUCKDB_WASM_METHODS;
 }
+
+// Export via CommonJS for Node.js
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        DUCKDB_WASM_ADDRESS_META,
+        ADDRESS_DUCKDB_WASM_HANDLER,
+        ADDRESS_DUCKDB_WASM_METHODS
+    };
+}

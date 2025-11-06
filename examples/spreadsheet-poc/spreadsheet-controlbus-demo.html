@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RexxJS Spreadsheet Control Bus Demo</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin: 0 0 20px 0;
+            grid-column: 1 / -1;
+        }
+
+        h2 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: #333;
+        }
+
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 10px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .examples {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .example-btn {
+            background: #28a745;
+            font-size: 12px;
+            padding: 6px 12px;
+        }
+
+        .example-btn:hover {
+            background: #218838;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            RexxJS Spreadsheet Control Bus Demo
+            <span id="status" class="status disconnected">Disconnected</span>
+        </h1>
+
+        <div class="panel">
+            <h2>Spreadsheet (Worker)</h2>
+            <iframe id="spreadsheetFrame" src="index.html#Sheet1"></iframe>
+        </div>
+
+        <div class="panel">
+            <h2>Control Script (Director)</h2>
+            <p>Write a Rexx script to control the spreadsheet:</p>
+
+            <div class="examples">
+                <button class="example-btn" onclick="loadExample('getCellValue')">Get Cell Value</button>
+                <button class="example-btn" onclick="loadExample('setCells')">Set Multiple Cells</button>
+                <button class="example-btn" onclick="loadExample('calculate')">Calculate Sum</button>
+                <button class="example-btn" onclick="loadExample('export')">Export Data</button>
+            </div>
+
+            <textarea id="rexxScript">-- Control the spreadsheet from Rexx
+ADDRESS spreadsheet
+"setCell" ref="A1" content="100"
+"setCell" ref="A2" content="200"
+"setCell" ref="A3" content="=A1+A2"
+LET result = "getCellValue" ref="A3"
+SAY "Result: " || result.value</textarea>
+
+            <button onclick="runScript()">Run Script</button>
+            <button onclick="clearOutput()">Clear Output</button>
+
+            <div class="output" id="output">Ready to execute commands...</div>
+        </div>
+    </div>
+
+    <script>
+        const spreadsheetFrame = document.getElementById('spreadsheetFrame');
+        const rexxScript = document.getElementById('rexxScript');
+        const output = document.getElementById('output');
+        const statusIndicator = document.getElementById('status');
+
+        let requestCounter = 0;
+        const pendingRequests = new Map();
+
+        // Wait for spreadsheet to load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                statusIndicator.textContent = 'Connected';
+                statusIndicator.className = 'status connected';
+                log('Control bus ready. Spreadsheet loaded.');
+            }, 2000);
+        });
+
+        // Listen for responses from spreadsheet
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'spreadsheet-control-response') {
+                const { requestId, success, result, error } = event.data;
+
+                const pending = pendingRequests.get(requestId);
+                if (pending) {
+                    if (success) {
+                        pending.resolve(result);
+                    } else {
+                        pending.reject(new Error(error));
+                    }
+                    pendingRequests.delete(requestId);
+                }
+            }
+        });
+
+        // Send command to spreadsheet
+        function sendCommand(command, params = {}) {
+            return new Promise((resolve, reject) => {
+                const requestId = ++requestCounter;
+
+                // Store pending request
+                pendingRequests.set(requestId, { resolve, reject });
+
+                // Send message to spreadsheet iframe
+                spreadsheetFrame.contentWindow.postMessage({
+                    type: 'spreadsheet-control',
+                    command: command,
+                    params: params,
+                    requestId: requestId
+                }, '*');
+
+                // Timeout after 10 seconds
+                setTimeout(() => {
+                    if (pendingRequests.has(requestId)) {
+                        pendingRequests.delete(requestId);
+                        reject(new Error('Request timeout'));
+                    }
+                }, 10000);
+            });
+        }
+
+        // Mock ADDRESS handler for Rexx script
+        const spreadsheetAddressHandler = {
+            async executeCommand(commandStr, params) {
+                // Parse command string (e.g., "setCell")
+                const command = commandStr.replace(/"/g, '');
+
+                log(`→ Executing: ${command} ${JSON.stringify(params)}`);
+
+                try {
+                    const result = await sendCommand(command, params);
+                    log(`← Result: ${JSON.stringify(result, null, 2)}`);
+                    return result;
+                } catch (error) {
+                    log(`← Error: ${error.message}`);
+                    throw error;
+                }
+            }
+        };
+
+        // Run the Rexx script
+        async function runScript() {
+            const script = rexxScript.value;
+            log('═══════════════════════════════════');
+            log('Running script...');
+            log('');
+
+            try {
+                // Parse script line by line (simplified Rexx interpreter)
+                const lines = script.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('--'));
+
+                for (const line of lines) {
+                    // Check for ADDRESS command
+                    if (line.startsWith('ADDRESS ')) {
+                        log(`Setting target: ${line}`);
+                        continue;
+                    }
+
+                    // Check for command with params
+                    const cmdMatch = line.match(/^"([^"]+)"(.*)$/);
+                    if (cmdMatch) {
+                        const command = cmdMatch[1];
+                        const paramsStr = cmdMatch[2].trim();
+
+                        // Parse params (simplified)
+                        const params = {};
+                        const paramMatches = paramsStr.matchAll(/(\w+)="([^"]*)"/g);
+                        for (const match of paramMatches) {
+                            params[match[1]] = match[2];
+                        }
+
+                        await spreadsheetAddressHandler.executeCommand(command, params);
+                        continue;
+                    }
+
+                    // Check for LET assignment with command
+                    const letMatch = line.match(/^LET (\w+) = "([^"]+)"(.*)$/);
+                    if (letMatch) {
+                        const varName = letMatch[1];
+                        const command = letMatch[2];
+                        const paramsStr = letMatch[3].trim();
+
+                        // Parse params
+                        const params = {};
+                        const paramMatches = paramsStr.matchAll(/(\w+)="([^"]*)"/g);
+                        for (const match of paramMatches) {
+                            params[match[1]] = match[2];
+                        }
+
+                        const result = await spreadsheetAddressHandler.executeCommand(command, params);
+                        window[varName] = result;
+                        continue;
+                    }
+
+                    // Check for SAY command
+                    if (line.startsWith('SAY ')) {
+                        const message = line.substring(4);
+                        // Eval simple expressions
+                        try {
+                            const evaluated = eval(message.replace(/\|\|/g, '+').replace(/result\.value/g, 'result.value'));
+                            log(`SAY: ${evaluated}`);
+                        } catch {
+                            log(`SAY: ${message}`);
+                        }
+                        continue;
+                    }
+                }
+
+                log('');
+                log('Script completed successfully');
+            } catch (error) {
+                log('');
+                log(`Error: ${error.message}`);
+            }
+        }
+
+        function log(message) {
+            output.textContent += message + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            output.textContent = 'Output cleared.\n';
+        }
+
+        function loadExample(name) {
+            const examples = {
+                getCellValue: `-- Get a cell value
+ADDRESS spreadsheet
+"setCell" ref="A1" content="42"
+LET result = "getCellValue" ref="A1"
+SAY "Cell A1 = " || result.value`,
+
+                setCells: `-- Set multiple cells
+ADDRESS spreadsheet
+"setCell" ref="A1" content="10"
+"setCell" ref="A2" content="20"
+"setCell" ref="A3" content="30"
+"setCell" ref="A4" content="=A1+A2+A3"
+LET sum = "getCellValue" ref="A4"
+SAY "Sum = " || sum.value`,
+
+                calculate: `-- Calculate and display
+ADDRESS spreadsheet
+"setCell" ref="B1" content="Price"
+"setCell" ref="B2" content="100"
+"setCell" ref="B3" content="200"
+"setCell" ref="B4" content="300"
+"setCell" ref="B5" content="=SUM_RANGE(\\"B2:B4\\")"
+LET total = "getCellValue" ref="B5"
+SAY "Total: $" || total.value`,
+
+                export: `-- Export spreadsheet data
+ADDRESS spreadsheet
+"setCell" ref="A1" content="Test"
+"setCell" ref="A2" content="Data"
+LET data = "export" name="MySheet"
+SAY "Exported " || data.name
+SAY "Cells: " || Object.keys(data.cells).length`
+            };
+
+            rexxScript.value = examples[name] || '';
+        }
+    </script>
+</body>
+</html>

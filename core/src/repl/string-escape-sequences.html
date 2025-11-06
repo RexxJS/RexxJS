@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS String Escape Sequences Demo</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for string escape sequences demonstration -->
+    <script type="text/rexx" id="escape-script">
+        /* Auto-executing REXX String Escape Sequences Demo */
+
+        SAY "=== REXX String Escape Sequences Demo ===\n"
+
+        /* Newline escape sequence */
+        SAY "1. Newline (\\n) - Modern REXX approach:"
+        LET text1 = "Line 1\nLine 2\nLine 3"
+        SAY text1
+        SAY ""
+
+        /* Tab escape sequence */
+        SAY "2. Tab (\\t) - For indentation:"
+        LET columnar = "Name\tAge\tCity\nAlice\t30\tNY\nBob\t25\tLA"
+        SAY columnar
+        SAY ""
+
+        /* Carriage return (rarely used in modern systems) */
+        SAY "3. Backslash escape (\\\\) - Literal backslash:"
+        LET path_like = "C:\\Users\\Paul\\Documents"
+        SAY "  Path: " || path_like
+        SAY ""
+
+        /* Double quote escaping */
+        SAY "4. Quote escaping (\\\") - Inside double-quoted strings:"
+        LET quoted = "She said \"Hello\" to him"
+        SAY "  Quote example: " || quoted
+        SAY ""
+
+        /* Single quote in double quotes (no escaping needed) */
+        SAY "5. Single quotes in double quotes:"
+        LET apostrophe = "It's a beautiful day"
+        SAY "  Apostrophe: " || apostrophe
+        SAY ""
+
+        /* Multiple escape sequences combined */
+        SAY "6. Multiple Escape Sequences:"
+        LET report = "REPORT\n=======\nName\tStatus\n---\nProject A\tDone\nProject B\tPending"
+        SAY report
+        SAY ""
+
+        /* Escape sequences in formatted output */
+        SAY "7. Building Formatted Output:"
+        LET header = "ID\tName\tScore"
+        LET data1 = "1\tAlice\t95"
+        LET data2 = "2\tBob\t87"
+        LET data3 = "3\tCarol\t92"
+        SAY header
+        SAY data1
+        SAY data2
+        SAY data3
+        SAY ""
+
+        /* Escape sequences in JSON-like structures */
+        SAY "8. Multi-line String Building:"
+        LET multiline = "{\n  name: \"John\",\n  age: 30,\n  city: \"NYC\"\n}"
+        SAY multiline
+        SAY ""
+
+        /* Complex example: SQL query */
+        SAY "9. SQL-like Query Building:"
+        LET query = "SELECT *\nFROM users\nWHERE status = 'active'\nORDER BY name"
+        SAY query
+        SAY ""
+
+        /* Escape sequences with variable interpolation */
+        SAY "10. Escape Sequences with Interpolation:"
+        LET name = "Alice"
+        LET title = "Manager"
+        LET message = "Employee Record\n================\nName:\t" || name || "\nTitle:\t" || title
+        SAY message
+        SAY ""
+
+        /* No longer need empty SAY "" for blank lines */
+        SAY "11. Clean Spacing (using \\n):"
+        LET sections = "Section A\nContent A\n\nSection B\nContent B\n\nSection C\nContent C"
+        SAY sections
+        SAY ""
+
+        /* Combining different escape sequences */
+        SAY "12. Mixed Escape Sequences:"
+        LET formatted = "Status Report\n=============\nTask\tProgress\n\"Setup\"\t25%\n\"Testing\"\t50%\n\"Deploy\"\t0%"
+        SAY formatted
+        SAY ""
+
+        SAY "=== String Escape Sequences Demo Complete ==="
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS String Escape Sequences Demo</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating modern string escape sequences.</p>
+        <p>Escape sequences allow control over text formatting, whitespace, and special characters within strings. No need for empty <code>SAY ""</code> statements anymore!</p>
+        <p><strong>Note:</strong> Classic REXX did not have escape sequence support. RexxJS adds this modern feature to make string handling more convenient and closer to JavaScript/modern languages. This is a departure from standard REXX.</p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('escape-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>Common Escape Sequences</h2>
+    <ul>
+        <li><strong>\n</strong> - Newline (line break)</li>
+        <li><strong>\t</strong> - Tab (horizontal spacing)</li>
+        <li><strong>\\</strong> - Literal backslash</li>
+        <li><strong>\"</strong> - Literal double quote</li>
+        <li><strong>\r</strong> - Carriage return</li>
+        <li><strong>\f</strong> - Form feed</li>
+        <li><strong>\b</strong> - Backspace</li>
+    </ul>
+
+    <h2>Modern REXX: Before and After</h2>
+    <pre>
+/* Old style - needed empty SAY for blank lines */
+SAY "Line 1"
+SAY ""
+SAY "Line 2"
+SAY ""
+SAY "Line 3"
+
+/* Modern REXX - using \n escape sequence */
+SAY "Line 1\nLine 2\nLine 3"
+
+/* Even cleaner with variables */
+LET text = "Line 1\nLine 2\nLine 3"
+SAY text
+    </pre>
+
+    <h2>Practical Examples</h2>
+    <pre>
+/* Formatted table output */
+LET table = "Name\tAge\tCity\nAlice\t30\tNY\nBob\t25\tLA"
+SAY table
+
+/* Multi-line messages */
+LET message = "Header\n======\nContent line 1\nContent line 2"
+SAY message
+
+/* SQL/Query building */
+LET query = "SELECT *\nFROM users\nWHERE active = true\nORDER BY name"
+SAY query
+
+/* JSON-like structures */
+LET json = "{\n  \"name\": \"John\",\n  \"age\": 30\n}"
+SAY json
+
+/* File paths (using \\\ for literal backslash) */
+LET path = "C:\\Users\\Paul\\Documents"
+SAY path
+    </pre>
+
+    <h2>Comparison: Escape Sequences vs Concatenation</h2>
+    <table border="1" style="margin: 10px; border-collapse: collapse;">
+        <tr>
+            <th style="padding: 8px; text-align: left;">Approach</th>
+            <th style="padding: 8px; text-align: left;">Code</th>
+            <th style="padding: 8px; text-align: left;">Readability</th>
+        </tr>
+        <tr>
+            <td style="padding: 8px;">Multiple SAY statements</td>
+            <td style="padding: 8px;"><code>SAY "A"\nSAY ""\nSAY "B"</code></td>
+            <td style="padding: 8px;">Verbose</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px;">Concatenation</td>
+            <td style="padding: 8px;"><code>SAY "A" || "\n" || "B"</code></td>
+            <td style="padding: 8px;">Awkward</td>
+        </tr>
+        <tr>
+            <td style="padding: 8px;">Escape sequences (modern)</td>
+            <td style="padding: 8px;"><code>SAY "A\nB"</code></td>
+            <td style="padding: 8px;">Clean & Clear</td>
+        </tr>
+    </table>
+
+    <h2>Key Benefits</h2>
+    <ul>
+        <li><strong>Cleaner Code</strong> - No need for empty SAY statements</li>
+        <li><strong>More Readable</strong> - Intent is clear at a glance</li>
+        <li><strong>Better Performance</strong> - Single SAY vs multiple statements</li>
+        <li><strong>Familiarity</strong> - Matches JavaScript/Python conventions</li>
+        <li><strong>Flexible Formatting</strong> - Build complex output patterns easily</li>
+    </ul>
+
+    <h2>Tips and Gotchas</h2>
+    <ul>
+        <li><strong>Backslash Escape</strong> - Use <code>\\</code> to get a literal backslash</li>
+        <li><strong>Quote in Strings</strong> - Use <code>\"</code> for double quotes in double-quoted strings</li>
+        <li><strong>Tab Width</strong> - Actual tab width depends on display settings</li>
+        <li><strong>Line Endings</strong> - Different systems handle \n differently (usually normalized)</li>
+        <li><strong>Performance</strong> - Single string with escapes is faster than concatenation</li>
+    </ul>
+
+</body>
+</html>

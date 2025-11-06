@@ -17,6 +17,14 @@ const Diff = require('diff');
  * @returns {string|array} - Diff output in specified format
  */
 function DIFF(text1, text2, options = {}) {
+  // Validate required parameters
+  if (text1 === undefined || text1 === null) {
+    throw new Error('DIFF function requires at least 2 parameters: text1 and text2');
+  }
+  if (text2 === undefined || text2 === null) {
+    throw new Error('DIFF function requires 2 parameters: text1 and text2');
+  }
+
   const {
     format = 'unified',    // 'unified', 'lines', 'words', 'chars', 'json', 'patch'
     context = 3,           // Lines of context for unified diff
@@ -123,6 +131,14 @@ function DIFF_APPLY(text, patch) {
  * @returns {object} - Structured patch object
  */
 function DIFF_PATCH(text1, text2, options = {}) {
+  // Validate required parameters
+  if (text1 === undefined || text1 === null) {
+    throw new Error('DIFF_PATCH function requires at least 2 parameters: text1 and text2');
+  }
+  if (text2 === undefined || text2 === null) {
+    throw new Error('DIFF_PATCH function requires 2 parameters: text1 and text2');
+  }
+
   const { filename1 = 'a', filename2 = 'b' } = options;
 
   let str1 = Array.isArray(text1) ? text1.join('\n') : String(text1);
@@ -235,6 +251,14 @@ function PATCH(text, patch, options = {}) {
  * @returns {object} - {canApply: boolean, conflicts: array}
  */
 function PATCH_CHECK(text, patch, options = {}) {
+  // Validate required parameters
+  if (text === undefined || text === null) {
+    throw new Error('PATCH_CHECK function requires at least 2 parameters: text and patch');
+  }
+  if (patch === undefined || patch === null) {
+    throw new Error('PATCH_CHECK function requires 2 parameters: text and patch');
+  }
+
   try {
     // Try to apply the patch
     PATCH(text, patch, { ...options, returnResult: true });
@@ -306,6 +330,11 @@ function PATCH_APPLY_MULTIPLE(text, patches, options = {}) {
  * @returns {object} - Reversed patch object
  */
 function PATCH_CREATE_REVERSE(patch) {
+  // Validate required parameter
+  if (patch === undefined || patch === null) {
+    throw new Error('PATCH_CREATE_REVERSE function requires 1 parameter: patch');
+  }
+
   // Parse patch if string
   let patchObj;
   if (typeof patch === 'string') {

@@ -1,0 +1,35 @@
+>> 3 SAY "=== REXX Procedures and Functions Demo ==="
+=== REXX Procedures and Functions Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "Simple Procedure:"
+Simple Procedure:
+>> 8 CALL sayHello
+>> 8 CALL SAYHELLO (0 args)
+>> 54 SAY "  Hello from a procedure!"
+  Hello from a procedure!
+>> (no line#) RETURN
+>> 9 SAY ""
+
+>> 12 SAY "Procedure with Arguments:"
+Procedure with Arguments:
+>> 13 CALL greet "Alice"
+>> 13 CALL GREET (1 args)
+>> (no line#) PARSE
+>> 60 SAY "  Greetings, " || name || "!"
+  Greetings, Alice!
+>> (no line#) RETURN
+>> 14 CALL greet "Bob"
+>> 14 CALL GREET (1 args)
+>> (no line#) PARSE
+>> 60 SAY "  Greetings, " || name || "!"
+  Greetings, Bob!
+>> (no line#) RETURN
+>> 15 SAY ""
+
+>> 18 SAY "Function Returning a Value:"
+Function Returning a Value:
+>> 19 LET result = add(10, 20)
+Script Error: Error at line 19: LET result = undefined
+Rexx FUNCTION: LET result = add(10, 20) (script#procedures-functions-script: 19)
+Function ADD is not available: See https://rexxjs.org/functions/missing/ for help with missing functions and REQUIRE.

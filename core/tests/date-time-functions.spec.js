@@ -12,12 +12,12 @@ describe('Date Time Functions', () => {
   describe('DATE', () => {
     test('should return current date in default format', () => {
       const result = dateTimeFunctions.DATE();
-      expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/); // YYYY-MM-DD format
+      expect(result).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/); // Classic REXX: "DD Mon YYYY"
     });
 
-    test('should return date in custom format', () => {
-      const result = dateTimeFunctions.DATE('UTC', 'MM/DD/YYYY');
-      expect(result).toMatch(/^\d{2}\/\d{2}\/\d{4}$/); // MM/DD/YYYY format
+    test('should return date in sortable format', () => {
+      const result = dateTimeFunctions.DATE('S');
+      expect(result).toMatch(/^\d{8}$/); // YYYYMMDD format
     });
   });
 
@@ -281,10 +281,158 @@ describe('Date Time Functions', () => {
     });
   });
 
+  describe('Extended DATE() with Timezone & Locale', () => {
+    test('should return date with specified timezone', () => {
+      const result = dateTimeFunctions.DATE('N', 'UTC');
+      expect(result).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/);
+    });
+
+    test('should return date with different timezone', () => {
+      // Should not throw for valid IANA timezone
+      const result = dateTimeFunctions.DATE('N', 'America/New_York');
+      expect(result).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/);
+    });
+
+    test('should return date with locale-aware month names (French)', () => {
+      const result = dateTimeFunctions.DATE('N', 'UTC', 'fr-FR');
+      // French month names are lowercase and may contain periods: "oct.", "avr.", etc.
+      expect(result).toMatch(/^ {0,2}\d{1,2}\s+[a-z]+\.?\s+\d{4}$/);
+    });
+
+    test('should return date with locale-aware month names (German)', () => {
+      const result = dateTimeFunctions.DATE('N', 'UTC', 'de-DE');
+      // German month names: Jan, Feb, Mär, Apr, Mai, Jun, Jul, Aug, Sep, Okt, Nov, Dez
+      expect(result).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2,3}\.?\s+\d{4}$/);
+    });
+
+    test('should return date with locale-aware month names (Spanish)', () => {
+      const result = dateTimeFunctions.DATE('N', 'UTC', 'es-ES');
+      // Spanish month names are lowercase: enero, febrero, marzo, abril, mayo, junio, julio, agosto, septiembre, octubre, noviembre, diciembre
+      expect(result).toMatch(/^ {0,2}\d{1,2}\s+[a-z]+\.?\s+\d{4}$/);
+    });
+
+    test('should handle timezone with all format codes', () => {
+      // Test 'S' format with timezone
+      const sortable = dateTimeFunctions.DATE('S', 'America/Los_Angeles');
+      expect(sortable).toMatch(/^\d{8}$/);
+
+      // Test 'D' format with timezone
+      const ddmmyy = dateTimeFunctions.DATE('D', 'Europe/London');
+      expect(ddmmyy).toMatch(/^\d{2}\/\d{2}\/\d{2}$/);
+
+      // Test 'W' format with timezone
+      const dow = dateTimeFunctions.DATE('W', 'Asia/Tokyo');
+      expect(dow).toMatch(/^[0-6]$/);
+    });
+
+    test('should throw error for invalid timezone', () => {
+      expect(() => {
+        dateTimeFunctions.DATE('N', 'InvalidTimeZone/None');
+      }).toThrow('Invalid timezone');
+    });
+
+    test('should throw error for unsupported locale', () => {
+      expect(() => {
+        dateTimeFunctions.DATE('N', 'UTC', 'invalid-locale-code');
+      }).toThrow('Unsupported locale');
+    });
+  });
+
+  describe('Extended TIME() with Timezone & Locale', () => {
+    test('should return time with specified timezone', () => {
+      const result = dateTimeFunctions.TIME('N', 'UTC');
+      expect(result).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+    });
+
+    test('should return time with different timezone', () => {
+      // Should not throw for valid IANA timezone
+      const result = dateTimeFunctions.TIME('N', 'America/New_York');
+      expect(result).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+    });
+
+    test('should return seconds with timezone', () => {
+      const result = dateTimeFunctions.TIME('S', 'UTC');
+      // Should be a number between 0 and 86400 (seconds in a day)
+      expect(parseInt(result)).toBeGreaterThanOrEqual(0);
+      expect(parseInt(result)).toBeLessThan(86400);
+    });
+
+    test('should handle all format codes with timezone', () => {
+      // Test 'N' format with timezone
+      const normal = dateTimeFunctions.TIME('N', 'Europe/Paris');
+      expect(normal).toMatch(/^\d{2}:\d{2}:\d{2}$/);
+
+      // Test 'S' format with timezone
+      const seconds = dateTimeFunctions.TIME('S', 'Asia/Tokyo');
+      expect(seconds).toMatch(/^\d+$/);
+
+      // Test 'L' format with timezone
+      const microseconds = dateTimeFunctions.TIME('L', 'Australia/Sydney');
+      expect(microseconds).toMatch(/^\d+$/);
+    });
+
+    test('should throw error for invalid timezone', () => {
+      expect(() => {
+        dateTimeFunctions.TIME('N', 'NotATimeZone');
+      }).toThrow('Invalid timezone');
+    });
+
+    test('should throw error for unsupported locale', () => {
+      expect(() => {
+        dateTimeFunctions.TIME('N', 'UTC', 'not-a-valid-bcp47-locale');
+      }).toThrow('Unsupported locale');
+    });
+  });
+
+  describe('Timezone & Locale Consistency', () => {
+    test('should return consistent formats across different timezones', () => {
+      const utcDate = dateTimeFunctions.DATE('N', 'UTC');
+      const nyDate = dateTimeFunctions.DATE('N', 'America/New_York');
+      const tokyoDate = dateTimeFunctions.DATE('N', 'Asia/Tokyo');
+
+      // All should match the pattern, even if values differ
+      expect(utcDate).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/);
+      expect(nyDate).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/);
+      expect(tokyoDate).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/);
+    });
+
+    test('should return consistent formats across different locales', () => {
+      const enDate = dateTimeFunctions.DATE('N', 'UTC', 'en-US');
+      const frDate = dateTimeFunctions.DATE('N', 'UTC', 'fr-FR');
+      const deDate = dateTimeFunctions.DATE('N', 'UTC', 'de-DE');
+      const esDate = dateTimeFunctions.DATE('N', 'UTC', 'es-ES');
+
+      // All should match their respective locale patterns
+      expect(enDate).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/);  // English: Oct
+      expect(frDate).toMatch(/^ {0,2}\d{1,2}\s+[a-z]+\.?\s+\d{4}$/);      // French: oct. or octobre
+      expect(deDate).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2,3}\.?\s+\d{4}$/); // German: Okt or Oktober
+      expect(esDate).toMatch(/^ {0,2}\d{1,2}\s+[a-z]+\.?\s+\d{4}$/);      // Spanish: octubre
+    });
+
+    test('should support multiple locales with multiple timezones', () => {
+      const combinations = [
+        ['N', 'UTC', 'en-US'],
+        ['N', 'America/New_York', 'fr-FR'],
+        ['N', 'Europe/London', 'de-DE'],
+        ['N', 'Asia/Tokyo', 'ja-JP'],
+        ['S', 'Australia/Sydney', 'en-AU'],
+      ];
+
+      combinations.forEach(([format, tz, locale]) => {
+        const result = dateTimeFunctions.DATE(format, tz, locale);
+        if (format === 'S') {
+          expect(result).toMatch(/^\d{8}$/);
+        } else {
+          expect(result).toBeDefined();
+        }
+      });
+    });
+  });
+
   describe('Error Handling', () => {
     test('should handle invalid dates by throwing errors', () => {
       expect(() => dateTimeFunctions.DATE_ADD('invalid-date', 1)).toThrow();
-      
+
       // DATE_DIFF returns 0 for invalid dates rather than throwing
       const result = dateTimeFunctions.DATE_DIFF('invalid', 'dates');
       expect(result).toBe(0);
@@ -321,14 +469,14 @@ describe('Date Time Functions', () => {
     });
 
     test('should handle timezone consistency', () => {
-      const utcDate = dateTimeFunctions.DATE('UTC');
-      const utcTime = dateTimeFunctions.TIME('UTC');
-      
-      expect(utcDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      const utcDate = dateTimeFunctions.DATE();
+      const utcTime = dateTimeFunctions.TIME();
+
+      expect(utcDate).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/); // Classic REXX format
       expect(utcTime).toMatch(/^\d{2}:\d{2}:\d{2}$/);
-      
-      // Both should be valid when parsed
-      expect(dateTimeFunctions.DATE_VALID(utcDate)).toBe(true);
+
+      // The classic REXX date format won't directly parse as a date string, but the time should
+      expect(dateTimeFunctions.DATE_VALID(utcTime)).toBe(false); // Time strings aren't valid dates
     });
 
     test('should handle complex date operations workflow', () => {

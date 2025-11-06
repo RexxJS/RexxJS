@@ -170,19 +170,34 @@ const evaluateConcatenation = async function(expression, resolveValueFn, evaluat
     }
 
     // Evaluate each part and concatenate the results
+    // Get escape sequence processor if available
+    let processEscapeSequences;
+    try {
+      if (typeof require !== 'undefined') {
+        processEscapeSequences = require('./escape-sequence-processor').processEscapeSequences;
+      } else if (typeof window !== 'undefined' && window.processEscapeSequences) {
+        processEscapeSequences = window.processEscapeSequences;
+      }
+    } catch (error) {
+      // escape-sequence-processor not available, skip processing
+    }
+
     const results = [];
     for (const part of parts) {
       if (part.startsWith('"') && part.endsWith('"')) {
         // Quoted string - remove quotes and interpolate if needed
-        const unquoted = part.substring(1, part.length - 1);
+        let unquoted = part.substring(1, part.length - 1);
         // Check if we need to interpolate within the string
         if (typeof evaluateExpressionFn !== 'undefined' && unquoted.includes('{{')) {
           // Has interpolation patterns, but keep as-is for now
           // The interpolateString function will handle it if needed
+        } else if (processEscapeSequences) {
+          // No interpolation patterns, apply escape sequence processor
+          unquoted = processEscapeSequences(unquoted);
         }
         results.push(unquoted);
       } else if (part.startsWith("'") && part.endsWith("'")) {
-        // Single quoted string - no interpolation
+        // Single quoted string - no interpolation, no escape sequences
         results.push(part.substring(1, part.length - 1));
       } else if (typeof evaluateExpressionFn !== 'undefined') {
         // For non-quoted, non-string parts, try different evaluation strategies

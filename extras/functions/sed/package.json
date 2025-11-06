@@ -4,8 +4,8 @@
   "description": "Stream editing functions for RexxJS using sed-lite",
   "main": "src/sed-functions.js",
   "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watch",
+    "test": "node --experimental-vm-modules ./node_modules/.bin/jest",
+    "test:watch": "node --experimental-vm-modules ./node_modules/.bin/jest --watch",
     "install:core": "cd ../../../core && npm install",
     "pretest": "npm run install:core"
   },

@@ -1,0 +1,100 @@
+>> 3 SAY "=== REXX Number Formatting Demo ==="
+=== REXX Number Formatting Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "Basic Number Output:"
+Basic Number Output:
+>> 8 LET num1 = 42
+>> 9 LET num2 = 3.14159
+>> 10 LET num3 = -123
+>> 11 SAY "  Integer: " || num1
+  Integer: 42
+>> 12 SAY "  Float: " || num2
+  Float: 3.14159
+>> 13 SAY "  Negative: " || num3
+  Negative: -123
+>> 14 SAY ""
+
+>> 17 SAY "Padding with Leading Zeros:"
+Padding with Leading Zeros:
+>> 18 LET id = 5
+>> 19 SAY "  Original ID: " || id
+  Original ID: 5
+>> 20 LET paddedID = RIGHT(id, 5, "0")
+>> 21 SAY "  Padded to 5 digits: " || paddedID
+  Padded to 5 digits: 00005
+>> 22 SAY "  Another example: " || RIGHT(123, 6, "0")
+  Another example: 000123
+>> 23 SAY ""
+
+>> 26 SAY "Right-Alignment with Spaces:"
+Right-Alignment with Spaces:
+>> 27 LET amount1 = 100
+>> 28 LET amount2 = 5
+>> 29 SAY "  Amount 1: " || RIGHT(amount1, 8)
+  Amount 1:      100
+>> 30 SAY "  Amount 2: " || RIGHT(amount2, 8)
+  Amount 2:        5
+>> 31 SAY ""
+
+>> 34 SAY "Left-Alignment with Padding:"
+Left-Alignment with Padding:
+>> 35 LET label1 = "Price"
+>> 36 LET label2 = "Qty"
+>> 37 SAY "  Label 1: " || LEFT(label1, 10) || "| value"
+  Label 1: Price     | value
+>> 38 SAY "  Label 2: " || LEFT(label2, 10) || "| value"
+  Label 2: Qty       | value
+>> 39 SAY ""
+
+>> 42 SAY "Decimal Precision:"
+Decimal Precision:
+>> 43 LET pi = 3.14159265
+>> 44 SAY "  Original: " || pi
+  Original: 3.14159265
+>> 45 LET rounded1 = INT(pi * 100) / 100
+>> 46 SAY "  2 decimal places: " || rounded1
+  2 decimal places: NaN
+>> 47 LET rounded2 = INT(pi * 10) / 10
+>> 48 SAY "  1 decimal place: " || rounded2
+  1 decimal place: NaN
+>> 49 SAY ""
+
+>> 52 SAY "Number to String Conversion:"
+Number to String Conversion:
+>> 53 LET value = 42
+>> 54 LET strValue = value || ""
+>> 55 SAY "  Number 42 as string: '" || strValue || "'"
+  Number 42 as string: '42'
+>> 56 SAY "  String length: " || LENGTH(strValue)
+  String length: 2
+>> 57 SAY ""
+
+>> 60 SAY "Currency Formatting (Manual):"
+Currency Formatting (Manual):
+>> 61 LET amount = 1234.56
+>> 62 SAY "  Raw amount: " || amount
+  Raw amount: 1234.56
+>> 63 LET formatted = "$" || amount
+>> 64 SAY "  With dollar sign: " || formatted
+  With dollar sign: $1234.56
+>> 65 SAY ""
+
+>> 68 SAY "Large Numbers:"
+Large Numbers:
+>> 69 LET large1 = 1000000
+>> 70 LET large2 = 1000
+>> 71 SAY "  One million: " || large1
+  One million: 1000000
+>> 72 SAY "  One thousand: " || large2
+  One thousand: 1000
+>> 73 SAY ""
+
+>> 76 SAY "Report-style Alignment:"
+Report-style Alignment:
+>> 77 SAY "  Item        Price    Qty   Total"
+  Item        Price    Qty   Total
+>> 78 SAY "  " || LEFT("Apple", 10) || RIGHT(1.50, 8) || RIGHT(5, 5) || RIGHT(7.50, 8)
+  Apple          1.5    5     7.5
+>> 79 SAY "  " || LEFT("Orange", 10) || RIGHT(0.75, 8) || RIGHT(10, 5) || RIGHT(7.50, 8)
+  Orange        0.75   10     7.5

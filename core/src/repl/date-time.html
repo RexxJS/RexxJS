@@ -13,6 +13,9 @@
     <!-- Load the document write styled output handler -->
     <script src="../output/document-write-styled-output-handler.js"></script>
 
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
     <!-- REXX Script for date/time display -->
     <script type="text/rexx" id="datetime-script">
         /* Auto-executing REXX Date/Time Script */
@@ -58,7 +61,8 @@
                         outputHandler.output(text);
                     }
                 })
-                .withTraceToOutput(true)  // Enable trace mode - shows executed REXX lines
+                .withTraceMode('NORMAL')   // Enable trace mode - shows executed REXX lines
+                .withTraceToOutput(true)   // Output trace to handler
                 .build();
 
             // Execute the REXX script directly by ID

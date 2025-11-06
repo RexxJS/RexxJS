@@ -13,7 +13,7 @@ function getGitRoot() {
 }
 
 module.exports = {
-  entry: './src/index.js',
+  entry: './src/cli.js',
   output: {
     path: path.resolve(getGitRoot(), '../dist'),
     filename: 'rexx.js',

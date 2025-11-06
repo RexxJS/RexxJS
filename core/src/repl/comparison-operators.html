@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS Comparison Operators Demo</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for comparison operators demonstration -->
+    <script type="text/rexx" id="comparison-script">
+        /* Auto-executing REXX Comparison Operators Demo */
+
+        SAY "=== REXX Comparison Operators Demo ===\n"
+
+        /* Equality operator (=) */
+        SAY "1. Equality Operator (=):"
+        LET a = 42
+        LET b = 42
+        LET c = "42"
+        IF a = b THEN SAY "  42 = 42: true" ELSE SAY "  42 = 42: false" ENDIF
+        IF a = c THEN SAY "  42 = '42': true (numeric coercion)" ELSE SAY "  42 = '42': false" ENDIF
+        SAY ""
+
+        /* Strict equality operator (==) */
+        SAY "2. Strict Equality (==):"
+        LET str1 = "hello"
+        LET str2 = "hello"
+        LET str3 = "Hello"
+        IF str1 == str2 THEN SAY "  'hello' == 'hello': true" ELSE SAY "  'hello' == 'hello': false" ENDIF
+        IF str1 == str3 THEN SAY "  'hello' == 'Hello': true" ELSE SAY "  'hello' == 'Hello': false (case sensitive)" ENDIF
+        SAY ""
+
+        /* Inequality operators */
+        SAY "3. Inequality Operators (\\=, !=, <>, ><):"
+        LET x = 10
+        LET y = 20
+        IF x \= y THEN SAY "  10 \\= 20: true" ELSE SAY "  10 \\= 20: false" ENDIF
+        IF x != y THEN SAY "  10 != 20: true" ELSE SAY "  10 != 20: false" ENDIF
+        IF x <> y THEN SAY "  10 <> 20: true" ELSE SAY "  10 <> 20: false" ENDIF
+        IF x >< y THEN SAY "  10 >< 20: true" ELSE SAY "  10 >< 20: false" ENDIF
+        SAY ""
+
+        /* Greater than operator (>) */
+        SAY "4. Greater Than (>):"
+        LET num1 = 25
+        LET num2 = 15
+        IF num1 > num2 THEN SAY "  25 > 15: true" ELSE SAY "  25 > 15: false" ENDIF
+        IF num2 > num1 THEN SAY "  15 > 25: true" ELSE SAY "  15 > 25: false" ENDIF
+        SAY ""
+
+        /* Less than operator (<) */
+        SAY "5. Less Than (<):"
+        IF num2 < num1 THEN SAY "  15 < 25: true" ELSE SAY "  15 < 25: false" ENDIF
+        IF num1 < num2 THEN SAY "  25 < 15: true" ELSE SAY "  25 < 15: false" ENDIF
+        SAY ""
+
+        /* Greater than or equal (>=) */
+        SAY "6. Greater Than or Equal (>=):"
+        LET val1 = 30
+        LET val2 = 30
+        LET val3 = 25
+        IF val1 >= val2 THEN SAY "  30 >= 30: true" ELSE SAY "  30 >= 30: false" ENDIF
+        IF val1 >= val3 THEN SAY "  30 >= 25: true" ELSE SAY "  30 >= 25: false" ENDIF
+        SAY ""
+
+        /* Less than or equal (<=) */
+        SAY "7. Less Than or Equal (<=):"
+        IF val2 <= val1 THEN SAY "  30 <= 30: true" ELSE SAY "  30 <= 30: false" ENDIF
+        IF val3 <= val1 THEN SAY "  25 <= 30: true" ELSE SAY "  25 <= 30: false" ENDIF
+        SAY ""
+
+        /* Logical NOT operator */
+        SAY "8. Logical NOT (\\) - With Comparisons:"
+        LET p = 5
+        LET q = 10
+        IF \(p > q) THEN SAY "  NOT(5 > 10): true" ELSE SAY "  NOT(5 > 10): false" ENDIF
+        IF \(p < q) THEN SAY "  NOT(5 < 10): true" ELSE SAY "  NOT(5 < 10): false" ENDIF
+        SAY ""
+
+        /* Logical AND operator */
+        SAY "9. Logical AND (&&):"
+        LET age = 25
+        LET hasLicense = 1
+        IF age >= 18 && hasLicense THEN SAY "  Age >= 18 AND hasLicense: true" ELSE SAY "  Age >= 18 AND hasLicense: false" ENDIF
+        LET age2 = 15
+        IF age2 >= 18 && hasLicense THEN SAY "  Age 15 >= 18 AND hasLicense: false" ELSE SAY "  Age 15 >= 18 AND hasLicense: false" ENDIF
+        SAY ""
+
+        /* Logical OR operator */
+        SAY "10. Logical OR (||, or):"
+        LET isWeekend = 0
+        LET isHoliday = 1
+        IF isWeekend || isHoliday THEN SAY "  isWeekend OR isHoliday: true" ELSE SAY "  isWeekend OR isHoliday: false" ENDIF
+        LET isWeekend2 = 0
+        LET isHoliday2 = 0
+        IF isWeekend2 || isHoliday2 THEN SAY "  Both false: true" ELSE SAY "  Both false: false" ENDIF
+        SAY ""
+
+        /* String comparisons (lexicographic) */
+        SAY "11. String Comparisons (Lexicographic):"
+        LET apple = "apple"
+        LET banana = "banana"
+        IF apple < banana THEN SAY "  'apple' < 'banana': true" ELSE SAY "  'apple' < 'banana': false" ENDIF
+        IF banana > apple THEN SAY "  'banana' > 'apple': true" ELSE SAY "  'banana' > 'apple': false" ENDIF
+        SAY ""
+
+        /* Numeric string coercion */
+        SAY "12. Numeric String Coercion:"
+        LET num_val = 100
+        LET str_val = "100"
+        IF num_val = str_val THEN SAY "  100 = '100': true (coerced)" ELSE SAY "  100 = '100': false" ENDIF
+        IF num_val == str_val THEN SAY "  100 == '100': might depend on mode" ELSE SAY "  100 == '100': different types" ENDIF
+        SAY ""
+
+        /* Combined conditions */
+        SAY "13. Combined Conditions:"
+        LET score = 85
+        LET min_pass = 60
+        LET excellence = 90
+        IF score >= min_pass && score < excellence THEN
+          SAY "  Score 85 in passing range (60-90): true"
+        ELSE
+          SAY "  Score 85 in passing range (60-90): false"
+        ENDIF
+        SAY ""
+
+        SAY "=== Comparison Operators Demo Complete ==="
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS Comparison Operators Demo</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating all comparison operators for evaluating conditions.</p>
+        <p>Comparison operators are fundamental to control flow, allowing programs to make decisions based on data values.</p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('comparison-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>Equality & Inequality Operators</h2>
+    <ul>
+        <li><strong>=</strong> - Equal (numeric or string coercion)</li>
+        <li><strong>==</strong> - Strict equal (exact match)</li>
+        <li><strong>\=, !=, <>, ><, ¬=</strong> - Not equal (multiple syntax options)</li>
+    </ul>
+
+    <h2>Relational Operators</h2>
+    <ul>
+        <li><strong>&gt;</strong> - Greater than</li>
+        <li><strong>&lt;</strong> - Less than</li>
+        <li><strong>&gt;=</strong> - Greater than or equal</li>
+        <li><strong>&lt;=</strong> - Less than or equal</li>
+    </ul>
+
+    <h2>Logical Operators</h2>
+    <ul>
+        <li><strong>&amp;&amp;</strong> - AND (both conditions must be true)</li>
+        <li><strong>||, or</strong> - OR (at least one condition must be true)</li>
+        <li><strong>\</strong> - NOT (negates the condition)</li>
+    </ul>
+
+    <h2>Common Patterns</h2>
+    <pre>
+/* Simple comparison */
+IF value > threshold THEN
+  SAY "High"
+ENDIF
+
+/* Range checking */
+IF value >= min && value <= max THEN
+  SAY "In range"
+ENDIF
+
+/* Multiple conditions */
+IF age >= 18 && hasLicense && \hasViolations THEN
+  SAY "Eligible"
+ENDIF
+
+/* Alternative values */
+IF status = "active" || status = "pending" THEN
+  SAY "Processing"
+ENDIF
+
+/* Negation */
+IF \isComplete THEN
+  SAY "Still working"
+ENDIF
+
+/* String comparison */
+IF name < other_name THEN
+  SAY "Alphabetically first"
+ENDIF
+    </pre>
+
+    <h2>Type Coercion Rules</h2>
+    <ul>
+        <li><strong>Numeric Context</strong> - "42" becomes 42 for arithmetic comparisons</li>
+        <li><strong>String Context</strong> - Numbers converted to strings for lexicographic comparison</li>
+        <li><strong>Leading Zeros</strong> - "007" vs 7 may behave differently</li>
+        <li><strong>Whitespace</strong> - Leading/trailing spaces may affect comparison</li>
+    </ul>
+
+    <h2>Truth Table for Logical Operators</h2>
+    <table border="1" style="margin: 10px; border-collapse: collapse;">
+        <tr>
+            <th style="padding: 5px;">A</th>
+            <th style="padding: 5px;">B</th>
+            <th style="padding: 5px;">A && B</th>
+            <th style="padding: 5px;">A || B</th>
+            <th style="padding: 5px;">\A</th>
+        </tr>
+        <tr>
+            <td style="padding: 5px;">true</td>
+            <td style="padding: 5px;">true</td>
+            <td style="padding: 5px;">true</td>
+            <td style="padding: 5px;">true</td>
+            <td style="padding: 5px;">false</td>
+        </tr>
+        <tr>
+            <td style="padding: 5px;">true</td>
+            <td style="padding: 5px;">false</td>
+            <td style="padding: 5px;">false</td>
+            <td style="padding: 5px;">true</td>
+            <td style="padding: 5px;">false</td>
+        </tr>
+        <tr>
+            <td style="padding: 5px;">false</td>
+            <td style="padding: 5px;">true</td>
+            <td style="padding: 5px;">false</td>
+            <td style="padding: 5px;">true</td>
+            <td style="padding: 5px;">true</td>
+        </tr>
+        <tr>
+            <td style="padding: 5px;">false</td>
+            <td style="padding: 5px;">false</td>
+            <td style="padding: 5px;">false</td>
+            <td style="padding: 5px;">false</td>
+            <td style="padding: 5px;">true</td>
+        </tr>
+    </table>
+
+</body>
+</html>

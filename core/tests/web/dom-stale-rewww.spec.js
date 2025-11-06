@@ -7,7 +7,7 @@
 
 const { test, expect } = require('@playwright/test');
 
-test.describe('Rexx DOM Element Manager - Stale Element Handling', () => {
+test.describe('ELEMENT() Function - Stale Element Recovery & Retry Patterns', () => {
   let page;
 
   test.beforeEach(async ({ browser }) => {
@@ -27,11 +27,11 @@ test.describe('Rexx DOM Element Manager - Stale Element Handling', () => {
     await page.close();
   });
 
-  test('should handle basic DOM element operations', async () => {
+  test('ELEMENT() operations should work with basic element interactions', async () => {
     // Test simple click operation
     const script = `
-LET button = DOM_GET selector="#testButton"
-DOM_ELEMENT_CLICK element=button
+LET button = ELEMENT(selector="#testButton" operation="get")
+ELEMENT(element=button operation="click")
 SAY "Button clicked successfully"
     `;
     
@@ -48,12 +48,12 @@ SAY "Button clicked successfully"
     expect(eventLog).toContain('Button clicked');
   });
 
-  test('should fail WITHOUT automatic retry when element becomes stale', async () => {
+  test('ELEMENT() without RETRY_ON_STALE should fail when elements become stale', async () => {
     const script = `
-LET button = DOM_GET selector="#testButton"
+LET button = ELEMENT(selector="#testButton" operation="get")
 SAY "Got button reference"
 SLEEP ms=3000
-DOM_ELEMENT_CLICK element=button
+ELEMENT(element=button operation="click")
 SAY "This should NOT appear - element was removed"
     `;
     
@@ -78,14 +78,14 @@ SAY "This should NOT appear - element was removed"
     expect(output).not.toContain('This should NOT appear');
   });
 
-  test('should handle RETRY_ON_STALE blocks', async () => {
+  test('RETRY_ON_STALE should recover from stale ELEMENT() references', async () => {
     const script = `
 RETRY_ON_STALE timeout=5000
-  LET form = DOM_GET selector="#testForm"
-  LET username = DOM_ELEMENT_QUERY element=form selector="#username"
+  LET form = ELEMENT(selector="#testForm" operation="get")
+  LET username = ELEMENT(element=form selector="#username" operation="children")
   
   SAY "Filling username"
-  DOM_ELEMENT_TYPE element=username text="testuser"
+  ELEMENT(element=username operation="type" arg3="testuser")
   
   SAY "Form filled successfully"
 END_RETRY
@@ -103,7 +103,7 @@ END_RETRY
   });
 
 
-  test('should preserve variables across retry attempts', async () => {
+  test('RETRY_ON_STALE with PRESERVE should maintain state across retries', async () => {
     const script = `
 LET total_attempts = 0
 LET success_message = ""
@@ -111,8 +111,8 @@ LET success_message = ""
 RETRY_ON_STALE timeout=5000 PRESERVE total_attempts,success_message
   LET total_attempts = total_attempts + 1
   
-  LET button = DOM_GET selector="#testButton"
-  DOM_ELEMENT_CLICK element=button
+  LET button = ELEMENT(selector="#testButton" operation="get")
+  ELEMENT(element=button operation="click")
   
   LET success_message = "Completed after " || total_attempts || " attempts"
 END_RETRY
@@ -130,12 +130,12 @@ SAY success_message
     expect(output).toMatch(/Completed after \d+ attempts/);
   });
 
-  test('should timeout after specified duration', async () => {
+  test('RETRY_ON_STALE should timeout after specified duration', async () => {
     const script = `
 RETRY_ON_STALE timeout=2000
   -- Try to interact with non-existent element (should cause non-retryable error)
-  LET missing = DOM_GET selector="#non-existent-element"
-  DOM_ELEMENT_CLICK element=missing
+  LET missing = ELEMENT(selector="#non-existent-element" operation="get")
+  ELEMENT(element=missing operation="click")
 END_RETRY
 
 SAY "This should not execute"
@@ -154,16 +154,16 @@ SAY "This should not execute"
     expect(output).toContain('Error: Element not found'); // Error should be displayed
   });
 
-  test('should handle nested element queries', async () => {
+  test('ELEMENT() should support nested element queries within RETRY_ON_STALE', async () => {
     const script = `
 RETRY_ON_STALE timeout=5000
-  LET form = DOM_GET selector="#testForm"
-  LET submit_btn = DOM_ELEMENT_QUERY element=form selector="#submitBtn"
+  LET form = ELEMENT(selector="#testForm" operation="get")
+  LET submit_btn = ELEMENT(element=form selector="#submitBtn" operation="children")
   
-  LET btn_text = DOM_ELEMENT_TEXT element=submit_btn
+  LET btn_text = ELEMENT(element=submit_btn operation="text")
   SAY "Button text: " || btn_text
   
-  DOM_ELEMENT_CLICK element=submit_btn
+  ELEMENT(element=submit_btn operation="click")
   SAY "Form submitted"
 END_RETRY
     `;
@@ -180,16 +180,16 @@ END_RETRY
     expect(eventLog).toContain('Form submitted');
   });
 
-  test('should complete operations without automatic retry statistics', async () => {
+  test('ELEMENT() operations should work with and without RETRY_ON_STALE', async () => {
     const script = `
 -- Perform operations without automatic retry
-LET button = DOM_GET selector="#testButton"
-DOM_ELEMENT_CLICK element=button
+LET button = ELEMENT(selector="#testButton" operation="get")
+ELEMENT(element=button operation="click")
 
 RETRY_ON_STALE timeout=3000
-  LET form = DOM_GET selector="#testForm"
-  LET username = DOM_ELEMENT_QUERY element=form selector="#username"
-  DOM_ELEMENT_TYPE element=username text="test"
+  LET form = ELEMENT(selector="#testForm" operation="get")
+  LET username = ELEMENT(element=form selector="#username" operation="children")
+  ELEMENT(element=username operation="type" arg3="test")
 END_RETRY
 
 SAY "Operations completed"
@@ -207,18 +207,18 @@ SAY "Operations completed"
     expect(stats).toContain('executed directly without automatic retry');
   });
 
-  test('should handle multiple sequential RETRY_ON_STALE blocks', async () => {
+  test('Multiple RETRY_ON_STALE blocks with ELEMENT() should work sequentially', async () => {
     const script = `
 RETRY_ON_STALE timeout=3000
-  LET button = DOM_GET selector="#testButton"
-  DOM_ELEMENT_CLICK element=button
+  LET button = ELEMENT(selector="#testButton" operation="get")
+  ELEMENT(element=button operation="click")
   SAY "First block completed"
 END_RETRY
 
 RETRY_ON_STALE timeout=3000
-  LET form = DOM_GET selector="#testForm"
-  LET username = DOM_ELEMENT_QUERY element=form selector="#username"
-  DOM_ELEMENT_TYPE element=username text="sequential_test"
+  LET form = ELEMENT(selector="#testForm" operation="get")
+  LET username = ELEMENT(element=form selector="#username" operation="children")
+  ELEMENT(element=username operation="type" arg3="sequential_test")
   SAY "Second block completed"
 END_RETRY
 
@@ -238,18 +238,18 @@ SAY "All blocks completed"
     expect(usernameValue).toBe('sequential_test');
   });
 
-  test('should fail WITHOUT RETRY_ON_STALE when element becomes stale', async () => {
+  test('ELEMENT() without RETRY_ON_STALE should fail gracefully on stale elements', async () => {
     // This test demonstrates failure without retry protection
     const script = `
 -- No RETRY_ON_STALE block - will fail if elements go stale
-LET form = DOM_GET selector="#testForm"
-LET username = DOM_ELEMENT_QUERY element=form selector="#username"
+LET form = ELEMENT(selector="#testForm" operation="get")
+LET username = ELEMENT(element=form selector="#username" operation="children")
 
 SAY "Got form elements"
 SLEEP ms=300
 
 -- This will fail after we make the form stale during sleep
-DOM_ELEMENT_TYPE element=username text="will_fail"
+ELEMENT(element=username operation="type" arg3="will_fail")
 SAY "This message should NOT appear"
     `;
     
@@ -278,18 +278,18 @@ SAY "This message should NOT appear"
     expect(output).not.toContain('This message should NOT appear');
   });
 
-  test('should handle stale element errors with SIGNAL ON ERROR', async () => {
+  test('ELEMENT() should work with SIGNAL ON ERROR for stale element handling', async () => {
     const script = `
 SIGNAL ON ERROR
 
-LET form = DOM_GET selector="#testForm"  
-LET username = DOM_ELEMENT_QUERY element=form selector="#username"
+LET form = ELEMENT(selector="#testForm"  
+LET username = ELEMENT(element=form selector="#username" operation="children")
 
 SAY "Got form elements with SIGNAL ON ERROR enabled"
 SLEEP ms=300
 
 -- This will trigger a STALE_ELEMENT error after we make the form stale
-DOM_ELEMENT_TYPE element=username text="will_fail_but_handled"
+ELEMENT(element=username operation="type" arg3="will_fail_but_handled")
 SAY "This should NOT appear - should jump to ERROR:"
 EXIT 0
 
@@ -323,23 +323,23 @@ EXIT 1
     expect(output).not.toContain('This should NOT appear');
   });
 
-  test('should handle form submission workflow', async () => {
+  test('ELEMENT() should support complex form submission workflows with RETRY_ON_STALE', async () => {
     const script = `
 RETRY_ON_STALE timeout=10000
   -- Get form and all inputs
-  LET form = DOM_GET selector="#testForm"
-  LET username = DOM_ELEMENT_QUERY element=form selector="#username"
-  LET password = DOM_ELEMENT_QUERY element=form selector="#password"
-  LET submit = DOM_ELEMENT_QUERY element=form selector="#submitBtn"
+  LET form = ELEMENT(selector="#testForm" operation="get")
+  LET username = ELEMENT(element=form selector="#username" operation="children")
+  LET password = ELEMENT(element=form selector="#password" operation="children")
+  LET submit = ELEMENT(element=form selector="#submitBtn" operation="children")
   
   -- Fill form
   SAY "Filling form..."
-  DOM_ELEMENT_TYPE element=username text="john.doe"
-  DOM_ELEMENT_TYPE element=password text="secure123"
+  ELEMENT(element=username operation="type" arg3="john.doe")
+  ELEMENT(element=password operation="type" arg3="secure123")
   
   -- Submit form
   SAY "Submitting form..."
-  DOM_ELEMENT_CLICK element=submit
+  ELEMENT(element=submit operation="click")
   
   SAY "Workflow completed!"
 END_RETRY
@@ -358,19 +358,19 @@ END_RETRY
     expect(eventLog).toContain('Form submitted: username=john.doe');
   });
 
-  test('should demonstrate superior DO...OVER vs index-centric collection traversal', async () => {
+  test('ELEMENT() with DO...OVER should be superior to index-based traversal', async () => {
     // Test the old index-centric way first
     const indexScript = `
 -- OLD WAY: Index-centric DOM collection traversal
-LET buttons = DOM_GET_ALL selector=".test-collection button"
+LET buttons = ELEMENT(selector=".test-collection button" operation="all")
 LET count = buttons.length
 SAY "Found " || count || " buttons with index approach"
 
 DO i = 1 TO count
     LET button = ARRAY_GET(buttons, i)
     SAY "Processing button index: " || i
-    LET text = DOM_ELEMENT_TEXT element=button
-    DOM_ELEMENT_CLICK element=button
+    LET text = ELEMENT(element=button operation="text")
+    ELEMENT(element=button operation="click")
 END
 
 SAY "Index-based processing complete"
@@ -392,12 +392,12 @@ SAY "Index-based processing complete"
     
     const doOverScript = `
 -- NEW WAY: DO...OVER for elegant DOM collection traversal
-LET buttons = DOM_GET_ALL selector=".test-collection button"
+LET buttons = ELEMENT(selector=".test-collection button" operation="all")
 SAY "Found buttons collection, processing with DO...OVER..."
 
 DO button OVER buttons
-    LET text = DOM_ELEMENT_TEXT element=button
-    DOM_ELEMENT_CLICK element=button
+    LET text = ELEMENT(element=button operation="text")
+    ELEMENT(element=button operation="click")
     SAY "Processed: " || text
 END
 
@@ -418,16 +418,16 @@ SAY "DO...OVER processing complete"
     // Event clicks are verified implicitly through the "Processed:" messages above
   });
 
-  test('should handle DOM collections with RETRY_ON_STALE protection', async () => {
+  test('ELEMENT() collections with DO...OVER and RETRY_ON_STALE should be robust', async () => {
     const script = `
 RETRY_ON_STALE timeout=6000
-    LET buttons = DOM_GET_ALL selector=".test-collection button"
+    LET buttons = ELEMENT(selector=".test-collection button" operation="all")
     SAY "Processing button collection with stale protection..."
     
     DO button OVER buttons
-        LET text = DOM_ELEMENT_TEXT element=button
+        LET text = ELEMENT(element=button operation="text")
         SAY "Processing: " || text
-        DOM_ELEMENT_CLICK element=button
+        ELEMENT(element=button operation="click")
         SLEEP ms=100
     END
     

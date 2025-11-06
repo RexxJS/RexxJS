@@ -93,6 +93,72 @@ describe('String Functions', () => {
     });
   });
 
+  describe('RIGHT function', () => {
+    test('should right-align string with space padding', () => {
+      expect(stringFunctions.RIGHT('hello', 10)).toBe('     hello');
+      expect(stringFunctions.RIGHT('5', 5)).toBe('    5');
+    });
+
+    test('should right-align with zero padding', () => {
+      // This is the bug from the issue
+      expect(stringFunctions.RIGHT('5', 5, '0')).toBe('00005');
+      expect(stringFunctions.RIGHT(123, 6, '0')).toBe('000123');
+      expect(stringFunctions.RIGHT('42', 4, '0')).toBe('0042');
+    });
+
+    test('should return string unchanged if already longer or equal to length', () => {
+      expect(stringFunctions.RIGHT('hello', 5)).toBe('hello');
+      expect(stringFunctions.RIGHT('hello', 3)).toBe('llo');
+      expect(stringFunctions.RIGHT('hello world', 5)).toBe('world');
+    });
+
+    test('should handle single character pad', () => {
+      expect(stringFunctions.RIGHT('42', 5, '-')).toBe('---42');
+      expect(stringFunctions.RIGHT('x', 4, '*')).toBe('***x');
+    });
+
+    test('should handle multi-character pad by repeating', () => {
+      expect(stringFunctions.RIGHT('42', 6, 'ab')).toBe('abab42');
+      // Note: When needing 7 chars, 'ab' repeated 4 times gives 'abababab' (8 chars), take first 7
+      expect(stringFunctions.RIGHT('5', 8, 'ab')).toBe('abababa5');
+    });
+
+    test('should handle edge cases', () => {
+      expect(stringFunctions.RIGHT('', 3, '0')).toBe('000');
+      expect(stringFunctions.RIGHT('hello', 0)).toBe('');
+      expect(stringFunctions.RIGHT('hello', -1)).toBe('');
+    });
+
+    test('should convert non-string input to string', () => {
+      expect(stringFunctions.RIGHT(42, 5, '0')).toBe('00042');
+      // null converts to string "null" which has 4 chars, so RIGHT with length 5 adds 1 char
+      expect(stringFunctions.RIGHT(null, 5, '0')).toBe('0null');
+    });
+  });
+
+  describe('LEFT function', () => {
+    test('should left-align string with space padding', () => {
+      expect(stringFunctions.LEFT('hello', 10)).toBe('hello     ');
+      expect(stringFunctions.LEFT('5', 5)).toBe('5    ');
+    });
+
+    test('should left-align with custom padding', () => {
+      expect(stringFunctions.LEFT('hello', 10, '-')).toBe('hello-----');
+      expect(stringFunctions.LEFT('42', 5, '0')).toBe('42000');
+    });
+
+    test('should return string unchanged or truncated if already longer or equal to length', () => {
+      expect(stringFunctions.LEFT('hello', 5)).toBe('hello');
+      expect(stringFunctions.LEFT('hello', 3)).toBe('hel');
+    });
+
+    test('should handle multi-character pad', () => {
+      expect(stringFunctions.LEFT('42', 6, 'ab')).toBe('42abab');
+      // When needing 7 chars, 'xy' repeated 4 times gives 'xyxyxyxy' (8 chars), take first 7
+      expect(stringFunctions.LEFT('x', 8, 'xy')).toBe('xxyxyxyx');
+    });
+  });
+
   describe('Other core string functions', () => {
     test('LENGTH function', () => {
       expect(stringFunctions.LENGTH('Hello')).toBe(5);

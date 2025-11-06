@@ -23,6 +23,38 @@
  * SOFTWARE.
  */
 
+// Supported BCP 47 locales for DATE/TIME functions
+const SUPPORTED_LOCALES = new Set([
+  'en-US', 'en-GB', 'en-AU', 'en-CA', 'en-NZ', 'en-IE', 'en-IN', 'en-ZA',
+  'fr-FR', 'fr-CA', 'fr-BE', 'fr-CH', 'fr-LU',
+  'de-DE', 'de-AT', 'de-CH', 'de-LU',
+  'es-ES', 'es-MX', 'es-AR', 'es-CL', 'es-CO', 'es-PE', 'es-VE',
+  'it-IT', 'it-CH',
+  'pt-PT', 'pt-BR',
+  'nl-NL', 'nl-BE',
+  'sv-SE', 'sv-FI',
+  'no-NO', 'nb-NO', 'nn-NO',
+  'da-DK', 'fi-FI',
+  'pl-PL',
+  'cs-CZ',
+  'hu-HU',
+  'ro-RO',
+  'el-GR',
+  'tr-TR',
+  'ru-RU', 'ru-BY', 'ru-KZ',
+  'uk-UA',
+  'ja-JP',
+  'zh-CN', 'zh-TW', 'zh-HK', 'zh-SG',
+  'ko-KR',
+  'th-TH',
+  'vi-VN',
+  'id-ID',
+  'ms-MY',
+  'ar-SA', 'ar-AE', 'ar-EG', 'ar-IL',
+  'he-IL',
+  'hi-IN',
+]);
+
 // Helper functions for date/time formatting
 const formatDate = (date, timezone = 'UTC', format = 'YYYY-MM-DD') => {
   try {
@@ -114,12 +146,141 @@ const formatDateTime = (date, timezone = 'UTC', format = 'ISO') => {
 };
 
 const dateTimeFunctions = {
-  'DATE': (timezone = 'UTC', format = 'YYYY-MM-DD') => {
-    return formatDate(new Date(), timezone, format);
+  'DATE': (formatCode = '', timezone = 'UTC', locale = 'en-US') => {
+    try {
+      let dateToFormat = new Date();
+
+      // Validate and convert timezone if needed
+      if (timezone && timezone !== 'UTC' && timezone !== 'local') {
+        try {
+          // Validate timezone by trying to create a formatter with it
+          new Intl.DateTimeFormat('en-US', { timeZone: timezone });
+          // Convert to target timezone using locale string approach
+          dateToFormat = new Date(dateToFormat.toLocaleString('en-US', { timeZone: timezone }));
+        } catch (e) {
+          throw new Error(`Invalid timezone: ${timezone}`);
+        }
+      }
+
+      // Validate locale (strict - only supported locales allowed)
+      if (locale && !SUPPORTED_LOCALES.has(locale)) {
+        throw new Error(`Unsupported locale: ${locale}. Supported locales: ${Array.from(SUPPORTED_LOCALES).join(', ')}`);
+      }
+
+      // Get month names in the specified locale
+      const monthFormatter = new Intl.DateTimeFormat(locale || 'en-US', { month: 'short' });
+      const monthParts = monthFormatter.formatToParts(dateToFormat);
+      const monthName = monthParts.find(p => p.type === 'month')?.value || '';
+
+      const code = String(formatCode).toUpperCase();
+
+      switch (code) {
+        case '':
+        case 'N':  // Normal: "16 Oct 2025" (timezone-aware, locale-aware month names)
+          const day = String(dateToFormat.getDate()).padStart(2, ' ');
+          const year = dateToFormat.getFullYear();
+          return `${day} ${monthName} ${year}`;
+
+        case 'S':  // Sortable: "20251015" (always fixed, timezone-aware)
+          const yyyy = dateToFormat.getFullYear();
+          const mm = String(dateToFormat.getMonth() + 1).padStart(2, '0');
+          const dd = String(dateToFormat.getDate()).padStart(2, '0');
+          return `${yyyy}${mm}${dd}`;
+
+        case 'B':  // Base date (days since 0001-01-01, timezone-aware)
+          const epoch = new Date(1, 0, 1);
+          const diffMs = dateToFormat.getTime() - epoch.getTime();
+          return String(Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1);
+
+        case 'D':  // DD/MM/YY format (timezone-aware)
+          const d = String(dateToFormat.getDate()).padStart(2, '0');
+          const m = String(dateToFormat.getMonth() + 1).padStart(2, '0');
+          const y = String(dateToFormat.getFullYear()).slice(-2);
+          return `${d}/${m}/${y}`;
+
+        case 'U':  // Unpadded DDMMYY (timezone-aware)
+          const du = dateToFormat.getDate();
+          const mu = dateToFormat.getMonth() + 1;
+          const yu = String(dateToFormat.getFullYear()).slice(-2);
+          return `${du}${mu}${yu}`;
+
+        case 'W':  // Day of week (0=Sunday, 6=Saturday, timezone-aware)
+          return String(dateToFormat.getDay());
+
+        default:
+          // Default to normal format
+          const dayDefault = String(dateToFormat.getDate()).padStart(2, ' ');
+          const yearDefault = dateToFormat.getFullYear();
+          return `${dayDefault} ${monthName} ${yearDefault}`;
+      }
+    } catch (error) {
+      throw error;
+    }
   },
-  
-  'TIME': (timezone = 'UTC', format = 'HH:MM:SS') => {
-    return formatTime(new Date(), timezone, format);
+
+  'TIME': (formatCode = '', timezone = 'UTC', locale = 'en-US') => {
+    try {
+      let dateToFormat = new Date();
+
+      // Validate and convert timezone if needed (for time, this affects the hour/minute/second values)
+      if (timezone && timezone !== 'UTC' && timezone !== 'local') {
+        try {
+          // Validate timezone by trying to create a formatter with it
+          new Intl.DateTimeFormat('en-US', { timeZone: timezone });
+          // Convert to target timezone using locale string approach
+          dateToFormat = new Date(dateToFormat.toLocaleString('en-US', { timeZone: timezone }));
+        } catch (e) {
+          throw new Error(`Invalid timezone: ${timezone}`);
+        }
+      }
+
+      // Validate locale (strict - only supported locales allowed)
+      if (locale && !SUPPORTED_LOCALES.has(locale)) {
+        throw new Error(`Unsupported locale: ${locale}. Supported locales: ${Array.from(SUPPORTED_LOCALES).join(', ')}`);
+      }
+
+      const code = String(formatCode).toUpperCase();
+
+      switch (code) {
+        case '':
+        case 'N':  // Normal: "HH:MM:SS" (timezone-aware)
+          const h = String(dateToFormat.getHours()).padStart(2, '0');
+          const m = String(dateToFormat.getMinutes()).padStart(2, '0');
+          const s = String(dateToFormat.getSeconds()).padStart(2, '0');
+          return `${h}:${m}:${s}`;
+
+        case 'S':  // Seconds since midnight (timezone-aware)
+          const hours = dateToFormat.getHours();
+          const mins = dateToFormat.getMinutes();
+          const secs = dateToFormat.getSeconds();
+          return String(hours * 3600 + mins * 60 + secs);
+
+        case 'L':  // Microseconds (milliseconds * 1000 in JavaScript, timezone-aware)
+          const ms = dateToFormat.getTime();
+          const midnight = new Date(dateToFormat.getFullYear(), dateToFormat.getMonth(), dateToFormat.getDate()).getTime();
+          return String((ms - midnight) * 1000);
+
+        case 'C':  // CPU time (not reliably available, use elapsed time instead)
+          return String(typeof process !== 'undefined' && process.cpuUsage ? Math.round(process.cpuUsage().user / 1000) : dateToFormat.getMilliseconds());
+
+        case 'E':  // Elapsed time since last TIME('E') call (requires state)
+          // Use globalThis for both Node.js and browser compatibility
+          const globalObj = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : global);
+          if (!globalObj.__rexxLastTimeE) globalObj.__rexxLastTimeE = Date.now();
+          const elapsed = Date.now() - globalObj.__rexxLastTimeE;
+          globalObj.__rexxLastTimeE = Date.now();
+          return String(elapsed);
+
+        default:
+          // Default to normal format
+          const hDefault = String(dateToFormat.getHours()).padStart(2, '0');
+          const mDefault = String(dateToFormat.getMinutes()).padStart(2, '0');
+          const sDefault = String(dateToFormat.getSeconds()).padStart(2, '0');
+          return `${hDefault}:${mDefault}:${sDefault}`;
+      }
+    } catch (error) {
+      throw error;
+    }
   },
   
   'NOW': (timezone = 'UTC', format = 'ISO') => {

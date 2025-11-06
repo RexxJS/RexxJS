@@ -33,7 +33,7 @@ describe('System ADDRESS with bash shell selection', () => {
     });
 
     afterAll(() => {
-        delete global.SYSTEM_ADDRESS_MAIN;
+        delete global.SYSTEM_ADDRESS_META;
         delete global.ADDRESS_SYSTEM_HANDLER; 
         delete global.ADDRESS_SYSTEM_METHODS;
     });

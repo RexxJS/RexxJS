@@ -1,0 +1,66 @@
+>> 3 SAY "=== REXX String Functions Demo ==="
+=== REXX String Functions Demo ===
+>> 4 SAY ""
+
+>> 7 LET text = "Hello, World!"
+>> 8 SAY "LENGTH example:"
+LENGTH example:
+>> 9 SAY "  Original: " || text
+  Original: Hello, World!
+>> 10 SAY "  Length: " || LENGTH(text)
+  Length: 13
+>> 11 SAY ""
+
+>> 14 SAY "UPPER and LOWER examples:"
+UPPER and LOWER examples:
+>> 15 SAY "  Original: " || text
+  Original: Hello, World!
+>> 16 SAY "  UPPER: " || UPPER(text)
+  UPPER: HELLO, WORLD!
+>> 17 SAY "  LOWER: " || LOWER(text)
+  LOWER: hello, world!
+>> 18 SAY ""
+
+>> 21 SAY "SUBSTR examples:"
+SUBSTR examples:
+>> 22 SAY "  Original: " || text
+  Original: Hello, World!
+>> 23 SAY "  SUBSTR(8, 5): " || SUBSTR(text, 8, 5)
+  SUBSTR(8, 5): World
+>> 24 SAY "  SUBSTR(1, 5): " || SUBSTR(text, 1, 5)
+  SUBSTR(1, 5): Hello
+>> 25 SAY ""
+
+>> 28 SAY "INDEX examples:"
+INDEX examples:
+>> 29 SAY "  Original: " || text
+  Original: Hello, World!
+>> 30 SAY "  INDEX of 'World': " || INDEX(text, "World")
+  INDEX of 'World': 8
+>> 31 SAY "  INDEX of 'xyz': " || INDEX(text, "xyz")
+  INDEX of 'xyz': 0
+>> 32 SAY ""
+
+>> 35 LET padded = "   spaces everywhere   "
+>> 36 SAY "STRIP examples:"
+STRIP examples:
+>> 37 SAY "  Original: '" || padded || "'"
+  Original: '   spaces everywhere   '
+>> 38 SAY "  STRIP: '" || STRIP(padded) || "'"
+  STRIP: 'spaces everywhere'
+>> 39 SAY ""
+
+>> 42 SAY "TRANSLATE examples:"
+TRANSLATE examples:
+>> 43 SAY "  Original: " || text
+  Original: Hello, World!
+>> 44 SAY "  Replace 'o' with '0': " || TRANSLATE(text, "0", "o")
+  Replace 'o' with '0': Hell0, W0rld!
+>> 45 SAY ""
+
+>> 48 SAY "REVERSE example:"
+REVERSE example:
+>> 49 SAY "  Original: " || text
+  Original: Hello, World!
+>> 50 SAY "  REVERSE: " || REVERSE(text)
+  REVERSE: !dlroW ,olleH

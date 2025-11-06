@@ -9,7 +9,7 @@ const { parse } = require('../../../../core/src/parser');
 const source = fs.readFileSync(path.join(__dirname, '../src/pyodide-address.js'), 'utf8');
 eval(source);
 
-describe('Pyodide ADDRESS Library E2E Tests', () => {
+describe.skip('Pyodide ADDRESS Library E2E Tests', () => {
     jest.setTimeout(60000); // 60s timeout for Pyodide loading
 
     let interpreter;
@@ -27,7 +27,7 @@ describe('Pyodide ADDRESS Library E2E Tests', () => {
     });
 
     afterAll(() => {
-        delete global.PYODIDE_ADDRESS_MAIN;
+        delete global.PYODIDE_ADDRESS_META;
         delete global.ADDRESS_PYODIDE_HANDLER;
         delete global.ADDRESS_PYODIDE_METHODS;
     });

@@ -1,0 +1,31 @@
+>> 3 SAY "=== REXX Pipe Operator (|>) Demo ==="
+=== REXX Pipe Operator (|>) Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "Basic Pipe Operator:"
+Basic Pipe Operator:
+>> 8 LET text = "  hello world  "
+>> 9 LET result = text |> STRIP() |> UPPER()
+>> 10 SAY "  Original: '" || text || "'"
+  Original: '  hello world  '
+>> 11 SAY "  After STRIP() |> UPPER(): '" || result || "'"
+  After STRIP() |> UPPER(): 'HELLO WORLD'
+>> 12 SAY ""
+
+>> 15 SAY "Multiple Operations in Pipe:"
+Multiple Operations in Pipe:
+>> 16 LET data = "JavaScript"
+>> 17 LET result = data |> LOWER() |> LEFT(4) |> UPPER()
+>> 18 SAY "  Original: " || data
+  Original: JavaScript
+>> 19 SAY "  LOWER() |> LEFT(4) |> UPPER(): " || result
+  LOWER() |> LEFT(4) |> UPPER(): JAVA
+>> 20 SAY ""
+
+>> 23 SAY "Piping with Lambda Expressions:"
+Piping with Lambda Expressions:
+>> 24 LET numbers = [1, 2, 3, 4, 5]
+>> 25 LET result = numbers |> MAP("x * 2") |> REDUCE("sum + x", 0)
+Script Error: Error at line 25: LET result = undefined
+Rexx FUNCTION: LET result = numbers |> MAP("x * 2") |> REDUCE("sum + x", 0) (script#pipe-script: 25)
+Function REDUCE is not available: See https://rexxjs.org/functions/missing/ for help with missing functions and REQUIRE.

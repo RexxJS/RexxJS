@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS Functional Programming Demo</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for functional programming demonstration -->
+    <script type="text/rexx" id="functional-script">
+        /* Auto-executing REXX Functional Programming Demo */
+
+        SAY "=== REXX Functional Programming Demo ==="
+        SAY ""
+
+        /* MAP function */
+        SAY "MAP - Transform each element:"
+        LET numbers = [1, 2, 3, 4, 5]
+        LET doubled = MAP(numbers, "x * 2")
+        SAY "  Original: " || JSON_STRINGIFY(numbers)
+        SAY "  Doubled (MAP): " || JSON_STRINGIFY(doubled)
+        SAY ""
+
+        /* FILTER function */
+        SAY "FILTER - Select matching elements:"
+        LET values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        LET evens = FILTER(values, "x % 2 = 0")
+        SAY "  Original: " || JSON_STRINGIFY(values)
+        SAY "  Even numbers (FILTER): " || JSON_STRINGIFY(evens)
+        SAY ""
+
+        /* REDUCE function */
+        SAY "REDUCE - Combine to single value:"
+        LET nums = [1, 2, 3, 4, 5]
+        LET sum = REDUCE(nums, "acc + x", 0)
+        LET product = REDUCE(nums, "acc * x", 1)
+        SAY "  Array: " || JSON_STRINGIFY(nums)
+        SAY "  Sum (REDUCE): " || sum
+        SAY "  Product (REDUCE): " || product
+        SAY ""
+
+        /* FIND function */
+        SAY "FIND - Locate first match:"
+        LET people = [
+            { name: "Alice", age: 25 },
+            { name: "Bob", age: 30 },
+            { name: "Charlie", age: 28 }
+        ]
+        LET peopleJson = JSON_STRINGIFY(people)
+        SAY "  Data: " || peopleJson
+        SAY "  Note: FIND used for complex queries in pipelines"
+        SAY ""
+
+        /* Combining MAP and FILTER */
+        SAY "MAP + FILTER Combination:"
+        LET items = [1, 2, 3, 4, 5, 6]
+        LET result = items |> FILTER("x > 2") |> MAP("x * x")
+        SAY "  Original: " || JSON_STRINGIFY(items)
+        SAY "  FILTER(x > 2) |> MAP(x * x): " || JSON_STRINGIFY(result)
+        SAY ""
+
+        /* Complex transformation pipeline */
+        SAY "Complex Data Pipeline:"
+        LET data = [10, 5, 20, 15, 8, 25, 3]
+        LET processed = data |> FILTER("x > 5") |> MAP("x * 2") |> SORT() |> REVERSE()
+        SAY "  Original: " || JSON_STRINGIFY(data)
+        SAY "  FILTER(>5) |> MAP(*2) |> SORT |> REVERSE: " || JSON_STRINGIFY(processed)
+        SAY ""
+
+        /* String transformation pipeline */
+        SAY "String Transformation Pipeline:"
+        LET words = ["hello", "world", "rexx"]
+        LET transformed = words |> MAP("UPPER(x)") |> SORT() |> REVERSE()
+        SAY "  Original: " || JSON_STRINGIFY(words)
+        SAY "  UPPER |> SORT |> REVERSE: " || JSON_STRINGIFY(transformed)
+        SAY ""
+
+        /* Statistical operations */
+        SAY "Statistical Operations:"
+        LET values = [10, 20, 30, 40, 50]
+        LET avg = values |> REDUCE("s + x", 0) / LENGTH(values)
+        LET doubled = values |> MAP("x * 2")
+        LET sumDoubled = doubled |> REDUCE("s + x", 0)
+        SAY "  Values: " || JSON_STRINGIFY(values)
+        SAY "  Average: " || avg
+        SAY "  Sum of doubled: " || sumDoubled
+        SAY ""
+
+        /* Conditional processing */
+        SAY "Conditional Processing:"
+        LET nums = [1, 2, 3, 4, 5]
+        LET gt3 = nums |> FILTER("x > 3")
+        LET doubled_gt3 = gt3 |> MAP("x * 2")
+        SAY "  Original: " || JSON_STRINGIFY(nums)
+        SAY "  > 3: " || JSON_STRINGIFY(gt3)
+        SAY "  > 3, then doubled: " || JSON_STRINGIFY(doubled_gt3)
+        SAY ""
+
+        SAY "=== Functional Programming Demo Complete ==="
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS Functional Programming Demo</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating functional programming with MAP, FILTER, REDUCE and other higher-order functions.</p>
+        <p>Functional programming enables elegant data transformations through composition of pure functions.</p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('functional-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>Core Higher-Order Functions</h2>
+    <ul>
+        <li><strong>MAP(array, lambda)</strong> - Transform each element, return new array</li>
+        <li><strong>FILTER(array, lambda)</strong> - Select elements matching condition</li>
+        <li><strong>REDUCE(array, lambda, initial)</strong> - Combine elements into single value</li>
+        <li><strong>FIND(array, lambda)</strong> - Return first element matching condition</li>
+        <li><strong>SORT(), REVERSE()</strong> - Array ordering operations</li>
+    </ul>
+
+    <h2>Lambda Expression Syntax</h2>
+    <ul>
+        <li><code>"x * 2"</code> - Simple transformation (x is current element)</li>
+        <li><code>"x > 5"</code> - Boolean condition (FILTER)</li>
+        <li><code>"acc + x"</code> - Accumulation (REDUCE, acc is accumulator)</li>
+        <li><code>"UPPER(x)"</code> - Function application on element</li>
+    </ul>
+
+    <h2>Common Patterns</h2>
+    <pre>
+/* Transform data */
+numbers |> MAP("x * 2")
+
+/* Filter then transform */
+data |> FILTER("x > 0") |> MAP("x * x")
+
+/* Aggregate data */
+values |> REDUCE("sum + x", 0)
+
+/* Chain multiple operations */
+items |> SORT() |> REVERSE() |> SLICE(0, 3)
+
+/* Complex pipeline */
+data |> FILTER(condition) |> MAP(transform) |> REDUCE(combine, initial)
+    </pre>
+
+    <h2>Advantages</h2>
+    <ul>
+        <li><strong>Immutability</strong> - Original data remains unchanged</li>
+        <li><strong>Composability</strong> - Easy to combine operations</li>
+        <li><strong>Readability</strong> - Clear intent of transformations</li>
+        <li><strong>Testability</strong> - Pure functions are easy to test</li>
+        <li><strong>Reusability</strong> - Build complex operations from simple functions</li>
+    </ul>
+
+    <h2>Real-World Examples</h2>
+    <ul>
+        <li><strong>Data Analysis</strong> - Filter raw data, transform for analysis</li>
+        <li><strong>ETL Pipelines</strong> - Extract, Transform, Load using composition</li>
+        <li><strong>JSON Processing</strong> - Parse, filter, transform, stringify</li>
+        <li><strong>Report Generation</strong> - Aggregate and format data</li>
+        <li><strong>Batch Processing</strong> - Process collections efficiently</li>
+    </ul>
+
+
+</body>
+</html>

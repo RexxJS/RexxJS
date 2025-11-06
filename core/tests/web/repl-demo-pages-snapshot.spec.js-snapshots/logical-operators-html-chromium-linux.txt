@@ -1,0 +1,37 @@
+>> 3 SAY "=== REXX Logical Operators Demo ==="
+=== REXX Logical Operators Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "AND Operator (&):"
+AND Operator (&):
+>> 8 LET age = 25
+>> 9 LET hasDL = 1
+>> 10 SAY "  age = " || age || ", hasDL = " || hasDL
+  age = 25, hasDL = 1
+>> 11 IF age >= 18 & hasDL = 1 THEN SAY "  Can drive: TRUE (both conditions met)"
+>> 11 IF age >= 18 & hasDL = 1 THEN SAY "  Can drive: TRUE (both conditions met)"
+  Can drive: TRUE (both conditions met)
+>> 12 SAY ""
+
+>> 15 SAY "OR Operator (|):"
+OR Operator (|):
+>> 16 LET isWeekend = 0
+>> 17 LET isHoliday = 1
+>> 18 SAY "  isWeekend = " || isWeekend || ", isHoliday = " || isHoliday
+  isWeekend = 0, isHoliday = 1
+>> 19 IF isWeekend | isHoliday THEN SAY "  No work today: TRUE (at least one condition met)"
+>> 19 IF isWeekend | isHoliday THEN SAY "  No work today: TRUE (at least one condition met)"
+  No work today: TRUE (at least one condition met)
+>> 20 SAY ""
+
+>> 23 SAY "NOT Operator (\):"
+NOT Operator (\):
+>> 24 LET isActive = 1
+>> 25 SAY "  isActive = " || isActive
+  isActive = 1
+>> 26 IF \ isActive THEN SAY "  Is inactive: TRUE"
+>> 26 IF \ isActive THEN SAY "  Is inactive: TRUE"
+  Is inactive: TRUE
+>> 27 ELSE SAY "  Is inactive: FALSE (isActive is " || isActive || ")"
+Script Error: Rexx FUNCTION: ELSE SAY "  Is inactive: FALSE (isActive is " || isActive || ")" (script#logical-operators-script: 27)
+Function ELSE is not available: See https://rexxjs.org/functions/missing/ for help with missing functions and REQUIRE.

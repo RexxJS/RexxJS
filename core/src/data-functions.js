@@ -228,9 +228,54 @@ const dataFunctions = {
 
 };
 
+// Sibling converters for unified parameter model
+function CSV_TO_JSON_positional_args_to_named_param_map(...args) {
+  return { csvStr: args[0], delimiter: args[1], hasHeader: args[2] };
+}
+
+function JSON_TO_CSV_positional_args_to_named_param_map(...args) {
+  return { jsonStr: args[0], delimiter: args[1] };
+}
+
+function XML_TO_JSON_positional_args_to_named_param_map(...args) {
+  return { xmlStr: args[0] };
+}
+
+function DATA_FILTER_positional_args_to_named_param_map(...args) {
+  return { dataStr: args[0], filterKey: args[1], filterValue: args[2] };
+}
+
+function DATA_SORT_positional_args_to_named_param_map(...args) {
+  return { dataStr: args[0], sortKey: args[1], ascending: args[2] };
+}
+
+function DATA_GROUP_BY_positional_args_to_named_param_map(...args) {
+  return { dataStr: args[0], groupKey: args[1] };
+}
+
+function COPY_positional_args_to_named_param_map(...args) {
+  return { value: args[0] };
+}
+
 // Export for both Node.js and browser
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { dataFunctions };
+  module.exports = {
+    dataFunctions,
+    CSV_TO_JSON_positional_args_to_named_param_map,
+    JSON_TO_CSV_positional_args_to_named_param_map,
+    XML_TO_JSON_positional_args_to_named_param_map,
+    DATA_FILTER_positional_args_to_named_param_map,
+    DATA_SORT_positional_args_to_named_param_map,
+    DATA_GROUP_BY_positional_args_to_named_param_map,
+    COPY_positional_args_to_named_param_map
+  };
 } else if (typeof window !== 'undefined') {
   window.dataFunctions = dataFunctions;
+  window.CSV_TO_JSON_positional_args_to_named_param_map = CSV_TO_JSON_positional_args_to_named_param_map;
+  window.JSON_TO_CSV_positional_args_to_named_param_map = JSON_TO_CSV_positional_args_to_named_param_map;
+  window.XML_TO_JSON_positional_args_to_named_param_map = XML_TO_JSON_positional_args_to_named_param_map;
+  window.DATA_FILTER_positional_args_to_named_param_map = DATA_FILTER_positional_args_to_named_param_map;
+  window.DATA_SORT_positional_args_to_named_param_map = DATA_SORT_positional_args_to_named_param_map;
+  window.DATA_GROUP_BY_positional_args_to_named_param_map = DATA_GROUP_BY_positional_args_to_named_param_map;
+  window.COPY_positional_args_to_named_param_map = COPY_positional_args_to_named_param_map;
 }

@@ -5,16 +5,39 @@
 
 const { spawn } = require('child_process');
 
-// Mock child_process.spawn for all tests
+// Mock child_process functions for all tests
 jest.mock('child_process', () => ({
-  spawn: jest.fn()
+  spawn: jest.fn(),
+  exec: jest.fn((command, callback) => {
+    // Mock exec - default to success
+    // Track mkdir commands for fs.existsSync simulation
+    if (command && command.includes('mkdir')) {
+      // Extract the base path from mkdir command (before any / or {)
+      const pathMatch = command.match(/mkdir\s+(?:.*\s)?([/\w\-_.]+)(?:\{|\s|$)/);
+      if (pathMatch) {
+        mockExistingPaths.add(pathMatch[1]);
+      }
+      // Also try extracting from within quotes
+      const quotedMatch = command.match(/mkdir[^"]*"([^{"/]+)/);
+      if (quotedMatch) {
+        mockExistingPaths.add(quotedMatch[1]);
+      }
+    }
+    callback(null, 'mocked output', '');
+  })
 }));
 
 // Mock fs operations for file system interactions
+const mockExistingPaths = new Set();
 jest.mock('fs', () => ({
-  existsSync: jest.fn(() => true),
+  existsSync: jest.fn((path) => {
+    // Return true only for paths that have been "created"
+    return mockExistingPaths.has(path);
+  }),
   readFileSync: jest.fn(() => 'Mock RexxJS script content'),
-  unlinkSync: jest.fn(() => {})
+  unlinkSync: jest.fn((path) => {
+    mockExistingPaths.delete(path);
+  })
 }));
 
 /**
@@ -57,6 +80,9 @@ let scriptContent = 'Mock RexxJS script content';
  * Setup default successful mocks for testing
  */
 function setupDefaultMocks() {
+  // Clear tracked paths for new test
+  mockExistingPaths.clear();
+
   const spawnMock = require('child_process').spawn;
   
   spawnMock.mockImplementation((command, args) => {

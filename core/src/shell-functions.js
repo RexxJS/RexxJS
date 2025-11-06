@@ -18,11 +18,13 @@ const isNodeJS = typeof require !== 'undefined' &&
 
 // Only load Node.js dependencies if we're in Node.js
 // This prevents webpack from trying to bundle them for the browser
-let fs, path;
+let fs, path, child_process, os;
 
 if (isNodeJS) {
   fs = require('fs');
   path = require('path');
+  child_process = require('child_process');
+  os = require('os');
 }
 
 /**
@@ -787,36 +789,57 @@ function DIRNAME(pathArg) {
 }
 
 /**
- * PATH_JOIN - Join path components
+ * PATH_JOIN - Join path components (varargs style)
  *
- * @param {Array|string} parts - Path parts to join (array or first part)
- * @param {...string} moreParts - Additional path parts (if using variadic style)
+ * Supports multiple invocation styles:
+ *   PATH_JOIN("a", "b", "c")           - Varargs: most natural
+ *   PATH_JOIN(["a", "b", "c"])         - Array passed directly
+ *   PATH_JOIN(parts=["a", "b", "c"])   - Named parameter (from unified model)
+ *
+ * @param {...string|Array} pathParts - Variable number of path parts or array of parts
  * @returns {string} Joined path
  */
-function PATH_JOIN(parts, ...moreParts) {
-  // Support both array style: PATH_JOIN(parts=["a", "b"])
-  // and variadic style: PATH_JOIN("a", "b", "c")
-  if (Array.isArray(parts)) {
-    return path.join(...parts);
-  } else if (typeof parts === 'string' && parts.startsWith('[')) {
-    // Handle stringified array (parameter conversion issue)
-    try {
-      const parsedParts = JSON.parse(parts);
-      if (Array.isArray(parsedParts)) {
-        return path.join(...parsedParts);
-      }
-    } catch (e) {
-      // Not a valid JSON array, fall through
-    }
+function PATH_JOIN(...allArgs) {
+  // Handle different invocation styles
+  let actualParts = [];
+
+  if (allArgs.length === 0) {
+    throw new Error('PATH_JOIN requires at least one path part');
   }
 
-  if (moreParts.length > 0) {
-    return path.join(parts, ...moreParts);
-  } else if (typeof parts === 'string') {
-    return parts;
+  // Check if first arg is unified parameter model with 'parts' key
+  if (allArgs.length === 1 &&
+      typeof allArgs[0] === 'object' &&
+      allArgs[0] !== null &&
+      'parts' in allArgs[0]) {
+    // Named parameter: PATH_JOIN(parts=["a", "b"])
+    actualParts = Array.isArray(allArgs[0].parts) ? allArgs[0].parts : [allArgs[0].parts];
+  } else if (allArgs.length === 1 && Array.isArray(allArgs[0])) {
+    // Array passed directly: PATH_JOIN(["a", "b"])
+    actualParts = allArgs[0];
   } else {
-    throw new Error(`PATH_JOIN requires an array of path parts or multiple string arguments (received: ${typeof parts}, value: ${parts})`);
+    // Varargs style: PATH_JOIN("a", "b", "c")
+    actualParts = allArgs;
   }
+
+  // Flatten any nested arrays and filter out empty strings
+  actualParts = actualParts.flat().filter(p => p !== '');
+
+  if (actualParts.length === 0) {
+    throw new Error('PATH_JOIN requires at least one non-empty path part');
+  }
+
+  return path.join(...actualParts);
+}
+
+/**
+ * Sibling function: Convert positional arguments to named parameter map for PATH_JOIN
+ * Collects all varargs into a parts array
+ */
+function PATH_JOIN_positional_args_to_named_param_map(...args) {
+  return {
+    parts: args  // All varargs become the parts array
+  };
 }
 
 /**
@@ -1093,19 +1116,41 @@ function SEQ(start, end = null, step = 1) {
  * @param {string|Array} input - Text string, array, or file path
  * @returns {string|Array} Shuffled lines (returns same type as input)
  */
-function SHUF(input) {
+function SHUF(params) {
+  // Handle unified parameter model: { input: ... }
+  let actualInput;
+
+  if (typeof params === 'object' && params !== null && 'input' in params) {
+    actualInput = params.input;
+  } else {
+    // Direct value (from piped input or varargs)
+    actualInput = params;
+  }
+
+  // Handle stringified JSON arrays from parser limitations
+  if (typeof actualInput === 'string' && (actualInput.startsWith('[') || actualInput.startsWith('{'))) {
+    try {
+      const parsed = JSON.parse(actualInput);
+      if (Array.isArray(parsed)) {
+        actualInput = parsed;
+      }
+    } catch (e) {
+      // Not valid JSON, treat as regular string
+    }
+  }
+
   let lines = [];
-  const isArray = Array.isArray(input);
+  const isArray = Array.isArray(actualInput);
 
   if (isArray) {
-    lines = [...input];
-  } else if (typeof input === 'string') {
+    lines = [...actualInput];
+  } else if (typeof actualInput === 'string') {
     // Check if it's a file path
-    if (isNodeJS && fs.existsSync(input)) {
-      const content = fs.readFileSync(input, 'utf8');
+    if (isNodeJS && fs.existsSync(actualInput)) {
+      const content = fs.readFileSync(actualInput, 'utf8');
       lines = content.split('\n');
     } else {
-      lines = input.split('\n');
+      lines = actualInput.split('\n');
     }
   } else {
     throw new Error('SHUF requires a string or array as input');
@@ -1121,27 +1166,53 @@ function SHUF(input) {
 }
 
 /**
+ * Sibling function: Convert positional arguments to named parameter map for SHUF
+ * SHUF(input) -> { input }
+ */
+function SHUF_positional_args_to_named_param_map(...args) {
+  return {
+    input: args[0]
+  };
+}
+
+/**
  * Extract fields from text lines (like Unix cut)
  * @param {string|Array} input - Input text or array of lines
  * @param {string} [fields] - Field numbers to extract (e.g., "2" or "1,3")
  * @param {string} [delimiter] - Field delimiter (default: tab)
  * @returns {Array} Array of extracted field values
  */
-function CUT(input, fields = "1", delimiter = "\t") {
+function CUT(inputOrParams, fields = "1", delimiter = "\t") {
+  // Handle both unified parameter model and positional arguments
+  // If first arg is an object with 'input' property, it's the new unified model
+  let actualInput, actualFields, actualDelimiter;
+
+  if (typeof inputOrParams === 'object' && inputOrParams !== null && 'input' in inputOrParams) {
+    // Unified parameter model: { input, fields, delimiter }
+    actualInput = inputOrParams.input;
+    actualFields = inputOrParams.fields !== undefined ? inputOrParams.fields : "1";
+    actualDelimiter = inputOrParams.delimiter !== undefined ? inputOrParams.delimiter : "\t";
+  } else {
+    // Positional arguments (backward compatible)
+    actualInput = inputOrParams;
+    actualFields = fields;
+    actualDelimiter = delimiter;
+  }
+
   let lines;
 
   // Convert input to array of lines
-  if (Array.isArray(input)) {
-    lines = input;
-  } else if (typeof input === 'string') {
-    lines = input.split('\n');
+  if (Array.isArray(actualInput)) {
+    lines = actualInput;
+  } else if (typeof actualInput === 'string') {
+    lines = actualInput.split('\n');
   } else {
     throw new Error('CUT input must be a string or array of strings');
   }
 
   // Parse field numbers (supports ranges like "2-3" and lists like "1,3")
   const fieldNums = [];
-  const fieldSpecs = fields.split(',');
+  const fieldSpecs = String(actualFields).split(',');
 
   for (const spec of fieldSpecs) {
     const trimmed = spec.trim();
@@ -1159,7 +1230,7 @@ function CUT(input, fields = "1", delimiter = "\t") {
 
   const result = [];
   for (const line of lines) {
-    const parts = line.split(delimiter);
+    const parts = line.split(actualDelimiter);
     const extracted = fieldNums.map(fieldNum => parts[fieldNum] || '');
 
     if (fieldNums.length === 1) {
@@ -1167,7 +1238,7 @@ function CUT(input, fields = "1", delimiter = "\t") {
       result.push(extracted[0] || '');
     } else {
       // Multiple fields - join with delimiter
-      result.push(extracted.join(delimiter));
+      result.push(extracted.join(actualDelimiter));
     }
   }
 
@@ -1175,31 +1246,118 @@ function CUT(input, fields = "1", delimiter = "\t") {
 }
 
 /**
+ * Sibling function: Convert positional arguments to named parameter map for CUT
+ * CUT(input, fields, delimiter) -> { input, fields, delimiter }
+ */
+function CUT_positional_args_to_named_param_map(...args) {
+  return {
+    input: args[0],
+    fields: args[1],
+    delimiter: args[2]
+  };
+}
+
+/**
  * Combine arrays side by side (like Unix paste)
- * @param {Array} inputs - Array of arrays to combine
- * @param {string} [delimiter] - Delimiter between fields (default: tab)
+ *
+ * Expects unified parameter model from converter:
+ *   { inputs: [array1, array2, array3], delimiter: "," }
+ *
+ * Called from REXX as: PASTE(array1, array2, array3) or PASTE(array1, array2, delimiter=",")
+ * The converter transforms this to unified params, which is what we receive here.
+ *
+ * @param {Object} params - Unified parameter object with inputs and optional delimiter
  * @returns {Array} Array of combined lines
  */
-function PASTE(inputs, delimiter = "\t") {
-  if (!Array.isArray(inputs)) {
-    throw new Error('PASTE inputs must be an array of arrays');
-  }
+function PASTE(params) {
+  // Handle case where we receive a single unified params object
+  if (typeof params === 'object' && params !== null && 'inputs' in params) {
+    let inputs = params.inputs;
+    const delimiter = params.delimiter !== undefined ? params.delimiter : "\t";
 
-  // Find the maximum length
-  const maxLength = Math.max(...inputs.map(arr => Array.isArray(arr) ? arr.length : 0));
+    if (!Array.isArray(inputs) || inputs.length === 0) {
+      throw new Error('PASTE requires at least one array');
+    }
 
-  const result = [];
-  for (let i = 0; i < maxLength; i++) {
-    const line = inputs.map(arr => {
-      if (Array.isArray(arr) && i < arr.length) {
-        return arr[i];
+    // Handle stringified JSON arrays from parser limitations
+    inputs = inputs.map(item => {
+      if (typeof item === 'string' && (item.startsWith('[') || item.startsWith('{'))) {
+        try {
+          const parsed = JSON.parse(item);
+          return Array.isArray(parsed) ? parsed : item;
+        } catch (e) {
+          return item;
+        }
       }
-      return '';
-    }).join(delimiter);
-    result.push(line);
+      return item;
+    });
+
+    // Verify all inputs are arrays (handle stringified arrays from parser)
+    for (let i = 0; i < inputs.length; i++) {
+      // If it's not already an array but is a string, try to parse as JSON
+      if (!Array.isArray(inputs[i]) && typeof inputs[i] === 'string') {
+        try {
+          const trimmed = inputs[i].trim();
+          // Try to parse as JSON
+          if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+            inputs[i] = JSON.parse(trimmed);
+          }
+        } catch (e) {
+          // If it fails, that's OK - we'll throw the proper error below
+        }
+      }
+
+      if (!Array.isArray(inputs[i])) {
+        throw new Error(`PASTE argument ${i + 1} must be an array, got ${typeof inputs[i]}`);
+      }
+    }
+
+    // Find the maximum length
+    const maxLength = Math.max(...inputs.map(arr => arr.length));
+
+    const result = [];
+    for (let i = 0; i < maxLength; i++) {
+      const line = inputs.map(arr => {
+        return (i < arr.length) ? arr[i] : '';
+      }).join(delimiter);
+      result.push(line);
+    }
+
+    return result;
   }
 
-  return result;
+  throw new Error('PASTE expects unified parameter model: { inputs: [...], delimiter: "..." }');
+}
+
+/**
+ * Sibling function: Convert positional arguments to named parameter map for PASTE
+ * REXX invocations: PASTE(a, b, c) or PASTE(a, b, c, delimiter=",")
+ * Returns: { inputs: [a, b, c], delimiter: "," }
+ */
+function PASTE_positional_args_to_named_param_map(...args) {
+  // Check if last arg is "delimiter=..." (from parser not recognizing named params)
+  if (args.length > 0 &&
+      typeof args[args.length - 1] === 'string' &&
+      args[args.length - 1].startsWith('delimiter=')) {
+    // Extract delimiter value from "delimiter=..." string
+    const lastArg = args[args.length - 1];
+    const delimiterMatch = lastArg.match(/^delimiter=(.*)$/);
+    if (delimiterMatch) {
+      let delimiter = delimiterMatch[1];
+      // Strip surrounding quotes if present
+      if ((delimiter.startsWith('"') && delimiter.endsWith('"')) ||
+          (delimiter.startsWith("'") && delimiter.endsWith("'"))) {
+        delimiter = delimiter.slice(1, -1);
+      }
+      const inputs = args.slice(0, -1);
+      return { inputs, delimiter };
+    }
+  }
+
+  // All args are arrays to be combined (no custom delimiter)
+  return {
+    inputs: args
+  };
 }
 
 /**
@@ -3361,6 +3519,316 @@ function UNSETENV(name) {
 }
 
 /**
+ * Process Management Operations
+ */
+
+/**
+ * PS - List running processes
+ * Returns array of process objects with pid, ppid, name, cmd, cpu, mem
+ * Node.js only
+ */
+function PS() {
+  if (!isNodeJS) {
+    throw new Error('PS is only available in Node.js environment');
+  }
+
+  const platform = os.platform();
+  let output;
+
+  try {
+    if (platform === 'win32') {
+      // Windows: Use WMIC or Get-Process
+      output = child_process.execSync('wmic process get ProcessId,ParentProcessId,Name,CommandLine,WorkingSetSize /format:csv', {
+        encoding: 'utf8',
+        timeout: 10000,
+        windowsHide: true
+      });
+    } else {
+      // Unix-like: Use ps command with standardized format
+      output = child_process.execSync('ps -eo pid,ppid,pcpu,pmem,comm,args', {
+        encoding: 'utf8',
+        timeout: 10000
+      });
+    }
+  } catch (error) {
+    throw new Error(`Failed to list processes: ${error.message}`);
+  }
+
+  // Parse the output into structured data
+  const processes = [];
+  const lines = output.trim().split('\n');
+
+  if (platform === 'win32') {
+    // Parse Windows CSV format (skip header lines)
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line || line.startsWith('Node,')) continue;
+
+      const parts = line.split(',');
+      if (parts.length >= 4) {
+        processes.push({
+          pid: parseInt(parts[3]) || 0,
+          ppid: parseInt(parts[2]) || 0,
+          name: parts[1] || '',
+          cmd: parts[4] || parts[1] || '',
+          cpu: 0,
+          mem: parseInt(parts[5]) || 0
+        });
+      }
+    }
+  } else {
+    // Parse Unix ps output (skip header)
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      // Split by whitespace, handling multiple spaces
+      const parts = line.split(/\s+/);
+      if (parts.length >= 5) {
+        processes.push({
+          pid: parseInt(parts[0]) || 0,
+          ppid: parseInt(parts[1]) || 0,
+          cpu: parseFloat(parts[2]) || 0,
+          mem: parseFloat(parts[3]) || 0,
+          name: parts[4] || '',
+          cmd: parts.slice(5).join(' ') || parts[4] || ''
+        });
+      }
+    }
+  }
+
+  return processes;
+}
+
+/**
+ * PGREP - Find process IDs by name or pattern
+ * Returns array of PIDs matching the pattern
+ * Node.js only
+ */
+function PGREP(pattern, full = false, exact = false) {
+  if (!isNodeJS) {
+    throw new Error('PGREP is only available in Node.js environment');
+  }
+
+  full = toBool(full);
+  exact = toBool(exact);
+  const platform = os.platform();
+  let pids = [];
+
+  try {
+    if (platform === 'win32') {
+      // Windows: Use tasklist and filter
+      const processes = PS();
+      const regex = exact ? new RegExp(`^${pattern}$`, 'i') : new RegExp(pattern, 'i');
+
+      pids = processes
+        .filter(p => {
+          const searchField = full ? p.cmd : p.name;
+          return regex.test(searchField);
+        })
+        .map(p => p.pid);
+    } else {
+      // Unix-like: Use pgrep command if available
+      try {
+        let cmd = 'pgrep';
+        if (full) cmd += ' -f';
+        if (exact) cmd += ' -x';
+        cmd += ` "${pattern}"`;
+
+        const output = child_process.execSync(cmd, {
+          encoding: 'utf8',
+          timeout: 5000
+        });
+
+        pids = output.trim().split('\n').map(pid => parseInt(pid)).filter(pid => !isNaN(pid));
+      } catch (error) {
+        // pgrep not available or no matches, fall back to PS
+        if (error.status === 1) {
+          // pgrep returns 1 when no processes match
+          return [];
+        }
+
+        // pgrep command not found, use PS
+        const processes = PS();
+        const regex = exact ? new RegExp(`^${pattern}$`) : new RegExp(pattern);
+
+        pids = processes
+          .filter(p => {
+            const searchField = full ? p.cmd : p.name;
+            return regex.test(searchField);
+          })
+          .map(p => p.pid);
+      }
+    }
+  } catch (error) {
+    throw new Error(`Failed to search processes: ${error.message}`);
+  }
+
+  return pids;
+}
+
+/**
+ * KILLALL - Kill all processes matching name
+ * Returns number of processes killed
+ * Node.js only
+ */
+function KILLALL(name, signal = 'SIGTERM') {
+  if (!isNodeJS) {
+    throw new Error('KILLALL is only available in Node.js environment');
+  }
+
+  const platform = os.platform();
+  const sig = String(signal).toUpperCase();
+
+  try {
+    if (platform === 'win32') {
+      // Windows: Use taskkill
+      const output = child_process.execSync(`taskkill /F /IM "${name}" /T`, {
+        encoding: 'utf8',
+        timeout: 10000,
+        windowsHide: true
+      });
+
+      // Parse output to count killed processes
+      const matches = output.match(/SUCCESS/g);
+      return matches ? matches.length : 0;
+    } else {
+      // Unix-like: Find processes and kill them
+      const pids = PGREP(name, { exact: false });
+
+      let killedCount = 0;
+      for (const pid of pids) {
+        try {
+          process.kill(pid, sig);
+          killedCount++;
+        } catch (err) {
+          // Process might have already exited or permission denied
+          // Continue with other processes
+        }
+      }
+
+      return killedCount;
+    }
+  } catch (error) {
+    // If no processes found, return 0 instead of throwing
+    if (error.message && error.message.includes('not found')) {
+      return 0;
+    }
+    throw new Error(`Failed to kill processes: ${error.message}`);
+  }
+}
+
+/**
+ * TOP - Get real-time process information snapshot
+ * Returns object with system stats and top processes
+ * Node.js only
+ */
+function TOP(limit = 10, sortBy = 'cpu') {
+  if (!isNodeJS) {
+    throw new Error('TOP is only available in Node.js environment');
+  }
+
+  const n = parseInt(limit) || 10;
+  const sortField = String(sortBy) === 'mem' ? 'mem' : 'cpu';
+
+  // Get all processes
+  const processes = PS();
+
+  // Sort by requested field
+  processes.sort((a, b) => b[sortField] - a[sortField]);
+
+  // Get top N processes
+  const topProcesses = processes.slice(0, n);
+
+  // Get system information
+  const totalMem = os.totalmem();
+  const freeMem = os.freemem();
+  const usedMem = totalMem - freeMem;
+  const loadAvg = os.loadavg();
+  const uptime = os.uptime();
+  const cpus = os.cpus();
+
+  return {
+    timestamp: new Date().toISOString(),
+    system: {
+      uptime: uptime,
+      loadAverage: {
+        '1min': loadAvg[0],
+        '5min': loadAvg[1],
+        '15min': loadAvg[2]
+      },
+      memory: {
+        total: totalMem,
+        free: freeMem,
+        used: usedMem,
+        percentUsed: (usedMem / totalMem) * 100
+      },
+      cpus: cpus.length,
+      cpuModel: cpus[0] ? cpus[0].model : 'Unknown'
+    },
+    processes: {
+      total: processes.length,
+      top: topProcesses
+    }
+  };
+}
+
+/**
+ * NICE - Run a command with modified scheduling priority
+ * Returns object with { exitCode, stdout, stderr }
+ * Node.js only
+ */
+function NICE(command, priority = 10, shell = true) {
+  if (!isNodeJS) {
+    throw new Error('NICE is only available in Node.js environment');
+  }
+
+  shell = toBool(shell);
+  const platform = os.platform();
+
+  // Validate priority (-20 to 19 on Unix, not applicable on Windows)
+  const niceness = Math.max(-20, Math.min(19, parseInt(priority) || 10));
+
+  try {
+    let cmd;
+    let execOptions = {
+      encoding: 'utf8',
+      timeout: 30000,
+      shell: shell
+    };
+
+    if (platform === 'win32') {
+      // Windows: Use start with priority class
+      // Priority mapping: below normal, normal, above normal, high
+      let windowsPriority = '/normal';
+      if (niceness < -10) windowsPriority = '/high';
+      else if (niceness < 0) windowsPriority = '/abovenormal';
+      else if (niceness > 10) windowsPriority = '/belownormal';
+      else if (niceness > 0) windowsPriority = '/low';
+
+      cmd = `start ${windowsPriority} /wait /b ${command}`;
+    } else {
+      // Unix-like: Use nice command
+      cmd = `nice -n ${niceness} ${command}`;
+    }
+
+    const output = child_process.execSync(cmd, execOptions);
+
+    return {
+      exitCode: 0,
+      stdout: output.toString(),
+      stderr: ''
+    };
+  } catch (error) {
+    return {
+      exitCode: error.status || 1,
+      stdout: error.stdout ? error.stdout.toString() : '',
+      stderr: error.stderr ? error.stderr.toString() : error.message
+    };
+  }
+}
+
+/**
  * Network Operations
  */
 
@@ -3823,15 +4291,19 @@ if (isNodeJS) {
     PATH_JOIN,
     PATH_RESOLVE,
     PATH_EXTNAME,
+    PATH_JOIN_positional_args_to_named_param_map,
     HEAD,
     TAIL,
     WC,
     SORT,
     UNIQ,
     CUT,
+    CUT_positional_args_to_named_param_map,
     PASTE,
+    PASTE_positional_args_to_named_param_map,
     SEQ,
     SHUF,
+    SHUF_positional_args_to_named_param_map,
     TEE,
     XARGS,
     NL,
@@ -3907,6 +4379,11 @@ if (isNodeJS) {
     HOST,
     IFCONFIG,
     FILESPLIT,
+    PS,
+    PGREP,
+    KILLALL,
+    TOP,
+    NICE,
   };
 } else if (typeof module !== 'undefined' && module.exports) {
   // Browser mode with module system (webpack) - export empty object

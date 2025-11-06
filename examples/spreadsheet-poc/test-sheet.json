@@ -1,0 +1,73 @@
+{
+  "name": "Test Sheet",
+  "version": "1.0",
+  "setupScript": "-- Simple test spreadsheet for development\n-- No special setup needed",
+  "cells": {
+    "A1": {
+      "value": "10",
+      "expression": null,
+      "format": null,
+      "comment": "Plain number"
+    },
+    "A2": {
+      "value": "20",
+      "expression": null,
+      "format": null,
+      "comment": "Another number"
+    },
+    "A3": {
+      "value": "30",
+      "expression": null,
+      "format": null,
+      "comment": "Yet another number"
+    },
+    "A4": {
+      "value": "30",
+      "expression": "A1 + A2",
+      "format": null,
+      "comment": "Sum of A1 and A2"
+    },
+    "A5": {
+      "value": "60",
+      "expression": "SUM_RANGE(\"A1:A3\")",
+      "format": null,
+      "comment": "Sum of range A1 to A3"
+    },
+    "B1": {
+      "value": "Hello",
+      "expression": null,
+      "format": null,
+      "comment": "Text value"
+    },
+    "B2": {
+      "value": "HELLO",
+      "expression": "UPPER(B1)",
+      "format": null,
+      "comment": "Uppercase conversion"
+    },
+    "C1": {
+      "value": "5",
+      "expression": null,
+      "format": null,
+      "comment": null
+    },
+    "C2": {
+      "value": "3",
+      "expression": null,
+      "format": null,
+      "comment": null
+    },
+    "C3": {
+      "value": "15",
+      "expression": "C1 * C2",
+      "format": null,
+      "comment": "Multiplication"
+    }
+  },
+  "metadata": {
+    "rows": 100,
+    "cols": 26,
+    "created": "2025-11-05T18:00:00.000Z",
+    "modified": "2025-11-05T18:00:00.000Z"
+  }
+}

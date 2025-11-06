@@ -144,10 +144,9 @@
         </div>
     </div>
     
-    <!-- REXX_LOADER_SECTION_START -->
-    <!-- This section will be replaced for bundled version by GitHub Actions -->
-    <script src="../interpreter-web-loader.js"></script>
-    <!-- REXX_LOADER_SECTION_END -->
+    <!-- Bundled REXX Interpreter - unminified for development debugging -->
+    <!-- Production deploys use rexxjs.bundle.min.js for smaller file size -->
+    <script src="dist/rexxjs.bundle.js"></script>
     
     <script>
         const statusDiv = document.getElementById('status');

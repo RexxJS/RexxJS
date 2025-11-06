@@ -79,6 +79,9 @@
     
     <!-- Load the document write styled output handler -->
     <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
     
     <!-- REXX Scripts stored in script tags with custom MIME type -->
     <script type="text/rexx" id="hello-world-script">
@@ -155,6 +158,7 @@ SAY "Counter updated to:" count
                             outputHandler.output(text);
                         }
                     })
+                .withTraceMode('NORMAL')
                     .withTraceToOutput(true)  // Enable trace mode - shows executed REXX lines
                     .build();
                 

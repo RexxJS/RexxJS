@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test.describe('DOM Element Functions - Phase 3: Advanced Operations', () => {
+test.describe('ELEMENT() Function - Phase 3: Advanced DOM Operations', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the DOM stale test harness which has our DOM functions
     await page.goto('/tests/web/test-harness-dom-stale.html');
@@ -10,18 +10,18 @@ test.describe('DOM Element Functions - Phase 3: Advanced Operations', () => {
     await page.waitForSelector('#rexx-script');
   });
 
-  test('DOM_CREATE_ELEMENT should create new elements', async ({ page }) => {
+  test('DOM operations: creating elements should create new elements', async ({ page }) => {
     const script = `
--- Test DOM_CREATE_ELEMENT function
-LET newDiv = DOM_CREATE_ELEMENT tag="div" text="Hello World"
+-- Test element creation with ELEMENT()
+LET newDiv = ELEMENT(selector="div" operation="create" text="Hello World")
 SAY "Created div: " || newDiv
 
-LET newInput = DOM_CREATE_ELEMENT tag="input" type="text" name="username" placeholder="Enter name"
+LET newInput = ELEMENT(selector="input" operation="create" type="text" name="username" placeholder="Enter name")
 SAY "Created input: " || newInput
 
 -- Check element properties
-LET divTag = DOM_ELEMENT_TAG element=newDiv
-LET inputTag = DOM_ELEMENT_TAG element=newInput
+LET divTag = ELEMENT(element=newDiv operation="tag")
+LET inputTag = ELEMENT(element=newInput operation="tag")
 SAY "Div tag: " || divTag
 SAY "Input tag: " || inputTag
     `;
@@ -37,10 +37,10 @@ SAY "Input tag: " || inputTag
     expect(output).toContain('Input tag: INPUT');
   });
 
-  test('DOM_CREATE_TEXT should create text nodes', async ({ page }) => {
+  test('DOM operations: creating text nodes should create text nodes', async ({ page }) => {
     const script = `
--- Test DOM_CREATE_TEXT function
-LET textNode = DOM_CREATE_TEXT text="This is a text node"
+-- Test text node creation function
+LET textNode = ELEMENT(selector="text" operation="create" text="This is a text node")
 SAY "Created text node: " || textNode
     `;
     
@@ -52,18 +52,18 @@ SAY "Created text node: " || textNode
     expect(output).toContain('Created text node: dom_element_');
   });
 
-  test('DOM_ELEMENT_APPEND should add child elements', async ({ page }) => {
+  test('ELEMENT() with operation="append" should add child elements', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_APPEND function
-LET container = DOM_GET selector=".test-collection"
-LET newButton = DOM_CREATE_ELEMENT tag="button" text="New Button"
+-- Test ELEMENT() append operation function
+LET container = ELEMENT(selector=".test-collection" operation="get")
+LET newButton = ELEMENT(selector="button" text="New Button" operation="create")
 SAY "Created new button"
 
-DOM_ELEMENT_APPEND parent=container child=newButton
+ELEMENT(element=container operation="append" arg3=newButton)
 SAY "Appended button to container"
 
 -- Verify it was added by counting children
-LET children = DOM_ELEMENT_CHILDREN element=container selector="button"
+LET children = ELEMENT(element=container selector="button" operation="children")
 SAY "Container now has " || children.length || " button children"
     `;
     
@@ -77,20 +77,20 @@ SAY "Container now has " || children.length || " button children"
     expect(output).toContain('Container now has 6 button children'); // 5 original + 1 new
   });
 
-  test('DOM_ELEMENT_PREPEND should add child elements at the beginning', async ({ page }) => {
+  test('ELEMENT() with operation="prepend" should add child elements at the beginning', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_PREPEND function
-LET container = DOM_GET selector=".test-collection"
-LET newHeading = DOM_CREATE_ELEMENT tag="h3" text="Prepended Heading"
+-- Test ELEMENT() prepend operation function
+LET container = ELEMENT(selector=".test-collection" operation="get")
+LET newHeading = ELEMENT(selector="h3" text="Prepended Heading" operation="create")
 SAY "Created new heading"
 
-DOM_ELEMENT_PREPEND parent=container child=newHeading
+ELEMENT(element=container operation="prepend" arg3=newHeading)
 SAY "Prepended heading to container"
 
 -- Check that it's first child
-LET children = DOM_ELEMENT_CHILDREN element=container
+LET children = ELEMENT(element=container operation="children")
 LET firstChild = ARRAY_GET(children, 1)
-LET firstTag = DOM_ELEMENT_TAG element=firstChild
+LET firstTag = ELEMENT(element=firstChild operation="tag")
 SAY "First child is now: " || firstTag
     `;
     
@@ -104,22 +104,22 @@ SAY "First child is now: " || firstTag
     expect(output).toContain('First child is now: H3');
   });
 
-  test('DOM_ELEMENT_INSERT_BEFORE and DOM_ELEMENT_INSERT_AFTER should work', async ({ page }) => {
+  test('ELEMENT() should support insertion operations (before/after) should work', async ({ page }) => {
     const script = `
--- Test insertion functions
-LET secondButton = DOM_GET selector=".test-collection button:nth-child(3)"
-LET beforeDiv = DOM_CREATE_ELEMENT tag="div" text="Before Beta"
-LET afterDiv = DOM_CREATE_ELEMENT tag="div" text="After Beta"
+-- Test ELEMENT() insertion operations
+LET secondButton = ELEMENT(selector=".test-collection button:nth-child(3)" operation="get")
+LET beforeDiv = ELEMENT(selector="div" text="Before Beta" operation="create")
+LET afterDiv = ELEMENT(selector="div" text="After Beta" operation="create")
 
 SAY "Inserting elements around Beta button"
 
-DOM_ELEMENT_INSERT_BEFORE reference=secondButton new_element=beforeDiv
-DOM_ELEMENT_INSERT_AFTER reference=secondButton new_element=afterDiv
+ELEMENT(element=secondButton operation="insert_before" arg3=beforeDiv)
+ELEMENT(element=secondButton operation="insert_after" arg3=afterDiv)
 
 SAY "Elements inserted"
 
 -- Check siblings
-LET siblings = DOM_ELEMENT_SIBLINGS element=secondButton
+LET siblings = ELEMENT(element=secondButton operation="siblings")
 SAY "Beta now has " || siblings.length || " siblings"
     `;
     
@@ -133,19 +133,19 @@ SAY "Beta now has " || siblings.length || " siblings"
     expect(output).toContain('Beta now has 7 siblings'); // Original 5 + 2 new
   });
 
-  test('DOM_ELEMENT_CLONE should clone elements', async ({ page }) => {
+  test('ELEMENT() clone-like operations should clone elements', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_CLONE function
-LET originalButton = DOM_GET selector=".test-collection button:first-child"
-LET originalText = DOM_ELEMENT_TEXT element=originalButton
+-- Test element cloning function
+LET originalButton = ELEMENT(selector=".test-collection button:first-child" operation="get")
+LET originalText = ELEMENT(element=originalButton operation="text")
 SAY "Original button text: " || originalText
 
-LET clonedButton = DOM_ELEMENT_CLONE element=originalButton deep=true
+LET clonedButton = ELEMENT(element=originalButton operation="clone" arg3=true)
 SAY "Cloned button: " || clonedButton
 
 -- Check cloned element properties
-LET clonedText = DOM_ELEMENT_TEXT element=clonedButton
-LET clonedTag = DOM_ELEMENT_TAG element=clonedButton
+LET clonedText = ELEMENT(element=clonedButton operation="text")
+LET clonedTag = ELEMENT(element=clonedButton operation="tag")
 SAY "Cloned button text: " || clonedText
 SAY "Cloned button tag: " || clonedTag
     `;
@@ -161,21 +161,21 @@ SAY "Cloned button tag: " || clonedTag
     expect(output).toContain('Cloned button tag: BUTTON');
   });
 
-  test('DOM_ELEMENT_REMOVE should remove elements', async ({ page }) => {
+  test('ELEMENT() remove operations should remove elements', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_REMOVE function
-LET container = DOM_GET selector=".test-collection"
-LET childrenBefore = DOM_ELEMENT_CHILDREN element=container selector="button"
+-- Test element removal function
+LET container = ELEMENT(selector=".test-collection" operation="get")
+LET childrenBefore = ELEMENT(element=container selector="button" operation="children")
 SAY "Buttons before removal: " || childrenBefore.length
 
-LET lastButton = DOM_GET selector=".test-collection button:last-child"
-LET lastButtonText = DOM_ELEMENT_TEXT element=lastButton
+LET lastButton = ELEMENT(selector=".test-collection button:last-child" operation="get")
+LET lastButtonText = ELEMENT(element=lastButton operation="text")
 SAY "Removing button: " || lastButtonText
 
-DOM_ELEMENT_REMOVE element=lastButton
+ELEMENT(element=lastButton operation="remove")
 SAY "Button removed"
 
-LET childrenAfter = DOM_ELEMENT_CHILDREN element=container selector="button"
+LET childrenAfter = ELEMENT(element=container selector="button" operation="children")
 SAY "Buttons after removal: " || childrenAfter.length
     `;
     
@@ -197,20 +197,20 @@ SAY "Buttons after removal: " || childrenAfter.length
     expect(epsilonExists).toBe(false);
   });
 
-  test('DOM_ELEMENT_REPLACE should replace elements', async ({ page }) => {
+  test('ELEMENT() replace operations should replace elements', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_REPLACE function
-LET oldButton = DOM_GET selector=".test-collection button:nth-child(4)"
-LET oldText = DOM_ELEMENT_TEXT element=oldButton
+-- Test element replacement function
+LET oldButton = ELEMENT(selector=".test-collection button:nth-child(4)" operation="get")
+LET oldText = ELEMENT(element=oldButton operation="text")
 SAY "Replacing button: " || oldText
 
-LET newButton = DOM_CREATE_ELEMENT tag="button" text="Replaced Gamma"
-DOM_ELEMENT_REPLACE old_element=oldButton new_element=newButton
+LET newButton = ELEMENT(selector="button" text="Replaced Gamma" operation="create")
+ELEMENT(element=oldButton operation="replace" arg3=newButton)
 SAY "Button replaced"
 
 -- Verify replacement by checking the new text
-LET replacedButton = DOM_GET selector=".test-collection button:nth-child(4)"
-LET newText = DOM_ELEMENT_TEXT element=replacedButton
+LET replacedButton = ELEMENT(selector=".test-collection button:nth-child(4)" operation="get")
+LET newText = ELEMENT(element=replacedButton operation="text")
 SAY "New button text: " || newText
     `;
     
@@ -224,17 +224,17 @@ SAY "New button text: " || newText
     expect(output).toContain('New button text: Replaced Gamma');
   });
 
-  test('DOM_ELEMENT_ON_CLICK should add click event handlers', async ({ page }) => {
+  test('DOM event operations: click handlers should add click event handlers', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_ON_CLICK function
-LET button = DOM_GET selector=".test-collection button:first-child"
+-- Test click event handlers function
+LET button = ELEMENT(selector=".test-collection button:first-child" operation="get")
 SAY "Adding click handler to Alpha button"
 
-DOM_ELEMENT_ON_CLICK element=button handler="alphaClickHandler"
+ELEMENT(element=button operation="on_click" arg3="alphaClickHandler")
 SAY "Click handler added"
 
 -- Trigger the click
-DOM_ELEMENT_CLICK element=button
+ELEMENT(element=button operation="click")
 SAY "Button clicked programmatically"
     `;
     
@@ -258,21 +258,21 @@ SAY "Button clicked programmatically"
     // Verify event handler was called (would need to check console logs in real scenario)
   });
 
-  test('DOM_ELEMENT_TRIGGER_EVENT should dispatch events', async ({ page }) => {
+  test('DOM event operations: triggering events should dispatch events', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_TRIGGER_EVENT function
-LET button = DOM_GET selector=".test-collection button:first-child"
+-- Test event triggering function
+LET button = ELEMENT(selector=".test-collection button:first-child" operation="get")
 SAY "Setting up event handler"
 
-DOM_ELEMENT_ON_EVENT element=button event="custom" handler="customHandler"
+ELEMENT(element=button operation="on_event" arg3="custom" arg4="customHandler")
 SAY "Custom event handler added"
 
 -- Trigger custom event
-DOM_ELEMENT_TRIGGER_EVENT element=button event="custom" data='{"message": "Hello from REXX"}'
+ELEMENT(element=button operation="trigger_event" arg3="custom" arg4='{"message": "Hello from REXX"}')
 SAY "Custom event triggered"
 
 -- Trigger standard click event
-DOM_ELEMENT_TRIGGER_EVENT element=button event="click"
+ELEMENT(element=button operation="trigger_event" arg3="click")
 SAY "Click event triggered"
     `;
     
@@ -292,46 +292,46 @@ SAY "Click event triggered"
 SAY "=== Dynamic UI Building Test ==="
 
 -- Create a new section
-LET section = DOM_CREATE_ELEMENT tag="div" id="dynamic-section"
-DOM_ELEMENT_SET_STYLE element=section property="border" value="2px solid blue"
-DOM_ELEMENT_SET_STYLE element=section property="padding" value="10px"
-DOM_ELEMENT_SET_STYLE element=section property="margin" value="10px"
+LET section = ELEMENT(selector="div" id="dynamic-section" operation="create")
+ELEMENT(element=section operation="style" arg3="border" arg4="2px solid blue")
+ELEMENT(element=section operation="style" arg3="padding" arg4="10px")
+ELEMENT(element=section operation="style" arg3="margin" arg4="10px")
 
 -- Create a heading
-LET heading = DOM_CREATE_ELEMENT tag="h3" text="Dynamic Content"
-DOM_ELEMENT_APPEND parent=section child=heading
+LET heading = ELEMENT(selector="h3" text="Dynamic Content" operation="create")
+ELEMENT(element=section operation="append" arg3=heading)
 
 -- Create a list
-LET list = DOM_CREATE_ELEMENT tag="ul"
-DOM_ELEMENT_APPEND parent=section child=list
+LET list = ELEMENT(selector="ul" operation="create")
+ELEMENT(element=section operation="append" arg3=list)
 
 -- Add list items
 DO i = 1 TO 3
-    LET item = DOM_CREATE_ELEMENT tag="li" text="Dynamic item " || i
-    DOM_ELEMENT_APPEND parent=list child=item
+    LET item = ELEMENT(selector="li" text="Dynamic item " || i operation="create")
+    ELEMENT(element=list operation="append" arg3=item)
     
     -- Add click handler to each item
-    DOM_ELEMENT_ON_CLICK element=item handler="itemHandler" || i
+    ELEMENT(element=item operation="on_click" arg3="itemHandler" || i)
 END
 
 -- Create a button to remove the section
-LET removeBtn = DOM_CREATE_ELEMENT tag="button" text="Remove Section"
-DOM_ELEMENT_SET_STYLE element=removeBtn property="backgroundColor" value="red"
-DOM_ELEMENT_SET_STYLE element=removeBtn property="color" value="white"
-DOM_ELEMENT_APPEND parent=section child=removeBtn
+LET removeBtn = ELEMENT(selector="button" text="Remove Section" operation="create")
+ELEMENT(element=removeBtn operation="style" arg3="backgroundColor" arg4="red")
+ELEMENT(element=removeBtn operation="style" arg3="color" arg4="white")
+ELEMENT(element=section operation="append" arg3=removeBtn)
 
 -- Add the section to the page
-LET body = DOM_GET selector="body"
-DOM_ELEMENT_APPEND parent=body child=section
+LET body = ELEMENT(selector="body" operation="get")
+ELEMENT(element=body operation="append" arg3=section)
 
 SAY "Dynamic UI created successfully!"
 
 -- Verify creation
-LET sectionTag = DOM_ELEMENT_TAG element=section
-LET sectionId = DOM_ELEMENT_ID element=section
+LET sectionTag = ELEMENT(element=section operation="tag")
+LET sectionId = ELEMENT(element=section operation="id")
 SAY "Created section: " || sectionTag || " (ID: " || sectionId || ")"
 
-LET children = DOM_ELEMENT_CHILDREN element=section
+LET children = ELEMENT(element=section
 SAY "Section has " || children.length || " children"
     `;
     
@@ -365,36 +365,36 @@ SAY "Section has " || children.length || " children"
 -- Form manipulation test
 SAY "=== Form Manipulation Test ==="
 
-LET form = DOM_GET selector="#testForm"
+LET form = ELEMENT(selector="#testForm" operation="get")
 SAY "Working with existing form"
 
 -- Add a new field
-LET newField = DOM_CREATE_ELEMENT tag="div"
-LET newLabel = DOM_CREATE_ELEMENT tag="label" text="Email: "
-LET newInput = DOM_CREATE_ELEMENT tag="input" type="email" name="email" placeholder="Enter email"
+LET newField = ELEMENT(selector="div" operation="create")
+LET newLabel = ELEMENT(selector="label" text="Email: " operation="create")
+LET newInput = ELEMENT(selector="input" type="email" name="email" placeholder="Enter email" operation="create")
 
-DOM_ELEMENT_APPEND parent=newField child=newLabel
-DOM_ELEMENT_APPEND parent=newField child=newInput
+ELEMENT(element=newField operation="append" arg3=newLabel)
+ELEMENT(element=newField operation="append" arg3=newInput)
 
 -- Insert before submit button
-LET submitBtn = DOM_GET selector="#submitBtn"
-DOM_ELEMENT_INSERT_BEFORE reference=submitBtn new_element=newField
+LET submitBtn = ELEMENT(selector="#submitBtn" operation="get")
+ELEMENT(element=submitBtn operation="insert_before" arg3=newField)
 
 SAY "Added email field to form"
 
 -- Clone the form
-LET clonedForm = DOM_ELEMENT_CLONE element=form deep=true
+LET clonedForm = ELEMENT(element=form operation="clone" arg3=true)
 LET clonedFormId = "clonedForm"
-DOM_ELEMENT_SET_ATTR element=clonedForm name="id" value=clonedFormId
+ELEMENT(element=clonedForm operation="attribute" arg3="id" arg4=clonedFormId)
 
 -- Append cloned form to body
-LET body = DOM_GET selector="body"
-DOM_ELEMENT_APPEND parent=body child=clonedForm
+LET body = ELEMENT(selector="body" operation="get")
+ELEMENT(element=body operation="append" arg3=clonedForm)
 
 SAY "Cloned and added form to page"
 
 -- Verify the new form exists
-LET allForms = DOM_GET_ALL selector="form"
+LET allForms = ELEMENT(selector="form" operation="all")
 SAY "Total forms on page: " || allForms.length
     `;
     
@@ -428,7 +428,7 @@ SAY "Total forms on page: " || allForms.length
 SAY "Testing Phase 3 error handling..."
 
 -- Try to append to non-existent element
-DOM_ELEMENT_APPEND parent="invalid_ref" child="also_invalid"
+ELEMENT(element="invalid_ref" operation="append" arg3="also_invalid")
 SAY "This should not appear"
     `;
     

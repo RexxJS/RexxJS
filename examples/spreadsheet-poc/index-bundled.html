@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RexxJS Spreadsheet POC</title>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Load RexxJS Bundle -->
+    <script>
+        // Determine RexxJS bundle path based on environment
+        const isProduction = !window.location.href.includes('localhost:5173');
+        const rexxScriptPath = isProduction
+            ? './rexxjs.bundle.js'  // In dist folder for Tauri
+            : '../../core/src/repl/dist/rexxjs.bundle.js';  // Dev mode
+
+        const script = document.createElement('script');
+        script.src = rexxScriptPath;
+        script.onerror = function() {
+            console.error('Failed to load RexxJS bundle from:', rexxScriptPath);
+            alert('RexxJS bundle not found. Please build it first:\ncd core/src/repl && npm install && npm run build');
+        };
+        script.onload = function() {
+            console.log('RexxJS bundle loaded successfully from:', rexxScriptPath);
+        };
+        document.head.appendChild(script);
+    </script>
+
+    <!-- Load Spreadsheet Model and Adapter as globals (for compatibility) -->
+    <script>
+        // These need to be available globally for the SpreadsheetApp
+        if (typeof window !== 'undefined') {
+            // Models and adapters will be available as window.SpreadsheetModel, etc.
+            // The bundled app will include these
+        }
+    </script>
+
+    <!-- Vite will inject the bundled React app here -->
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>

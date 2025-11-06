@@ -10,6 +10,12 @@ This is a **REXX interpreter and RPC framework** implemented in JavaScript, desi
 - Advanced control structures: `DO OVER` for iteration, `INTERPRET` for dynamic code execution
 - There is `INTERPRET_JS` too dynamic JavaScript code execution - but that's really only for debugging
 - Function library system with 200+ built-in functions across multiple domains
+- **Variable Resolver (var_missing) Callback**: Lazy variable resolution system that allows external environments (like spreadsheets) to provide variable values on-demand without pre-injection
+  - Variables resolved via `variableResolver` callback when not found in interpreter's variable map
+  - No caching - callback invoked every time variable is accessed
+  - Enables first-class interop with host environments (Tauri, browser, Node.js)
+  - Example: Spreadsheet cell references (`A1`, `B2`) resolved dynamically from spreadsheet model
+  - Test coverage: 12 comprehensive tests in `core/tests/variable-resolver.spec.js`
 
 ### Environment Detection & Awareness
 
@@ -23,26 +29,84 @@ as accessing the file system in Node.js or manipulating the DOM in a browser.
 
 #### Modes of operation
 
-- In the repo - un-built for NodeJs: core/src/interpreter.js with core/src/parser.js. Typical use would be Rexx lines embedded in a jest test with classic expectations
-- In the repo - un-built for NodeJs: `core/rexx` executable - does scripting to setup the interpreter given command line invocation. Devs of this repo, might use that.
-- Built for NodeJs: bin/rexx executable (after make-binary.sh invocation). This does scripting to setup the interpreter given commandline invocation. Should work on Glibc and Musl x86-64 systems. The result should be identical in operation an capabilities to `core/rexx`, but this time made by 'pkg'
-- Built for Web: GitHub-Action makes a bundle of the interpreter. `cd core/src/repl && npm install` to make it, or just use the one online that github-actions made: https://repl.rexxjs.org/repl/dist/rexxjs.bundle.js
-- In the repo - un-built for Web: core/src/interpreter.js and core/src/parser.js again but served up via https://localhost:portNum/core/src/interpreter-web-loader.js
+**Node.js Environments:**
+
+1. **Development (un-built)** - Direct source execution in Node.js:
+   - **Entry point**: `src/interpreter.js` + `src/parser.js` (loaded directly)
+   - **Usage**: Embedded in Jest tests with REXX code and assertions
+   - **Command**: Jest test runner (`npm test`)
+   - **Example**: Test files in `tests/` directory using `new RexxInterpreter()`
+
+2. **CLI (un-built)** - Repository CLI for development:
+   - **Entry point**: `core/src/cli.js` (via `core/rexx` bash wrapper)
+   - **Webpack config**: `webpack.config.js` entry point is now `./src/cli.js` (after deleting `src/index.js`)
+   - **Usage**: Developer-friendly command-line execution
+   - **Command**: `node core/src/cli.js script.rexx` or `./core/rexx script.rexx`
+   - **Size**: Minimal (CLI only, no bundled libraries)
+
+3. **Binary (built)** - Standalone executable via `pkg`:
+   - **Entry point**: `src/cli.js` compiled into `bin/rexx` binary
+   - **Build command**: `create-pkg-binary.js`
+   - **Usage**: Production CLI without requiring Node.js installation
+   - **Size**: ~49MB standalone binary
+   - **Compatibility**: Glibc and Musl x86-64 systems
+   - **Capability**: Identical to `core/rexx` but statically compiled
+
+**Web Environments:**
+
+4. **REPL Bundle (built)** - Full-featured browser bundle:
+   - **Entry point**: `src/repl/interpreter-bundle-entry.js`
+   - **Build command**: `cd core/src/repl && npm install` or GitHub Actions
+   - **Published**: `https://repl.rexxjs.org/repl/dist/rexxjs.bundle.js`
+   - **Size**: ~357KB (includes all function libraries)
+   - **Usage**: Interactive REPL, web applications with full library access
+   - **Includes**: All built-in functions, ADDRESS handlers, and utilities
+
+5. **Web Loader (un-built)** - Direct source serving in browser:
+   - **Entry point**: `core/src/interpreter-web-loader.js` (loads `src/interpreter.js` + `src/parser.js`)
+   - **Usage**: Local development via HTTP server
+   - **URL**: `https://localhost:portNum/core/src/interpreter-web-loader.js`
+   - **Limitation**: Same-origin policy applies
+   - **Advantage**: Easier debugging of source files
 
 
 ## CLI & Distribution
 
 - **./rexx** - Standalone binary (49MB, no Node.js required) created via `create-pkg-binary.js`
-- **node core/src/cli.js** - Node.js CLI for development (requires Node.js installation)  
-- **./rexxt** - Test runner (via src/test-interpreter.js) with TUI experience 
+- **node core/src/cli.js** - Node.js CLI for development (requires Node.js installation)
+- **./rexxt** - Test runner (via src/test-interpreter.js) with modern testing features
+  - Test skip capability with `@skip` annotations (inspired by Jest/pytest/RSpec)
+  - Tag-based filtering, pattern matching, multiple output modes
+  - See `core/REXXT_GUIDE.md` for complete documentation 
 
 ### Function Libraries (core `src/` and modular `extras/functions/`)
-- **Core functions**: String processing, JSON/Web, security, validation (in `src/`)
-- **HTTP functions**: RESTful API integration with `HTTP_GET`, `HTTP_POST`, `HTTP_PUT`, `HTTP_DELETE` returning structured `{status, body, headers, ok}` objects (in `src/`)
-- **R-style functions**: Statistical computing (data frames, factors, mathematical operations) - relocated to `extras/functions/r-inspired/`
-- **SciPy-style functions**: Scientific computing (interpolation, signal processing) - relocated to `extras/functions/scipy/`
-- **Excel functions**: Spreadsheet operations (VLOOKUP, statistical functions) - relocated to `extras/functions/excel/`
-- **Modular design**: Function libraries loaded on-demand via REXX `REQUIRE` statements. Libraries can be loaded by their published name (e.g., `REQUIRE "org.rexxjs/excel-functions"`) or by a relative path to the source file (e.g., `REQUIRE "../path/to/excel-functions.js"`)
+
+**Core Functions in `src/` (66 modules):**
+- **String Processing**: `string-functions.js`, `string-processing.js`, `regex-functions.js`, `escape-sequence-processor.js`
+- **Data Structures**: `array-functions.js`, `data-functions.js`, `json-functions.js`
+- **Numeric Operations**: `math-functions.js`, `statistics-functions.js`, `probability-functions.js`, `random-functions.js`
+- **Date/Time**: `date-time-functions.js`
+- **File System**: `file-functions.js`, `path-functions.js`, `path-resolver.js`
+- **HTTP/Web**: `http-functions.js`, `url-functions.js`, `dom-functions.js`, `dom-pipeline-functions.js`
+- **Security**: `cryptography-functions.js`, `validation-functions.js`, `security.js`
+- **Logic/Flow**: `logic-functions.js`
+- **System**: `shell-functions.js` - process management (PS, PGREP, KILLALL, TOP, NICE), environment variables, shell command execution (Node.js only)
+- **Utilities**: `interpolation.js`, `interpolation-functions.js`, `utils.js`, `parameter-converter.js`
+- **Infrastructure**: `address-handler-utils.js`, `composite-output-handler.js`, `function-parsing-strategies.js`, `test-framework-address.js`, `expectations-address.js`
+- **Interpreter Core**: `interpreter.js`, `parser.js`, `executor.js`, `test-interpreter.js`, `test-runner-cli.js`, `cli.js`
+- **Interpreter Modules** (40+ supporting modules): `interpreter-address-handling.js`, `interpreter-array-functions.js`, `interpreter-builtin-functions.js`, `interpreter-control-flow.js`, `interpreter-dom-manager.js`, `interpreter-error-handling.js`, `interpreter-library-management.js`, `interpreter-security.js`, `interpreter-trace-formatting.js`, `interpreter-variable-stack.js`, `require-system.js`, and more
+
+**Function Libraries in `extras/functions/` (13 domains):**
+- **R Statistical Computing**: `r-inspired/` - data frames, factors, statistical functions (MEAN, MEDIAN, SD, VAR, etc.)
+- **SciPy Scientific**: `scipy-inspired/` - interpolation, signal processing, statistical functions
+- **Excel Spreadsheet**: `excel/` - VLOOKUP, HLOOKUP, INDEX, MATCH, SUMIF, COUNTIF, etc.
+- **Data Processing**: `jq-functions/` (jq-compatible JSON processor), `sed/` (stream editor), `diff/` (file diffing)
+- **ML/Numerical**: `numpy-inspired/`, `numpy-via-pyoide/`, `sympy-inspired/` (symbolic math)
+- **Visualization**: `graphviz/` (graph generation)
+- **Text Processing**: `minimatch/` (glob pattern matching), `matlab-inspired/` (MATLAB compatibility)
+- **Lambda Support**: `jq-wasm-functions/` (jq compiled to WebAssembly)
+
+**Modular Design**: Function libraries loaded on-demand via REXX `REQUIRE` statements. Libraries can be loaded by their published name (e.g., `REQUIRE "org.rexxjs/excel-functions"`) or by a relative path to the source file (e.g., `REQUIRE "../path/to/excel-functions.js"`)
 
 ### Operations vs Functions Architecture
 RexxJS distinguishes between two types of callable code:
@@ -78,39 +142,48 @@ This ensures standard REXX functions always work, while allowing ADDRESS handler
 - **HEREDOC JSON auto-parsing**: `LET config = <<JSON` automatically parses to JavaScript objects
 - Supports both traditional command strings (`"CREATE TABLE users"`) and modern method calls (`execute sql="CREATE TABLE users"`)
 
-### Provisioning & Orchestration (`extras/addresses/provisioning-and-orchestration/`)
-Comprehensive infrastructure management with VM, container automation, and **cloud orchestration**:
+### ADDRESS Handlers (`extras/addresses/` - 26 handlers)
 
-**Google Cloud Platform (`address-gcp.js`) - The Modern Cloud Orchestration Language:**
-- **🚀 Killer Feature: Direct Spreadsheet Access** - `"SHEET 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms SELECT * FROM 'Sales'"`
-- **SQL-like operations on Google Sheets** - Treat spreadsheets as databases with SELECT, INSERT, UPDATE
-- **Service-specific command languages** - SHEETS, BIGQUERY, FIRESTORE, STORAGE, PUBSUB, FUNCTIONS, RUN
-- **Production-ready Cloud Functions & Cloud Run** - 2nd gen functions with JSON-based URL extraction, intelligent error detection
-- **HEREDOC orchestration workflows** - Complex multi-service operations as readable documentation
-- **Cross-service data flow** - Sheets → BigQuery → Firestore → Pub/Sub → Functions → Cloud Run in single scripts
-- **Replaces Google Apps Script, gcloud scripting, Zapier/IFTTT, ETL tools**
-- **Built-in test examples** - Working end-to-end tests with automatic cleanup (all within free tier)
+**Cloud Orchestration & Provisioning:**
+- **Google Cloud Platform** (`gcp-address.js`, `google-cloud-platform/`) - 🚀 Killer Feature: Direct Spreadsheet SQL (`SHEET ... SELECT * FROM 'Sales'`), BigQuery, Firestore, Pub/Sub, Cloud Functions, Cloud Run, cross-service data pipelines
+- **AWS Lambda** (`lambda-address.js`) - Serverless function execution, deployment
+- **OpenFaaS** (`openfaas-address.js`) - Function-as-a-Service platform
 
 **Container Management:**
-- **Docker** (`address-docker.js`) - Full Docker container lifecycle
-- **Podman** (`address-podman.js`) - Rootless container operations
-- **systemd-nspawn** (`address-nspawn.js`) - Lightweight OS containers
+- **Docker** (`docker-address.js`) - Full Docker container lifecycle
+- **Remote Docker** (`remote-docker-address.js`) - Docker operations on remote hosts
+- **Podman** (`podman-address.js`) - Rootless container operations
+- **systemd-nspawn** (`nspawn-address.js`) - Lightweight OS containers
 
 **Virtual Machine Management:**
-- **QEMU/KVM** (`address-qemu.js`) - Production virtualization with Guest Agent
-  - Command execution via qemu-guest-agent (no SSH needed)
-  - Three execution methods: Guest Agent → SSH fallback → Serial console
-  - Full lifecycle with pause/resume, save/restore state (via virsh)
-- **VirtualBox** (`address-virtualbox.js`) - Desktop/development VMs with Guest Additions
-  - Command execution via Guest Additions (no SSH needed)
-  - ISO management, network configuration, snapshot support
-  - Full lifecycle with pause/resume, save/restore state
+- **QEMU/KVM** (`qemu-address.js`) - Production virtualization with Guest Agent (no SSH needed)
+- **VirtualBox** (`virtualbox-address.js`) - Desktop/development VMs with Guest Additions
+- **Proxmox** (`proxmox-address.js`) - Enterprise virtualization platform
+- **Firecracker** (`firecracker-address.js`) - Lightweight VM runtime (AWS)
+- **LXD** (`lxd-address.js`) - System container manager
+
+**Database & Data:**
+- **SQLite3** (`sqlite3/`) - Local database operations with full CRUD via SQL
+- **DuckDB** (`duckdb-address.js`, `duckdb-wasm-address.js`) - OLAP SQL engine, in-process and WebAssembly
+- **Pyodide** (`pyodide/`) - Python runtime in browser/Node.js
+
+**AI/ML & APIs:**
+- **Anthropic Claude** (`anthropic-ai/claude/`) - Claude API integration
+- **OpenAI** (`open-ai/chat-completions/`) - GPT API integration
+- **Google Gemini** (`gemini-address.js`, `gemini-pro/`) - Gemini API integration
+
+**System & Testing:**
+- **System Shell** (`system/`) - OS-level shell command execution
+- **Echo/Testing** (`echo/`) - Simple echo handler for testing and demonstrations
+
+**Shared Utilities:**
+- `_shared/`, `shared-utils/` - Common utilities and helper functions
 
 **Key Capabilities:**
-- **Cloud-native orchestration**: Single unified interface for all Google Cloud services
+- **Cloud-native orchestration**: Single unified interface for all major cloud services
 - **Exec without SSH**: Run commands directly in VMs/containers like `docker exec`
 - **RexxJS deployment**: Automatically deploy and execute RexxJS scripts in VMs/cloud
-- **Idempotent operations**: `start_if_stopped`, `stop_if_running` for automation
+- **Idempotent operations**: `start_if_stopped`, `stop_if_running` for safe automation
 - **Lifecycle management**: Create, start, stop, pause, resume, restart, snapshot, restore
 - **Production features**: Host verification, permissions setup, ISO downloads, guest agent installation
 - **Security policies**: Memory/CPU limits, command filtering, audit logging
@@ -122,6 +195,11 @@ Comprehensive infrastructure management with VM, container automation, and **clo
 - Director/worker patterns for distributed processing
 
 ### Test Infrastructure (`tests/`)
+- **rexxt test runner** - Native RexxJS test runner with modern features (see `core/REXXT_GUIDE.md`)
+  - Test skipping with `@skip` annotations
+  - Tag-based test filtering (`--tags`)
+  - Multiple output modes (live, verbose, minimal)
+  - JSON results for CI/CD integration
 - 50+ comprehensive test suites
 - Playwright browser automation tests
 - Jest unit tests for all function libraries
@@ -133,6 +211,51 @@ Comprehensive infrastructure management with VM, container automation, and **clo
 - Complete function reference with 400+ built-in functions across all domains
 - Integration examples and cross-references between related features
 - See `reference/00-INDEX.md` for the complete documentation structure
+
+## Tracing, Line Numbers, and Education-Focused Demos
+
+When guiding an LLM to reason about RexxJS execution or produce UI that “explains” code, prefer the built-in trace facilities which now carry accurate source line numbers for user code.
+
+Key guidance for LLMs:
+
+- Instruction-level tracing
+  - Every parsed command carries a `lineNumber`. The interpreter emits a trace for each instruction using the original source line text where available.
+  - The interpreter maintains `currentLineNumber` while executing a command so downstream subsystems (e.g., ADDRESS) can attribute traces to the correct Rexx line.
+
+- SELECT/WHEN/OTHERWISE
+  - SELECT branch-entry is traced with the exact header line (WHEN or OTHERWISE) before the branch body executes.
+  - Branch bodies are executed in-place (not via nested run calls), avoiding duplicate SAY traces and preventing `END` lines from appearing in trace output.
+  - For educational UIs, highlight the WHEN/OTHERWISE header line when the branch is chosen and separately highlight executed SAY lines inside the branch.
+
+- CALL (subroutines)
+  - The interpreter emits a single, canonical CALL header trace at the caller’s source line: `CALL NAME (n args)`.
+  - Code inside the callee traces with the callee’s own source line numbers.
+  - This behavior composes across “Rexx calls Rexx calls Rexx” and is a good foundation for future stack traces.
+
+- ADDRESS tracing (quoted and heredoc)
+  - Traces for ADDRESS commands include the Rexx script line number that initiated the ADDRESS (`command.lineNumber` or `currentLineNumber`).
+  - Handlers receive a non-null `sourceContext` object: `{ lineNumber, sourceLine, sourceFilename, interpreter, interpolation }`. Handlers in `extras/addresses/*` remain API-compatible.
+
+- User-facing vs. internal traces
+  - The interpreter no longer emits unnumbered trace lines to the output handler stream. This keeps demo RHS panes (SAY-only) clean while still allowing LHS code highlighting to use numbered traces.
+  - Internal trace buffers may still record unnumbered events for diagnostics, but avoid surfacing those in learning-focused UIs.
+
+- Building dual-pane demos
+  - Use numbered `>> <line> ...` traces to drive code highlighting in the left pane.
+  - Suppress all `>> ...` traces from the SAY output pane on the right; render SAY output only.
+  - After execution, visually fade unexecuted lines to teach “paths not taken,” but don’t hide them.
+
+## Testing Guidance (for LLMs writing tests)
+
+- Prefer strict, multi-line `toEqual` comparisons for trace when the format is stable (e.g., SELECT/WHEN, simple CALLs, SAY output order).
+- For CALL headers, assert exact `>> <line> CALL NAME (n args)` lines where appropriate.
+- Ensure no `"(no line#)"` appears in user-visible trace streams. If helpful, add tests that fail on any such occurrence.
+- For ADDRESS tests, register lightweight local handlers (e.g., ECHO) rather than relying on a sender; pass-through results are fine and avoid network/mocks.
+
+## Backwards Compatibility Notes
+
+- No `NOP` commands are generated by the parser anymore. Older references to NOP in code or comments should be removed; the interpreter does not need a NOP case.
+- SELECT/WHEN/OTHERWISE and CALL tracing changes are additive and should not break existing scripts; they improve trace clarity for education and debugging.
 
 ## Key Features for LLMs
 
@@ -161,6 +284,22 @@ LET result = execute sql="INSERT INTO users VALUES (1, 'Alice')"
 -- Statistical functions
 LET summary = SUMMARY(data)
 LET correlation = COR(x_values, y_values)
+
+-- DOM element extraction and filtering in pipelines
+LET email_values = ELEMENT("input.email", "all")
+  |> FILTER_BY_ATTR("data-required", "true")
+  |> GET_VALUES
+  |> JOIN(",")
+
+LET active_text = ELEMENT("div.message", "all")
+  |> FILTER_BY_CLASS("active")
+  |> GET_TEXT
+  |> SORT
+
+LET data_ids = ELEMENT("tr.data-row", "all")
+  |> FILTER_BY_CLASS("visible")
+  |> GET_ATTRS("data-id")
+  |> JOIN("|")
 ```
 
 ### Cross-Application Automation
@@ -215,12 +354,93 @@ ADDRESS GCP
 "FUNCTIONS DEPLOY process-orders SOURCE './functions' TRIGGER 'pubsub:orders' RUNTIME 'python311'"
 ```
 
+### Process Management (Node.js only)
+```rexx
+-- List all running processes
+LET processes = PS()
+LET count = ARRAY_LENGTH(array=processes)
+SAY "Found " || count || " processes"
+
+-- Find processes by name
+LET nodePids = PGREP(pattern="node")
+LET currentPid = GETPID()
+SAY "Current process: " || currentPid
+
+-- Search full command line
+LET fullMatch = PGREP(pattern="npm.*test", full=true)
+
+-- Get system information with top processes
+LET info = TOP(limit=10, sortBy="cpu")
+SAY "System uptime: " || info.system.uptime || " seconds"
+SAY "CPU count: " || info.system.cpus
+SAY "Memory used: " || info.system.memory.percentUsed || "%"
+
+-- Find high CPU processes
+LET topProcs = info.processes.top
+LET first = ARRAY_GET(array=topProcs, index=0)
+SAY "Top process: " || first.name || " (" || first.cpu || "% CPU)"
+
+-- Run command with modified priority (lower = higher priority)
+LET result = NICE(command="echo 'Background task'", priority=10)
+SAY result.stdout
+
+-- Kill processes by name (be careful!)
+-- LET killed = KILLALL(name="test-process", signal="SIGTERM")
+-- SAY "Killed " || killed || " processes"
+```
+
 ### Modern Extensions
 - Array/object manipulation with JSON integration
 - Functional programming constructs (`MAP`, `FILTER`, `REDUCE`)
 - Async/await patterns for browser operations
 - Real-time progress monitoring with `CHECKPOINT()`
 - Configurable string interpolation patterns - switch between `{{var}}`, `${var}`, `%var%`, or custom delimiters with `SET_INTERPOLATION('pattern')`
+- **JavaScript-style escape sequences** in all strings: `\n`, `\t`, `\r`, `\b`, `\f`, `\v`, `\0`, `\'`, `\"`, `\\`, and Unicode escapes `\uXXXX` and `\uXXXXXXXX` - works in assignments, SAY statements, function parameters, and concatenation (**Note: breaks from classic REXX which doesn't support these escape sequences**)
+- **DOM Pipeline Functions** (`dom-pipeline-functions.js`) - Extract and filter DOM elements in data pipelines:
+  - `FILTER_BY_ATTR(elements, attrName, value)` - Filter elements by attribute value
+  - `FILTER_BY_CLASS(elements, className)` - Filter elements by CSS class
+  - `GET_VALUES(elements)` - Extract `.value` from form elements (returns REXX stem array)
+  - `GET_TEXT(elements)` - Extract `.textContent` from elements (returns REXX stem array)
+  - `GET_ATTRS(elements, attrName)` - Extract attribute values from elements (returns REXX stem array)
+- **Chainable DOM Operations** - All ELEMENT mutation operations (`click`, `type`, `focus`, `class`, `text`, `attr`, `style`, `append`, `prepend`, `remove`) now return elements instead of void, enabling seamless pipeline composition:
+  ```rexx
+  ELEMENT("input.data", "all")
+    |> FILTER_BY_ATTR("data-required", "true")
+    |> GET_VALUES
+    |> JOIN(",")
+  ```
+- **REXX Stem Array Support in JOIN** - `JOIN()` now handles both JavaScript arrays and REXX stem arrays (format: `{0: count, 1: val1, 2: val2}`)
+- **DOM Scoped Interpreters** - Multiple REXX scripts can run on the same page with isolated function registrations:
+  - Add `RexxScript` CSS class to container elements for automatic scope isolation
+  - Functions register to `element.__rexxFunctions` instead of global `window`
+  - Prevents namespace pollution and enables multi-tenant applications
+  - Backward compatible: existing code without `RexxScript` class continues to work unchanged
+  - Opt-in feature for new pages/applications
+  ```html
+  <!-- Script 1: Isolated scope -->
+  <div class="RexxScript" id="script1">
+    <textarea>SAY "Script 1"</textarea>
+  </div>
+
+  <!-- Script 2: Isolated scope -->
+  <div class="RexxScript" id="script2">
+    <textarea>SAY "Script 2"</textarea>
+  </div>
+
+  <!-- Script 3: Global scope (backward compatible) -->
+  <div id="script3">
+    <textarea>SAY "Script 3"</textarea>
+  </div>
+  ```
+  - Demo page: `core/src/repl/dom-scoped-rexx.html`
+  - Full reference: `site/reference/35-dom-scoped-interpreters.md`
+- **Function Metadata and Reflection System** (`function-metadata-registry.js` + `INFO()` / `FUNCTIONS()` reflection functions):
+  - `INFO(functionName)` - Get detailed metadata about any function (module, category, description, parameters, return type, examples)
+  - `FUNCTIONS()` - List all 100+ functions grouped by module, or filter by category/module: `FUNCTIONS("String")`, `FUNCTIONS("array-functions.js")`
+  - `FUNCTIONS(name)` - Get quick info for a specific function: `FUNCTIONS("UPPER")` returns "string-functions.js - String: Convert string to uppercase"
+  - Comprehensive metadata for 100+ functions across 23 modules, organized by 13 categories (String, Math, Array, DOM, Shell, etc.)
+  - All returns use REXX stem arrays for seamless integration with REXX code
+  - Case-insensitive lookups for user-friendly API
 
 ## Architecture
 
@@ -462,7 +682,7 @@ REQUIRE "registry:org.rexxjs/excel-functions"
 2. **Web Automation**: Cross-iframe scripting and browser control
 3. **Database Operations**: SQL integration with full CRUD capabilities (SQLite3)
 4. **HTTP API Integration**: RESTful service communication with `HTTP_GET`, `HTTP_POST`, `HTTP_PUT`, `HTTP_DELETE` functions
-5. **System Administration**: OS command execution and file operations
+5. **System Administration**: OS command execution, file operations, and process management (PS, PGREP, KILLALL, TOP, NICE) for monitoring and controlling system processes
 6. **Testing**: Comprehensive mock frameworks for ADDRESS-based applications
 7. **Infrastructure Automation**: VM/container provisioning with QEMU, VirtualBox, Docker, Podman
    - CI/CD test environments with automatic VM creation and teardown
@@ -480,9 +700,223 @@ REQUIRE "registry:org.rexxjs/excel-functions"
 
 ### For LLM Assistants (`CLAUDE.md`)
 - **Testing Requirements**: All work must have `npm test` passing at 100% before completion
-- **Web/DOM Work**: Must also have `npm run test:web` passing for browser-related features  
+- **Web/DOM Work**: Must also have `npm run test:web` passing for browser-related features
 - **Test Execution**: Use `@scratch_test.sh` instructions for all test invocations
-- **Playwright Tests**: Prefix with `PLAYWRIGHT_HTML_OPEN=never` to prevent browser windows
+- **CI Pipeline Tests**: The `./ci.sh` script runs Jest, Rexxt, and Playwright tests. All must pass before deployment.
+- **Playwright Tests**: Prefix with `PLAYWRIGHT_HTML_OPEN=never` to prevent browser windows opening
+- **Web Server**: Playwright tests automatically start an HTTP server on port 8000 (via `npx http-server`)
 - **No Fallback Logic**: Avoid implementing "fallback" patterns - ask for explicit guidance instead
+
+## Common Test Pitfalls & Patterns
+
+Understanding common patterns in RexxJS tests helps avoid integration issues and ensures consistent cross-platform compatibility. The ADDRESS handler infrastructure and module loading system have specific requirements that must be properly configured.
+
+### ADDRESS Handler Module Export Pattern
+
+ADDRESS handlers must export their functionality to both global scope (for browser/eval contexts) and CommonJS (for Node.js module loading). Tests rely on discovering these exports to validate handler metadata and functionality.
+
+**Correct Pattern** (works in all environments):
+
+```javascript
+/*! rexxjs/sqlite-address v1.0.0 | (c) 2025 RexxJS Project | MIT License
+ * @rexxjs-meta=SQLITE_ADDRESS_META
+ */
+
+// Core metadata function - MUST use {NAME}_ADDRESS_META naming pattern
+function SQLITE_ADDRESS_META() {
+    return {
+        canonical: "org.rexxjs/sqlite-address",
+        type: 'address-handler',  // NOT 'address-target'
+        name: 'SQLite Service',
+        provides: {
+            addressTarget: 'sqlite',
+            handlerFunction: 'ADDRESS_SQLITE_HANDLER',
+            commandSupport: true,
+            methodSupport: true
+        },
+        dependencies: { "sqlite3": "^5.0.0" }
+    };
+}
+
+// Handler function - receives (method, params) and returns promise
+async function ADDRESS_SQLITE_HANDLER(method, params) {
+    try {
+        // Implementation
+        return { success: true, result: data };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// Methods documentation
+const ADDRESS_SQLITE_METHODS = {
+    query: { description: "Execute SQL query", params: ["sql"] }
+};
+
+// Export to global scope (for browser/eval contexts)
+if (typeof window !== 'undefined') {
+    window.SQLITE_ADDRESS_META = SQLITE_ADDRESS_META;
+    window.ADDRESS_SQLITE_HANDLER = ADDRESS_SQLITE_HANDLER;
+    window.ADDRESS_SQLITE_METHODS = ADDRESS_SQLITE_METHODS;
+} else if (typeof global !== 'undefined') {
+    global.SQLITE_ADDRESS_META = SQLITE_ADDRESS_META;
+    global.ADDRESS_SQLITE_HANDLER = ADDRESS_SQLITE_HANDLER;
+    global.ADDRESS_SQLITE_METHODS = ADDRESS_SQLITE_METHODS;
+}
+
+// CRITICAL: Export via CommonJS for Node.js REQUIRE
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        SQLITE_ADDRESS_META,
+        ADDRESS_SQLITE_HANDLER,
+        ADDRESS_SQLITE_METHODS
+    };
+}
+```
+
+**Key Requirements:**
+1. **Naming Convention**: Always use `{UPPERCASE_NAME}_ADDRESS_META` (no "MAIN" suffix)
+2. **Metadata Type**: Must return `type: 'address-handler'` (not `'address-target'`)
+3. **Handler Function**: Returns object with `{ success: boolean, result?, error? }`
+4. **Both Exports**: Global scope AND CommonJS exports for dual environment support
+5. **Comment Marker**: Include `@rexxjs-meta={NAME}_ADDRESS_META` in file header for bundling
+
+**Common Mistakes:**
+- ❌ Using `*_ADDRESS_MAIN` naming (legacy, breaks modern tests)
+- ❌ Having BOTH `*_ADDRESS_META` and `*_ADDRESS_MAIN` (choose one pattern)
+- ❌ Returning `type: 'address-target'` instead of `'address-handler'`
+- ❌ Missing CommonJS `module.exports` (breaks Node.js require)
+- ❌ Async handler that doesn't return promise (breaks await chains)
+
+### Jest Mock Completeness
+
+Jest mocks must include all functions and properties that the code will actually use. Incomplete mocks cause "Received undefined" or "is not a function" errors at runtime.
+
+**Incomplete Mock** (FAILS):
+```javascript
+// This fails because promisify(exec) tries to use exec before mock is applied
+jest.mock('child_process', () => ({
+    spawn: jest.fn()  // Missing: exec
+}));
+
+// Later in code:
+const { exec } = require('child_process');
+const execAsync = promisify(exec);  // TypeError: exec is undefined
+```
+
+**Complete Mock** (PASSES):
+```javascript
+jest.mock('child_process', () => ({
+    spawn: jest.fn(),
+    exec: jest.fn((command, callback) => {
+        // Simulate async behavior
+        process.nextTick(() => callback(null, 'output', ''));
+    })
+}));
+```
+
+**Pattern for Promisified Functions:**
+```javascript
+jest.mock('child_process', () => ({
+    exec: jest.fn((command, callback) => {
+        // Callback signature: (error, stdout, stderr)
+        process.nextTick(() => callback(null, 'command output', ''));
+    })
+}));
+
+// This now works:
+const { exec } = require('child_process');
+const execAsync = promisify(exec);  // ✅ exec is defined
+```
+
+**Common Mistakes:**
+- ❌ Mocking only subset of imported functions
+- ❌ Using `mockReturnValue` instead of `mockImplementation` for async operations
+- ❌ Forgetting callback signature requirements (error-first for Node.js conventions)
+- ❌ Not applying mock before module import (mock must be before require)
+
+### REQUIRE Path Resolution
+
+REXX's REQUIRE system works differently in test contexts vs runtime. Tests must use absolute paths with `path.resolve(__dirname, ...)` to ensure files can be found regardless of where tests execute from.
+
+**Inline REXX Script Path Error** (FAILS in tests):
+```javascript
+test('should load sqlite', async () => {
+    const { Interpreter, parse } = require('../../../../core/src/interpreter');
+    const interpreter = new Interpreter();
+
+    // This fails: relative path is resolved from interpreter's context, not test file
+    await interpreter.run(parse('REQUIRE "./sqlite-address.js"'));
+    // Error: Cannot find module "./sqlite-address.js"
+});
+```
+
+**Absolute Path via Node.js** (PASSES in all contexts):
+```javascript
+test('should load sqlite', async () => {
+    const fs = require('fs');
+    const path = require('path');
+    const { Interpreter, parse } = require('../../../../core/src/interpreter');
+    const interpreter = new Interpreter();
+
+    // Load module source directly
+    const source = fs.readFileSync(
+        path.resolve(__dirname, 'src/sqlite-address.js'),
+        'utf8'
+    );
+
+    // Eval in global scope to set up globals
+    eval(source);
+
+    // Now globals are available to interpreter
+    expect(global.SQLITE_ADDRESS_META).toBeDefined();
+});
+```
+
+**Alternative: Mock REQUIRE** (For cleaner tests):
+```javascript
+test('should load sqlite', async () => {
+    const sqlite = require('./src/sqlite-address.js');  // Node.js require
+
+    // Mock the REQUIRE statement
+    global.SQLITE_ADDRESS_META = sqlite.SQLITE_ADDRESS_META;
+    global.ADDRESS_SQLITE_HANDLER = sqlite.ADDRESS_SQLITE_HANDLER;
+    global.ADDRESS_SQLITE_METHODS = sqlite.ADDRESS_SQLITE_METHODS;
+
+    // Now verify it works
+    expect(global.SQLITE_ADDRESS_META).toBeDefined();
+    const metadata = global.SQLITE_ADDRESS_META();
+    expect(metadata.provides.addressTarget).toBe('sqlite');
+});
+```
+
+**Key Strategies:**
+1. **Absolute paths in tests**: Always use `path.resolve(__dirname, 'file.js')`
+2. **Load module first**: Use Node.js `require()` to get the actual module
+3. **Set globals manually**: Assign exports to `global` or `window` for interpreter access
+4. **Test module metadata**: Verify that `*_ADDRESS_META()` returns correct structure
+5. **Cleanup after tests**: Use `afterEach()` to clear globals between tests
+
+**Common Mistakes:**
+- ❌ Using relative paths like `"./address.js"` in inline REXX scripts
+- ❌ Expecting interpreter's REQUIRE to work without globals set up
+- ❌ Not using `path.resolve(__dirname, ...)` for cross-platform compatibility
+- ❌ Forgetting to validate metadata structure (just checking existence is insufficient)
+- ❌ Not cleaning up globals between tests (causes flaky tests)
+
+## Implementation Summary
+
+**✅ Core Implementation (`core/src/` - 65 modules)**
+All major language features, function domains, and infrastructure components are implemented in source files for transparency and debugging. The comprehensive module breakdown above details every significant component.
+
+**✅ Extended Ecosystems**
+- **13 Function Libraries** in `extras/functions/` spanning R, SciPy, Excel, NumPy, SymPy, GraphViz, data processing, and more
+- **26 ADDRESS Handlers** in `extras/addresses/` covering cloud platforms (GCP, AWS, Azure), containers (Docker, Podman), VMs (QEMU, VirtualBox, Proxmox), databases (SQLite, DuckDB), AI/ML (Claude, GPT, Gemini), and system integration
+
+**✅ Rapid Feature Overview**
+The LLM can quickly reference specific implementations by checking this document:
+- Core functions by category (String, Math, Date, File, HTTP, Security, etc.)
+- ADDRESS handlers by use case (Cloud, Containers, VMs, Databases, AI)
+- Infrastructure capabilities (VM lifecycle, container orchestration, cross-service data pipelines)
 
 This repository provides a complete REXX environment with modern extensions, making it suitable for everything from simple scripting to complex distributed applications running in browsers or Node.js.

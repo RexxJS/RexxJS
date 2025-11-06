@@ -105,21 +105,21 @@
                 </select>
             </div>
             <textarea id="rexx-script">
--- Test DOM element handling with stale recovery
-LET button = DOM_GET selector="#testButton"
-DOM_ELEMENT_CLICK element=button
+-- Test ELEMENT() operations with stale recovery
+LET button = ELEMENT(selector="#testButton" operation="get")
+ELEMENT(element=button operation="click")
 
 -- Test RETRY_ON_STALE block
 RETRY_ON_STALE timeout=5000
-  LET form = DOM_GET selector="#testForm"
-  LET username = DOM_ELEMENT_QUERY element=form selector="#username"
-  LET password = DOM_ELEMENT_QUERY element=form selector="#password"
-  
-  DOM_ELEMENT_TYPE element=username text="testuser"
-  DOM_ELEMENT_TYPE element=password text="secret123"
-  
-  LET submit = DOM_ELEMENT_QUERY element=form selector="#submitBtn"
-  DOM_ELEMENT_CLICK element=submit
+  LET form = ELEMENT(selector="#testForm" operation="get")
+  LET username = ELEMENT(element=form selector="#username" operation="children")
+  LET password = ELEMENT(element=form selector="#password" operation="children")
+
+  ELEMENT(element=username operation="type" arg3="testuser")
+  ELEMENT(element=password operation="type" arg3="secret123")
+
+  LET submit = ELEMENT(element=form selector="#submitBtn" operation="children")
+  ELEMENT(element=submit operation="click")
 END_RETRY
 
 SAY "Form submitted successfully!"
@@ -176,36 +176,36 @@ SAY "Form submitted successfully!"
     </div>
 
     <!-- Load the interpreter and DOM manager -->
-    <script src="../../src/dom-element-manager.js"></script>
-    <script src="../mocks/dom-rpc-client.js"></script>
-    <script src="../../src/dom-functions.js"></script>
-    <script src="../../src/parser.js"></script>
-    
+    <script src="/core/src/dom-element-manager.js"></script>
+    <script src="/core/tests/mocks/dom-rpc-client.js"></script>
+    <script src="/core/src/dom-functions.js"></script>
+    <script src="/core/src/parser.js"></script>
+
     <!-- Load required modular dependencies -->
-    <script src="../../src/interpreter-string-and-expression-processing.js"></script>
-    <script src="../../src/interpreter-variable-stack.js"></script>
-    <script src="../../src/interpreter-evaluation-utilities.js"></script>
-    <script src="../../src/interpreter-execution-context.js"></script>
-    <script src="../../src/interpreter-control-flow.js"></script>
-    <script src="../../src/interpreter-expression-value-resolution.js"></script>
-    <script src="../../src/interpreter-dom-manager.js"></script>
-    <script src="../../src/interpreter-error-handling.js"></script>
-    <script src="../../src/interpreter-parse-subroutine.js"></script>
-    <script src="../../src/interpreter-trace-formatting.js"></script>
-    
+    <script src="/core/src/interpreter-string-and-expression-processing.js"></script>
+    <script src="/core/src/interpreter-variable-stack.js"></script>
+    <script src="/core/src/interpreter-evaluation-utilities.js"></script>
+    <script src="/core/src/interpreter-execution-context.js"></script>
+    <script src="/core/src/interpreter-control-flow.js"></script>
+    <script src="/core/src/interpreter-expression-value-resolution.js"></script>
+    <script src="/core/src/interpreter-dom-manager.js"></script>
+    <script src="/core/src/interpreter-error-handling.js"></script>
+    <script src="/core/src/interpreter-parse-subroutine.js"></script>
+    <script src="/core/src/interpreter-trace-formatting.js"></script>
+
     <!-- Load utility modules -->
-    <script src="../../src/utils.js"></script>
-    <script src="../../src/security.js"></script>
-    <script src="../../src/string-processing.js"></script>
-    
+    <script src="/core/src/utils.js"></script>
+    <script src="/core/src/security.js"></script>
+    <script src="/core/src/string-processing.js"></script>
+
     <!-- Load function libraries needed for tests -->
-    <script src="../../src/array-functions.js"></script>
-    
+    <script src="/core/src/array-functions.js"></script>
+
     <!-- Security utilities (stub for browser) -->
-    <script src="security-utils-stub.js"></script>
-    
+    <script src="/core/tests/web/security-utils-stub.js"></script>
+
     <!-- Load main interpreter -->
-    <script src="../../src/interpreter.js"></script>
+    <script src="/core/src/interpreter.js"></script>
     
     <script>
         // Create Parser class wrapper for compatibility
@@ -385,16 +385,16 @@ SAY "Form submitted successfully!"
 SAY "Starting form submission with retry protection..."
 
 RETRY_ON_STALE timeout=5000
-  LET form = DOM_GET selector="#testForm"
-  LET username = DOM_ELEMENT_QUERY element=form selector="#username"
-  LET password = DOM_ELEMENT_QUERY element=form selector="#password"
-  
+  LET form = ELEMENT(selector="#testForm" operation="get")
+  LET username = ELEMENT(element=form selector="#username" operation="children")
+  LET password = ELEMENT(element=form selector="#password" operation="children")
+
   SAY "Filling form fields..."
-  LET typed1 = DOM_ELEMENT_TYPE element=username text="testuser"
-  LET typed2 = DOM_ELEMENT_TYPE element=password text="secret123"
-  
-  LET submit = DOM_ELEMENT_QUERY element=form selector="#submitBtn"
-  LET clicked = DOM_ELEMENT_CLICK element=submit
+  LET typed1 = ELEMENT(element=username operation="type" arg3="testuser")
+  LET typed2 = ELEMENT(element=password operation="type" arg3="secret123")
+
+  LET submit = ELEMENT(element=form selector="#submitBtn" operation="children")
+  LET clicked = ELEMENT(element=submit operation="click")
   SAY "Form actions completed inside retry block"
 END_RETRY
 
@@ -405,9 +405,9 @@ SAY "Form submitted successfully with retry protection!"`,
 
 SAY "Starting WITHOUT retry protection..."
 
-LET form = DOM_GET selector="#testForm"
-LET username = DOM_ELEMENT_QUERY element=form selector="#username"
-LET password = DOM_ELEMENT_QUERY element=form selector="#password"
+LET form = ELEMENT(selector="#testForm" operation="get")
+LET username = ELEMENT(element=form selector="#username" operation="children")
+LET password = ELEMENT(element=form selector="#password" operation="children")
 
 SAY "Got form elements - CLICK 'Make Form Stale' NOW!"
 SAY "Waiting 3 seconds - make the form stale during this time..."
@@ -418,11 +418,11 @@ SLEEP ms=3000
 SAY "Now trying to type in the (possibly stale) form fields..."
 
 -- These operations will fail if you made the form stale
-DOM_ELEMENT_TYPE element=username text="testuser"
-DOM_ELEMENT_TYPE element=password text="secret123"
+ELEMENT(element=username operation="type" arg3="testuser")
+ELEMENT(element=password operation="type" arg3="secret123")
 
-LET submit = DOM_ELEMENT_QUERY element=form selector="#submitBtn"
-DOM_ELEMENT_CLICK element=submit
+LET submit = ELEMENT(element=form selector="#submitBtn" operation="children")
+ELEMENT(element=submit operation="click")
 
 SAY "Form submitted (without stale protection)"`,
 
@@ -433,16 +433,16 @@ LET last_error = ""
 RETRY_ON_STALE timeout=8000 PRESERVE attempt_count,last_error
   LET attempt_count = attempt_count + 1
   SAY "Attempt #" || attempt_count
-  
-  LET form = DOM_GET selector="#testForm"
-  LET username = DOM_ELEMENT_QUERY element=form selector="#username"
-  
+
+  LET form = ELEMENT(selector="#testForm" operation="get")
+  LET username = ELEMENT(element=form selector="#username" operation="children")
+
   -- This will preserve the attempt count even if retry happens
-  DOM_ELEMENT_TYPE element=username text="user_attempt_" || attempt_count
-  
-  LET password = DOM_ELEMENT_QUERY element=form selector="#password"
-  DOM_ELEMENT_TYPE element=password text="pass_" || attempt_count
-  
+  ELEMENT(element=username operation="type" arg3="user_attempt_" || attempt_count)
+
+  LET password = ELEMENT(element=form selector="#password" operation="children")
+  ELEMENT(element=password operation="type" arg3="pass_" || attempt_count)
+
   SAY "Filled form on attempt " || attempt_count
 END_RETRY
 
@@ -451,40 +451,40 @@ SAY "Final attempt count: " || attempt_count`,
             'nested-queries': `-- Example with nested element queries
 RETRY_ON_STALE timeout=5000
   -- Start with the form container
-  LET form = DOM_GET selector="#testForm"
+  LET form = ELEMENT(selector="#testForm" operation="get")
   SAY "Found form container"
-  
+
   -- Query within the form for better specificity
-  LET username = DOM_ELEMENT_QUERY element=form selector="#username"
-  LET password = DOM_ELEMENT_QUERY element=form selector="#password"
+  LET username = ELEMENT(element=form selector="#username" operation="children")
+  LET password = ELEMENT(element=form selector="#password" operation="children")
   SAY "Found input fields within form"
-  
+
   -- Get the submit button text before clicking
-  LET submit = DOM_ELEMENT_QUERY element=form selector="#submitBtn"
-  LET button_text = DOM_ELEMENT_TEXT element=submit
+  LET submit = ELEMENT(element=form selector="#submitBtn" operation="children")
+  LET button_text = ELEMENT(element=submit operation="text")
   SAY "Submit button says: " || button_text
-  
+
   -- Fill and submit
-  DOM_ELEMENT_TYPE element=username text="nested_test"
-  DOM_ELEMENT_TYPE element=password text="nested_pass"
-  DOM_ELEMENT_CLICK element=submit
-  
+  ELEMENT(element=username operation="type" arg3="nested_test")
+  ELEMENT(element=password operation="type" arg3="nested_pass")
+  ELEMENT(element=submit operation="click")
+
   SAY "Nested query workflow completed!"
 END_RETRY`,
 
             'collection-old-way': `-- OLD WAY: Index-centric DOM collection traversal (fragile)
 SAY "Testing multiple buttons with old index-based approach..."
 
-LET buttons = DOM_GET_ALL selector=".test-collection button"
+LET buttons = ELEMENT(selector=".test-collection button" operation="all")
 LET count = buttons.length
 SAY "Found " || count || " buttons to process"
 
 -- Traditional fragile index-based loop
 DO i = 1 TO count
-    LET button = buttons[i]
-    LET text = DOM_ELEMENT_TEXT element=button
+    LET button = ARRAY_GET(buttons, i)
+    LET text = ELEMENT(element=button operation="text")
     SAY "Button " || i || " says: " || text
-    DOM_ELEMENT_CLICK element=button
+    ELEMENT(element=button operation="click")
     SAY "Clicked button " || i
 END
 
@@ -493,14 +493,14 @@ SAY "Old-style collection processing complete"`,
             'collection-new-way': `-- NEW WAY: DO...OVER for elegant DOM collection traversal
 SAY "Testing multiple buttons with modern DO...OVER approach..."
 
-LET buttons = DOM_GET_ALL selector=".test-collection button"
+LET buttons = ELEMENT(selector=".test-collection button" operation="all")
 SAY "Found buttons collection, processing with DO...OVER..."
 
 -- Modern elegant iteration over collection
 DO button OVER buttons
-    LET text = DOM_ELEMENT_TEXT element=button
+    LET text = ELEMENT(element=button operation="text")
     SAY "Processing button: " || text
-    DOM_ELEMENT_CLICK element=button
+    ELEMENT(element=button operation="click")
     SAY "Clicked: " || text
 END
 
@@ -510,16 +510,16 @@ SAY "Modern collection processing complete"`,
 SAY "Processing button collection with stale-element protection..."
 
 RETRY_ON_STALE timeout=8000
-    LET buttons = DOM_GET_ALL selector=".test-collection button"
+    LET buttons = ELEMENT(selector=".test-collection button" operation="all")
     SAY "Found button collection, processing safely..."
-    
+
     DO button OVER buttons
-        LET text = DOM_ELEMENT_TEXT element=button
+        LET text = ELEMENT(element=button operation="text")
         SAY "Processing: " || text
-        DOM_ELEMENT_CLICK element=button
+        ELEMENT(element=button operation="click")
         SLEEP ms=200  -- Brief pause between clicks
     END
-    
+
     SAY "All buttons processed successfully with retry protection"
 END_RETRY`
         };

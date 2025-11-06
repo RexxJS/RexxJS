@@ -14,6 +14,9 @@
     <!-- Load the document write styled output handler -->
     <script src="../output/document-write-styled-output-handler.js"></script>
 
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
     <!-- REXX Script for date and time functions demonstration -->
     <script type="text/rexx" id="datetime-functions-script">
         /* Auto-executing REXX Date and Time Functions Demo */
@@ -21,33 +24,64 @@
         SAY "=== REXX Date and Time Functions Demo ==="
         SAY ""
 
-        /* Current date and time */
-        SAY "Current Date and Time:"
+        /* Current date and time (default: UTC, English) */
+        SAY "Current Date and Time (Default - UTC, English):"
         SAY "  DATE(): " || DATE()
         SAY "  TIME(): " || TIME()
         SAY "  DATE('U'): " || DATE('U')
         SAY ""
 
-        /* Date formats */
-        SAY "DATE() Formats:"
-        SAY "  DATE() [default]: " || DATE()
+        /* Date formats (classic REXX format codes) */
+        SAY "DATE() Format Codes:"
+        SAY "  DATE() [default/N]: " || DATE()
         SAY "  DATE('S'): " || DATE('S')
         SAY "  DATE('B'): " || DATE('B')
         SAY "  DATE('D'): " || DATE('D')
         SAY ""
 
         /* Time formats */
-        SAY "TIME() Formats:"
-        SAY "  TIME() [default]: " || TIME()
+        SAY "TIME() Format Codes:"
+        SAY "  TIME() [default/N]: " || TIME()
         SAY "  TIME('S'): " || TIME('S')
         SAY "  TIME('L'): " || TIME('L')
         SAY "  TIME('C'): " || TIME('C')
         SAY ""
 
+        /* Extended: Timezone support */
+        SAY "DATE/TIME with Different Timezones:"
+        SAY "  DATE('N', 'UTC'): " || DATE('N', 'UTC')
+        SAY "  DATE('N', 'America/New_York'): " || DATE('N', 'America/New_York')
+        SAY "  DATE('N', 'Asia/Tokyo'): " || DATE('N', 'Asia/Tokyo')
+        SAY "  DATE('N', 'Europe/Paris'): " || DATE('N', 'Europe/Paris')
+        SAY ""
+
+        /* Extended: Locale support for month names */
+        SAY "DATE() with Different Locales (month names in locale language):"
+        SAY "  DATE('N', 'UTC', 'en-US'): " || DATE('N', 'UTC', 'en-US')
+        SAY "  DATE('N', 'UTC', 'fr-FR'): " || DATE('N', 'UTC', 'fr-FR')
+        SAY "  DATE('N', 'UTC', 'de-DE'): " || DATE('N', 'UTC', 'de-DE')
+        SAY "  DATE('N', 'UTC', 'es-ES'): " || DATE('N', 'UTC', 'es-ES')
+        SAY "  DATE('N', 'UTC', 'ja-JP'): " || DATE('N', 'UTC', 'ja-JP')
+        SAY ""
+
+        /* Combined: Timezone + Locale */
+        SAY "Combined Timezone and Locale:"
+        SAY "  Paris (French): " || DATE('N', 'Europe/Paris', 'fr-FR')
+        SAY "  Tokyo (Japanese): " || DATE('N', 'Asia/Tokyo', 'ja-JP')
+        SAY "  New York (English): " || DATE('N', 'America/New_York', 'en-US')
+        SAY ""
+
+        /* TIME with timezone */
+        SAY "TIME() with Different Timezones:"
+        SAY "  TIME('N', 'UTC'): " || TIME('N', 'UTC')
+        SAY "  TIME('N', 'America/New_York'): " || TIME('N', 'America/New_York')
+        SAY "  TIME('N', 'Asia/Tokyo'): " || TIME('N', 'Asia/Tokyo')
+        SAY ""
+
         /* Elapsed time tracking */
         SAY "Elapsed Time Example:"
         LET start = TIME('S')
-        SAY "  Start time (seconds): " || start
+        SAY "  Start time (seconds since midnight): " || start
 
         /* Simulate some work */
         LET sum = 0
@@ -63,13 +97,13 @@
         /* Days manipulation */
         SAY "Day Operations:"
         LET today = DATE('U')
-        SAY "  Today (unpadded): " || today
+        SAY "  Today (unpadded DDMMYY): " || today
 
         LET tomorrow = today + 1
         SAY "  Tomorrow: " || tomorrow
 
-        LET dayOfWeek = DATE('w')
-        SAY "  Day of week (0-6): " || dayOfWeek
+        LET dayOfWeek = DATE('W')
+        SAY "  Day of week (0-6, 0=Sunday): " || dayOfWeek
         SAY ""
 
         /* Time arithmetic */
@@ -77,7 +111,7 @@
         LET hour = SUBSTR(TIME(), 1, 2)
         LET minute = SUBSTR(TIME(), 4, 2)
         LET second = SUBSTR(TIME(), 7, 2)
-        SAY "  Current time components:"
+        SAY "  Current time components (UTC):"
         SAY "    Hour: " || hour
         SAY "    Minute: " || minute
         SAY "    Second: " || second
@@ -95,44 +129,69 @@
     <div class="output-section">
 
         <script>
-            // Auto-execute - DOM is already loaded since script is at bottom of page
-            (async function() {
-                // Create styled output handler with null container to trigger document.write
-                const outputHandler = new DocumentWriteStyledOutputHandler(
-                    false,         // No timestamps - we want clean output
-                    'rexx-output', // CSS class
-                    null          // trigger document.write!
-                );
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
 
-                // Create interpreter with the output handler
-                const interpreter = new RexxInterpreterBuilder(null)
-                .withOutputHandler({
-                    output: (text) => {
-                        outputHandler.output(text);
-                    }
-                })
-                .withTraceToOutput(true)  // Enable trace mode - shows executed REXX lines
-                .build();
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
 
-                // Execute the REXX script directly by ID
-                await interpreter.runScriptInId('datetime-functions-script');
-            })();
+                try {
+                    await executeRexxDemo('datetime-functions-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
         </script>
     </div>
 
     <h2>DATE() Function</h2>
     <ul>
-        <li><strong>DATE()</strong> - Returns date as "DD Mon YYYY" (e.g., "15 Oct 2025")</li>
+        <li><strong>DATE()</strong> - Returns date as "DD Mon YYYY" (e.g., "16 Oct 2025", UTC, English)</li>
         <li><strong>DATE('S')</strong> - Returns date as "YYYYMMDD" (sortable format)</li>
         <li><strong>DATE('B')</strong> - Returns date as days since 1/1/0001</li>
         <li><strong>DATE('D')</strong> - Returns date as "DD/MM/YY"</li>
-        <li><strong>DATE('U')</strong> - Returns date as "DDMMYY" (or similar unpadded format)</li>
-        <li><strong>DATE('w')</strong> - Returns day of week (0=Sunday, 6=Saturday)</li>
+        <li><strong>DATE('U')</strong> - Returns date as "DDMMYY" (unpadded format)</li>
+        <li><strong>DATE('W')</strong> - Returns day of week (0=Sunday, 6=Saturday)</li>
+    </ul>
+
+    <h2>Extended DATE/TIME with Timezone & Locale</h2>
+    <ul>
+        <li><strong>DATE(formatCode, timezone)</strong> - Returns date in specified timezone (any IANA timezone)</li>
+        <li><strong>DATE(formatCode, timezone, locale)</strong> - Returns date with locale-aware month names (50+ supported locales)</li>
+        <li><strong>TIME(formatCode, timezone)</strong> - Returns time in specified timezone</li>
+        <li><strong>TIME(formatCode, timezone, locale)</strong> - Returns time with locale awareness</li>
+    </ul>
+
+    <h2>Examples of Timezone/Locale Usage</h2>
+    <ul>
+        <li><strong>DATE('N', 'America/New_York')</strong> - Date in New York timezone</li>
+        <li><strong>DATE('N', 'UTC', 'fr-FR')</strong> - Date in French with UTC timezone</li>
+        <li><strong>DATE('N', 'Europe/Paris', 'fr-FR')</strong> - Date in Paris timezone, French locale</li>
+        <li><strong>TIME('N', 'Asia/Tokyo')</strong> - Time in Tokyo timezone</li>
+        <li><strong>Supported Locales</strong> - en-US, en-GB, fr-FR, de-DE, es-ES, ja-JP, zh-CN, and 40+ others</li>
     </ul>
 
     <h2>TIME() Function</h2>
     <ul>
-        <li><strong>TIME()</strong> - Returns time as "HH:MM:SS" (default)</li>
+        <li><strong>TIME()</strong> - Returns time as "HH:MM:SS" (default, UTC)</li>
         <li><strong>TIME('S')</strong> - Returns seconds since midnight</li>
         <li><strong>TIME('L')</strong> - Returns microseconds since midnight</li>
         <li><strong>TIME('C')</strong> - Returns CPU time used (system-dependent)</li>

@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS DOM Scoped Interpreter - Multiple Scripts with Isolated Scopes</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <style>
+        /* Additional styles for DOM scoped demo */
+        .script-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .rexx-script {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: border-color 0.3s;
+        }
+
+        .rexx-script.RexxScript {
+            border-color: #4CAF50;
+            background: #fafafa;
+        }
+
+        .rexx-script.RexxScript::before {
+            content: "✓ Isolated Scope (RexxScript class)";
+            display: block;
+            font-size: 12px;
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .rexx-script.global::before {
+            content: "🌐 Global Window Scope";
+            display: block;
+            font-size: 12px;
+            color: #2196F3;
+            font-weight: bold;
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .script-title {
+            font-weight: bold;
+            color: #333;
+            margin: 0 0 8px 0;
+            font-size: 16px;
+        }
+
+        .script-editor {
+            width: 100%;
+            height: 120px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            resize: vertical;
+            background: white;
+        }
+
+        .script-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .script-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        .script-btn:hover {
+            background: #1976D2;
+        }
+
+        .script-btn:active {
+            background: #1565C0;
+        }
+
+        .script-output {
+            margin-top: 10px;
+            min-height: 80px;
+            max-height: 150px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #333;
+        }
+
+        .script-status {
+            margin-top: 8px;
+            padding: 6px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .status-ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-running {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-complete {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .demo-section {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            border: 1px solid #ddd;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .comparison-table th {
+            background: #f5f5f5;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .comparison-table tr:hover {
+            background: #fafafa;
+        }
+
+        .feature-check {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .feature-x {
+            color: #f44336;
+            font-weight: bold;
+        }
+
+        @media (max-width: 900px) {
+            .script-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+</head>
+<body>
+    <h1>🔍 RexxJS: DOM Scoped Interpreters</h1>
+
+    <div class="intro">
+        <p><strong>Multiple REXX Scripts with Isolated Scopes</strong></p>
+        <p>This demo shows how multiple REXX interpreters can run on the same page with completely isolated function registrations. Each script container with the <code>RexxScript</code> CSS class gets its own scope, preventing namespace collisions.</p>
+    </div>
+
+    <!-- Interactive Script Demo Section -->
+    <div class="demo-section">
+        <h2>Interactive Demo: Three Independent Scripts</h2>
+
+        <div class="script-container">
+            <!-- Script 1: Isolated Scope -->
+            <div class="rexx-script RexxScript" id="script1-container">
+                <div class="script-title">Script 1 (Isolated Scope)</div>
+                <textarea class="script-editor" id="script1-code">SAY "=== Script 1: Counter Demo ==="
+LET counter = 0
+DO i = 1 TO 5
+  counter = counter + i
+  SAY "Step " || i || ": Sum = " || counter
+END
+SAY "Final: Counter = " || counter</textarea>
+                <div class="script-controls">
+                    <button class="script-btn" onclick="runScript1()">Run Script 1</button>
+                </div>
+                <div class="script-status status-ready" id="script1-status">Ready</div>
+                <div class="script-output" id="script1-output"></div>
+            </div>
+
+            <!-- Script 2: Isolated Scope -->
+            <div class="rexx-script RexxScript" id="script2-container">
+                <div class="script-title">Script 2 (Isolated Scope)</div>
+                <textarea class="script-editor" id="script2-code">SAY "=== Script 2: String Manipulation ==="
+LET text = "REXXJS"
+SAY "Original: " || text
+SAY "Length: " || LENGTH(text)
+SAY "Uppercase: " || UPPER(text)
+SAY "Lowercase: " || LOWER(text)
+SAY "Reversed: " || REVERSE(text)</textarea>
+                <div class="script-controls">
+                    <button class="script-btn" onclick="runScript2()">Run Script 2</button>
+                </div>
+                <div class="script-status status-ready" id="script2-status">Ready</div>
+                <div class="script-output" id="script2-output"></div>
+            </div>
+        </div>
+
+        <!-- Script 3: Global Scope -->
+        <div class="rexx-script global" id="script3-container">
+            <div class="script-title">Script 3 (Global Window Scope)</div>
+            <textarea class="script-editor" id="script3-code">SAY "=== Script 3: Math Operations ==="
+LET x = 10
+LET y = 25
+SAY "X = " || x
+SAY "Y = " || y
+SAY "X + Y = " || (x + y)
+SAY "X * Y = " || (x * y)
+SAY "Y / X = " || (y / x)
+SAY "X ** 2 = " || (x ** 2)</textarea>
+            <div class="script-controls">
+                <button class="script-btn" onclick="runScript3()">Run Script 3</button>
+            </div>
+            <div class="script-status status-ready" id="script3-status">Ready</div>
+            <div class="script-output" id="script3-output"></div>
+        </div>
+
+        <button class="script-btn" style="margin-top: 20px; width: 100%;" onclick="runAllScripts()">Run All Scripts</button>
+    </div>
+
+    <!-- Explanation Section -->
+    <div class="demo-section">
+        <h2>How It Works</h2>
+
+        <h3>Scope Detection</h3>
+        <p>When a REXX interpreter is created, it automatically searches the DOM for an ancestor element with the <code>RexxScript</code> CSS class:</p>
+        <ul>
+            <li><strong>If found:</strong> Functions are registered to that DOM element (isolated scope)</li>
+            <li><strong>If not found:</strong> Functions are registered to the global <code>window</code> object (legacy behavior)</li>
+        </ul>
+
+        <h3>Script Container Structure</h3>
+        <pre><code>&lt;div class="RexxScript"&gt;
+    &lt;!-- Functions registered here in: element.__rexxFunctions --&gt;
+&lt;/div&gt;
+
+&lt;div&gt;
+    &lt;!-- Functions registered here in: window --&gt;
+&lt;/div&gt;</code></pre>
+
+        <h3>JavaScript API</h3>
+        <pre><code>// Create interpreter with explicit scope
+const container = document.getElementById('script1-container');
+const interpreter = new RexxInterpreter(null, {
+    scopeElement: container,
+    output: console.log
+});
+
+// Or auto-detect RexxScript class
+const interpreter2 = new RexxInterpreter();
+// Will find RexxScript class automatically</code></pre>
+
+        <h3>Scope Isolation Benefits</h3>
+        <table class="comparison-table">
+            <tr>
+                <th>Feature</th>
+                <th>Isolated Scope (RexxScript)</th>
+                <th>Global Scope (window)</th>
+            </tr>
+            <tr>
+                <td>Function Namespace</td>
+                <td class="feature-check">✓ Isolated per element</td>
+                <td>Shared globally</td>
+            </tr>
+            <tr>
+                <td>Multiple Scripts</td>
+                <td class="feature-check">✓ No conflicts</td>
+                <td>Can overwrite each other</td>
+            </tr>
+            <tr>
+                <td>Global Pollution</td>
+                <td class="feature-check">✓ None</td>
+                <td>Namespace pollution</td>
+            </tr>
+            <tr>
+                <td>Runtime Overhead</td>
+                <td>Minimal</td>
+                <td class="feature-check">✓ None</td>
+            </tr>
+            <tr>
+                <td>Backward Compat</td>
+                <td class="feature-check">✓ Opt-in</td>
+                <td class="feature-check">✓ Default</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Architecture Section -->
+    <div class="demo-section">
+        <h2>Architecture</h2>
+
+        <h3>Scope Registry System</h3>
+        <p>Each interpreter maintains a <code>scopeRegistry</code> with methods to manage function registration:</p>
+
+        <table class="comparison-table">
+            <tr>
+                <th>Method</th>
+                <th>Purpose</th>
+            </tr>
+            <tr>
+                <td><code>registerFunction(name, func)</code></td>
+                <td>Register function to scope</td>
+            </tr>
+            <tr>
+                <td><code>getFunction(name)</code></td>
+                <td>Retrieve function from scope</td>
+            </tr>
+            <tr>
+                <td><code>hasFunction(name)</code></td>
+                <td>Check if function exists</td>
+            </tr>
+            <tr>
+                <td><code>registerMetadata(name, meta)</code></td>
+                <td>Register function metadata</td>
+            </tr>
+            <tr>
+                <td><code>getMetadata(name)</code></td>
+                <td>Retrieve function metadata</td>
+            </tr>
+        </table>
+
+        <h3>Storage Locations</h3>
+        <ul>
+            <li><strong>Isolated Scope:</strong> <code>domElement.__rexxFunctions</code> and <code>domElement.__rexxMetadata</code></li>
+            <li><strong>Global Scope:</strong> <code>window.FUNCTION_NAME</code> and <code>window.METADATA_NAME</code></li>
+        </ul>
+    </div>
+
+    <!-- Future Enhancement Section -->
+    <div class="demo-section" style="background: #fffbea; border-color: #ff9800;">
+        <h2>🚀 Future Enhancement: Variable Pool Isolation</h2>
+
+        <p>The current implementation isolates <strong>function registration</strong>. In the next phase, we'll also isolate <strong>variable pools</strong> so that:</p>
+
+        <ul>
+            <li>Each interpreter has its own <code>variables</code> Map</li>
+            <li>Variables don't leak between scripts</li>
+            <li>DOM structure mirrors variable namespace hierarchy</li>
+            <li>Two scripts can coexist with zero shared state</li>
+        </ul>
+
+        <p><strong>Example (future):</strong></p>
+        <pre><code>// Each script has completely isolated state
+const interp1 = new RexxInterpreter(null, { scopeElement: container1 });
+const interp2 = new RexxInterpreter(null, { scopeElement: container2 });
+
+// interp1 and interp2 have separate variables Maps
+// No global state sharing
+// Perfect isolation for multi-tenant scenarios</code></pre>
+    </div>
+
+    <!-- Use Cases Section -->
+    <div class="demo-section">
+        <h2>Use Cases</h2>
+
+        <ul>
+            <li><strong>Multi-tenant Applications:</strong> Each tenant's scripts run in isolation</li>
+            <li><strong>Plugin Systems:</strong> Multiple plugins can safely coexist</li>
+            <li><strong>Dynamic Scripting:</strong> User-uploaded scripts don't interfere with each other</li>
+            <li><strong>Testing Frameworks:</strong> Each test runs in isolated scope</li>
+            <li><strong>Dashboard Applications:</strong> Multiple independent widgets with embedded REXX</li>
+            <li><strong>Collaborative Tools:</strong> Different users' scripts work in parallel without conflicts</li>
+        </ul>
+    </div>
+
+    <script>
+        let interpreters = {};
+
+        /**
+         * Initialize interpreters when page loads
+         */
+        async function initializeInterpreters() {
+            try {
+                // Script 1: Isolated scope (RexxScript class)
+                interpreters.script1 = new RexxInterpreter(null, {
+                    scopeElement: document.getElementById('script1-container'),
+                    output: (text) => {
+                        const output = document.getElementById('script1-output');
+                        output.textContent += text + '\n';
+                    }
+                });
+
+                // Script 2: Isolated scope (RexxScript class)
+                interpreters.script2 = new RexxInterpreter(null, {
+                    scopeElement: document.getElementById('script2-container'),
+                    output: (text) => {
+                        const output = document.getElementById('script2-output');
+                        output.textContent += text + '\n';
+                    }
+                });
+
+                // Script 3: Global window scope (no RexxScript class)
+                interpreters.script3 = new RexxInterpreter(null, {
+                    output: (text) => {
+                        const output = document.getElementById('script3-output');
+                        output.textContent += text + '\n';
+                    }
+                });
+
+                // Log scope information
+                console.log('Script 1 scope element:', interpreters.script1.scopeElement?.id || 'window');
+                console.log('Script 2 scope element:', interpreters.script2.scopeElement?.id || 'window');
+                console.log('Script 3 scope element:', interpreters.script3.scopeElement?.id || 'window');
+
+            } catch (error) {
+                console.error('Failed to initialize interpreters:', error);
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        /**
+         * Run Script 1
+         */
+        async function runScript1() {
+            if (!interpreters.script1) return;
+
+            const output = document.getElementById('script1-output');
+            const status = document.getElementById('script1-status');
+
+            output.textContent = '';
+            status.textContent = 'Running...';
+            status.className = 'script-status status-running';
+
+            try {
+                const code = document.getElementById('script1-code').value;
+                const commands = parse(code);
+                await interpreters.script1.run(commands);
+                status.textContent = 'Complete';
+                status.className = 'script-status status-complete';
+            } catch (error) {
+                output.textContent += `\nERROR: ${error.message}`;
+                status.textContent = 'Error';
+                status.className = 'script-status status-error';
+            }
+        }
+
+        /**
+         * Run Script 2
+         */
+        async function runScript2() {
+            if (!interpreters.script2) return;
+
+            const output = document.getElementById('script2-output');
+            const status = document.getElementById('script2-status');
+
+            output.textContent = '';
+            status.textContent = 'Running...';
+            status.className = 'script-status status-running';
+
+            try {
+                const code = document.getElementById('script2-code').value;
+                const commands = parse(code);
+                await interpreters.script2.run(commands);
+                status.textContent = 'Complete';
+                status.className = 'script-status status-complete';
+            } catch (error) {
+                output.textContent += `\nERROR: ${error.message}`;
+                status.textContent = 'Error';
+                status.className = 'script-status status-error';
+            }
+        }
+
+        /**
+         * Run Script 3
+         */
+        async function runScript3() {
+            if (!interpreters.script3) return;
+
+            const output = document.getElementById('script3-output');
+            const status = document.getElementById('script3-status');
+
+            output.textContent = '';
+            status.textContent = 'Running...';
+            status.className = 'script-status status-running';
+
+            try {
+                const code = document.getElementById('script3-code').value;
+                const commands = parse(code);
+                await interpreters.script3.run(commands);
+                status.textContent = 'Complete';
+                status.className = 'script-status status-complete';
+            } catch (error) {
+                output.textContent += `\nERROR: ${error.message}`;
+                status.textContent = 'Error';
+                status.className = 'script-status status-error';
+            }
+        }
+
+        /**
+         * Run all scripts in sequence
+         */
+        async function runAllScripts() {
+            await runScript1();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await runScript2();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await runScript3();
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', initializeInterpreters);
+    </script>
+</body>
+</html>

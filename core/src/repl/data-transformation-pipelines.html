@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS Data Transformation Pipelines</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for advanced pipeline patterns -->
+    <script type="text/rexx" id="pipeline-advanced-script">
+        /* Auto-executing Advanced Data Transformation Pipelines */
+
+        SAY "=== Advanced Data Transformation Pipelines ===\n"
+
+        /* Pipeline 1: ETL (Extract, Transform, Load) Pattern */
+        SAY "1. ETL Pipeline - Sales Data Processing:"
+        LET salesData = [
+            { product: "Widget", price: 29.99, quantity: 5 },
+            { product: "Gadget", price: 49.99, quantity: 3 },
+            { product: "Doohickey", price: 99.99, quantity: 1 },
+            { product: "Widget", price: 29.99, quantity: 2 }
+        ]
+        LET totalRevenue = salesData
+          |> ARRAY_MAP("{ product: x.product, revenue: x.price * x.quantity }")
+          |> ARRAY_REDUCE("sum + (acc ? acc : 0), (x ? x.revenue : 0)", 0)
+        SAY "  Input records: " || JSON_STRINGIFY(salesData)
+        SAY "  Total Revenue: $" || totalRevenue
+        SAY ""
+
+        /* Pipeline 2: Data Validation and Filtering */
+        SAY "2. Validation Pipeline - Email Filtering:"
+        LET users = [
+            { name: "Alice", email: "alice@example.com", active: true },
+            { name: "Bob", email: "bob@test.org", active: false },
+            { name: "Charlie", email: "charlie@example.com", active: true },
+            { name: "Diana", email: "diana@example.com", active: true }
+        ]
+        LET activeUsers = users |> ARRAY_FILTER("x.active = true")
+        LET names = activeUsers |> ARRAY_MAP("x.name")
+        SAY "  Original: " || JSON_STRINGIFY(users)
+        SAY "  Active users: " || JSON_STRINGIFY(names)
+        SAY ""
+
+        /* Pipeline 3: Aggregation Pipeline */
+        SAY "3. Aggregation Pipeline - Statistics:"
+        LET scores = [85, 92, 78, 95, 88, 76, 91, 89, 82, 94]
+        LET sum = scores |> ARRAY_REDUCE("sum + x", 0)
+        LET avg = sum / LENGTH(scores)
+        LET sorted = scores |> ARRAY_SORT()
+        LET median = sorted.5
+        SAY "  Scores: " || JSON_STRINGIFY(scores)
+        SAY "  Average: " || ROUND(avg, 2)
+        SAY "  Median: " || median
+        SAY "  Min: " || MIN(scores) || ", Max: " || MAX(scores)
+        SAY ""
+
+        /* Pipeline 4: String Processing */
+        SAY "4. Text Processing Pipeline:"
+        LET text = "  The Quick Brown Fox Jumps Over The Lazy Dog  "
+        LET words = text
+          |> STRIP()
+          |> LOWER()
+          |> SPLIT(" ")
+        LET uniqueWords = words |> ARRAY_UNIQUE() |> ARRAY_SORT()
+        SAY "  Original: '" || text || "'"
+        SAY "  Word count: " || LENGTH(words)
+        SAY "  Unique words: " || LENGTH(uniqueWords)
+        SAY "  Sorted unique: " || JSON_STRINGIFY(uniqueWords)
+        SAY ""
+
+        /* Pipeline 5: Complex Data Transformation */
+        SAY "5. JSON Data Pipeline:"
+        LET jsonData = '[{"id":1,"name":"Alice","score":85},{"id":2,"name":"Bob","score":92}]'
+        LET parsed = jsonData |> JSON_PARSE()
+        LET highScores = parsed |> ARRAY_FILTER("x.score >= 90")
+        LET names = highScores |> ARRAY_MAP("x.name")
+        SAY "  Input JSON: " || jsonData
+        SAY "  High scores (>=90): " || JSON_STRINGIFY(names)
+        SAY ""
+
+        /* Pipeline 6: Chaining Multiple Operations */
+        SAY "6. Multi-step Transformation:"
+        LET numbers = [1, 5, 3, 9, 2, 7, 4, 8, 6]
+        LET result = numbers
+          |> ARRAY_SORT()
+          |> ARRAY_FILTER("x >= 5")
+          |> ARRAY_MAP("x * x")
+          |> ARRAY_REDUCE("sum + x", 0)
+        SAY "  Numbers: " || JSON_STRINGIFY(numbers)
+        SAY "  Sort → Filter(x>=5) → Map(x*x) → Sum: " || result
+        SAY ""
+
+        /* Pipeline 7: Data Deduplication and Organization */
+        SAY "7. Deduplication Pipeline:"
+        LET items = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5]
+        LET unique = items |> ARRAY_UNIQUE()
+        LET sorted = unique |> ARRAY_SORT()
+        LET reversed = sorted |> ARRAY_REVERSE()
+        SAY "  Original: " || JSON_STRINGIFY(items)
+        SAY "  Unique: " || JSON_STRINGIFY(unique)
+        SAY "  Unique & sorted: " || JSON_STRINGIFY(sorted)
+        SAY "  Reversed: " || JSON_STRINGIFY(reversed)
+        SAY ""
+
+        SAY "=== Advanced Pipelines Complete ===\n"
+        SAY "Pipelines enable clean, functional data processing patterns!"
+    </script>
+
+</head>
+<body>
+    <h1>Advanced Data Transformation Pipelines</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating advanced pipeline patterns.</p>
+        <p>Explore real-world data transformation scenarios using functional programming with the pipe operator.</p>
+        <p>Combines ARRAY_MAP, ARRAY_FILTER, ARRAY_REDUCE, and other functions for elegant data processing.</p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('pipeline-advanced-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>Pipeline Patterns Demonstrated</h2>
+
+    <h3>1. ETL (Extract, Transform, Load)</h3>
+    <p>Classic data pipeline pattern: extract data from source, transform with filters and maps, load results.</p>
+
+    <h3>2. Validation & Filtering</h3>
+    <p>Validate data and filter out unwanted records using ARRAY_FILTER with predicates.</p>
+
+    <h3>3. Aggregation</h3>
+    <p>Combine multiple records into summary statistics using ARRAY_REDUCE.</p>
+
+    <h3>4. String Processing</h3>
+    <p>Transform text through multiple stages: splitting, lowercasing, deduplication, sorting.</p>
+
+    <h3>5. JSON Data Processing</h3>
+    <p>Parse JSON, filter, and transform complex data structures inline.</p>
+
+    <h3>6. Multi-step Transformations</h3>
+    <p>Chain multiple operations for complex data transformations in a single readable expression.</p>
+
+    <h3>7. Deduplication & Organization</h3>
+    <p>Remove duplicates and organize data in multiple orders for different use cases.</p>
+
+    <h2>Best Practices</h2>
+    <ul>
+        <li><strong>Declarative style</strong> - Describe WHAT you want, not HOW to do it</li>
+        <li><strong>Composable functions</strong> - Build complex operations from simple functions</li>
+        <li><strong>Immutable data</strong> - Pipelines don't modify original data</li>
+        <li><strong>Readable chains</strong> - Left-to-right flow matches human thinking</li>
+        <li><strong>Reusable patterns</strong> - Apply the same techniques to different datasets</li>
+    </ul>
+
+    <h2>Combining Pipelines with OS Functions</h2>
+    <p>Advanced patterns: Use shell functions with pipelines for file processing, text analysis, and data transformation workflows.</p>
+
+</body>
+</html>

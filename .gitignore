@@ -6,6 +6,8 @@ dist/
 core/test-results/
 test-results.json
 core/playwright-report/
+core/playwright-results/
+core/http-server.log
 core/debug-screenshot.png
 core/test-results.json
 live-tests/test-results/

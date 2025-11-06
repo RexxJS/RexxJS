@@ -1,0 +1,72 @@
+>> 3 SAY "=== REXX String Parsing Demo ==="
+=== REXX String Parsing Demo ===
+>> 4 SAY ""
+
+>> 7 LET data = "John Doe 35 Engineer"
+>> 8 SAY "PARSE with template:"
+PARSE with template:
+>> 9 SAY "  Input: " || data
+  Input: John Doe 35 Engineer
+>> (no line#) PARSE
+>> 11 SAY "  firstName: " || firstName
+  firstName: John
+>> 12 SAY "  lastName: " || lastName
+  lastName: Doe
+>> 13 SAY "  age: " || age
+  age: 35
+>> 14 SAY "  profession: " || profession
+  profession: Engineer
+>> 15 SAY ""
+
+>> 18 LET sentence = "The quick brown fox jumps"
+>> 19 SAY "WORD function (extract word by position):"
+WORD function (extract word by position):
+>> 20 SAY "  Input: " || sentence
+  Input: The quick brown fox jumps
+>> 21 SAY "  WORD 1: " || WORD(sentence, 1)
+  WORD 1: The
+>> 22 SAY "  WORD 3: " || WORD(sentence, 3)
+  WORD 3: brown
+>> 23 SAY "  WORD 5: " || WORD(sentence, 5)
+  WORD 5: jumps
+>> 24 SAY "  WORDS in sentence: " || WORDS(sentence)
+  WORDS in sentence: 5
+>> 25 SAY ""
+
+>> 28 LET csv = "apple,banana,cherry,date"
+>> 29 SAY "Manual splitting by comma:"
+Manual splitting by comma:
+>> 30 SAY "  Input: " || csv
+  Input: apple,banana,cherry,date
+>> 31 LET item1 = WORD(TRANSLATE(csv, " ", ","), 1)
+>> 32 SAY "  Item 1: " || item1
+  Item 1: apple
+>> 33 LET converted = TRANSLATE(csv, " ", ",")
+>> 34 SAY "  All items: " || converted
+  All items: apple banana cherry date
+>> 35 SAY ""
+
+>> 38 LET command = "DELETE"
+>> 39 SAY "ABBREV function (prefix matching):"
+ABBREV function (prefix matching):
+>> 40 SAY "  Command: " || command
+  Command: DELETE
+>> 41 SAY "  ABBREV('DELETE', 'DEL') = " || ABBREV(command, "DEL")
+  ABBREV('DELETE', 'DEL') = 1
+>> 42 SAY "  ABBREV('DELETE', 'DXL') = " || ABBREV(command, "DXL")
+  ABBREV('DELETE', 'DXL') = 0
+>> 43 SAY ""
+
+>> 46 LET text = "Find the needle in the haystack"
+>> 47 SAY "Position finding:"
+Position finding:
+>> 48 SAY "  Text: " || text
+  Text: Find the needle in the haystack
+>> 49 SAY "  POS(text, 'needle') = " || POS(text, "needle")
+  POS(text, 'needle') = 10
+>> 50 SAY "  POS(text, 'x') = " || POS(text, "x")
+  POS(text, 'x') = 0
+>> 51 SAY ""
+
+>> 52 SAY "=== String Parsing Demo Complete ==="
+=== String Parsing Demo Complete ===

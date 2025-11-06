@@ -1,0 +1,224 @@
+>> 3 SAY "=== REXX Date and Time Functions Demo ==="
+=== REXX Date and Time Functions Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "Current Date and Time (Default - UTC, English):"
+Current Date and Time (Default - UTC, English):
+>> 8 SAY "  DATE(): " || DATE()
+  DATE(): DATE()
+>> 9 SAY "  TIME(): " || TIME()
+  TIME(): TIME()
+>> 10 SAY "  DATE('U'): " || DATE('U')
+  DATE('U'): YYMMDD
+>> 11 SAY ""
+
+>> 14 SAY "DATE() Format Codes:"
+DATE() Format Codes:
+>> 15 SAY "  DATE() [default/N]: " || DATE()
+  DATE() [default/N]: DATE()
+>> 16 SAY "  DATE('S'): " || DATE('S')
+  DATE('S'): YYYYMMDD
+>> 17 SAY "  DATE('B'): " || DATE('B')
+  DATE('B'): DDDDD
+>> 18 SAY "  DATE('D'): " || DATE('D')
+  DATE('D'): DD/MM/YY
+>> 19 SAY ""
+
+>> 22 SAY "TIME() Format Codes:"
+TIME() Format Codes:
+>> 23 SAY "  TIME() [default/N]: " || TIME()
+  TIME() [default/N]: TIME()
+>> 24 SAY "  TIME('S'): " || TIME('S')
+  TIME('S'): SSSSS
+>> 25 SAY "  TIME('L'): " || TIME('L')
+  TIME('L'): SSSSSSSSSS
+>> 26 SAY "  TIME('C'): " || TIME('C')
+  TIME('C'): MMM
+>> 27 SAY ""
+
+>> 30 SAY "DATE/TIME with Different Timezones:"
+DATE/TIME with Different Timezones:
+>> 31 SAY "  DATE('N', 'UTC'): " || DATE('N', 'UTC')
+  DATE('N', 'UTC'): DATE('N', 'UTC')
+>> 32 SAY "  DATE('N', 'America/New_York'): " || DATE('N', 'America/New_York')
+  DATE('N', 'America/New_York'): DATE('N', 'America/New_York')
+>> 33 SAY "  DATE('N', 'Asia/Tokyo'): " || DATE('N', 'Asia/Tokyo')
+  DATE('N', 'Asia/Tokyo'): DATE('N', 'Asia/Tokyo')
+>> 34 SAY "  DATE('N', 'Europe/Paris'): " || DATE('N', 'Europe/Paris')
+  DATE('N', 'Europe/Paris'): DATE('N', 'Europe/Paris')
+>> 35 SAY ""
+
+>> 38 SAY "DATE() with Different Locales (month names in locale language):"
+DATE() with Different Locales (month names in locale language):
+>> 39 SAY "  DATE('N', 'UTC', 'en-US'): " || DATE('N', 'UTC', 'en-US')
+  DATE('N', 'UTC', 'en-US'): DATE('N', 'UTC', 'en-US')
+>> 40 SAY "  DATE('N', 'UTC', 'fr-FR'): " || DATE('N', 'UTC', 'fr-FR')
+  DATE('N', 'UTC', 'fr-FR'): DATE('N', 'UTC', 'fr-FR')
+>> 41 SAY "  DATE('N', 'UTC', 'de-DE'): " || DATE('N', 'UTC', 'de-DE')
+  DATE('N', 'UTC', 'de-DE'): DATE('N', 'UTC', 'de-DE')
+>> 42 SAY "  DATE('N', 'UTC', 'es-ES'): " || DATE('N', 'UTC', 'es-ES')
+  DATE('N', 'UTC', 'es-ES'): DATE('N', 'UTC', 'es-ES')
+>> 43 SAY "  DATE('N', 'UTC', 'ja-JP'): " || DATE('N', 'UTC', 'ja-JP')
+  DATE('N', 'UTC', 'ja-JP'): DATE('N', 'UTC', 'ja-JP')
+>> 44 SAY ""
+
+>> 47 SAY "Combined Timezone and Locale:"
+Combined Timezone and Locale:
+>> 48 SAY "  Paris (French): " || DATE('N', 'Europe/Paris', 'fr-FR')
+  Paris (French): DATE('N', 'Europe/Paris', 'fr-FR')
+>> 49 SAY "  Tokyo (Japanese): " || DATE('N', 'Asia/Tokyo', 'ja-JP')
+  Tokyo (Japanese): DATE('N', 'Asia/Tokyo', 'ja-JP')
+>> 50 SAY "  New York (English): " || DATE('N', 'America/New_York', 'en-US')
+  New York (English): DATE('N', 'America/New_York', 'en-US')
+>> 51 SAY ""
+
+>> 54 SAY "TIME() with Different Timezones:"
+TIME() with Different Timezones:
+>> 55 SAY "  TIME('N', 'UTC'): " || TIME('N', 'UTC')
+  TIME('N', 'UTC'): TIME('N', 'UTC')
+>> 56 SAY "  TIME('N', 'America/New_York'): " || TIME('N', 'America/New_York')
+  TIME('N', 'America/New_York'): TIME('N', 'America/New_York')
+>> 57 SAY "  TIME('N', 'Asia/Tokyo'): " || TIME('N', 'Asia/Tokyo')
+  TIME('N', 'Asia/Tokyo'): TIME('N', 'Asia/Tokyo')
+>> 58 SAY ""
+
+>> 61 SAY "Elapsed Time Example:"
+Elapsed Time Example:
+>> 62 LET start = TIME('S')
+>> 63 SAY "  Start time (seconds since midnight): " || start
+  Start time (seconds since midnight): SSSSS
+>> 66 LET sum = 0
+>> (no line#) DO
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 68 sum = sum + i
+>> 71 LET elapsed = TIME('S') - start
+>> 72 SAY "  Elapsed time: " || elapsed || " seconds"
+  Elapsed time: 0 seconds
+>> 73 SAY "  Calculation result: " || sum
+  Calculation result: 5050
+>> 74 SAY ""
+
+>> 77 SAY "Day Operations:"
+Day Operations:
+>> 78 LET today = DATE('U')
+>> 79 SAY "  Today (unpadded DDMMYY): " || today
+  Today (unpadded DDMMYY): YYMMDD
+>> 81 LET tomorrow = today + 1
+>> 82 SAY "  Tomorrow: " || tomorrow
+  Tomorrow: YYMMDD
+>> 84 LET dayOfWeek = DATE('W')
+>> 85 SAY "  Day of week (0-6, 0=Sunday): " || dayOfWeek
+  Day of week (0-6, 0=Sunday): 6
+>> 86 SAY ""
+
+>> 89 SAY "Time Arithmetic:"
+Time Arithmetic:
+>> 90 LET hour = SUBSTR(TIME(), 1, 2)
+>> 91 LET minute = SUBSTR(TIME(), 4, 2)
+>> 92 LET second = SUBSTR(TIME(), 7, 2)
+>> 93 SAY "  Current time components (UTC):"
+  Current time components (UTC):
+>> 94 SAY "    Hour: " || hour
+    Hour: TI
+>> 95 SAY "    Minute: " || minute
+    Minute: E(
+>> 96 SAY "    Second: " || second
+    Second: 

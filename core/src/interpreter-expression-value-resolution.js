@@ -141,10 +141,15 @@ async function resolveValue(value, variableGetFn, variableHasFn, evaluateExpress
   }
   
   // Check for simple variable references (no dots)
-  if (typeof value === 'string' && variableHasFn(value)) {
-    return variableGetFn(value);
+  // Always call variableGetFn for variable-like strings to support variableResolver callback
+  if (typeof value === 'string' && value.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)) {
+    const resolved = variableGetFn(value);
+    if (resolved !== undefined) {
+      return resolved;
+    }
+    // Variable not found and not resolved - fall through to return as literal
   }
-  
+
   // Check if the value looks like a function call
   if (typeof value === 'string' && value.match(/^[a-zA-Z_][a-zA-Z0-9_]*\s*\(/)) {
     try {
@@ -169,6 +174,16 @@ async function resolveValue(value, variableGetFn, variableHasFn, evaluateExpress
     } catch (error) {
       // If function call parsing/execution fails, continue to return as literal
     }
+  }
+
+  // Check for simple variable references (no dots, no parens)
+  // Always call variableGetFn for variable-like strings to support variableResolver callback
+  if (typeof value === 'string' && value.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)) {
+    const resolved = variableGetFn(value);
+    if (resolved !== undefined) {
+      return resolved;
+    }
+    // Variable not found and not resolved - fall through to return as literal
   }
 
   // Return value as-is if not a variable reference or function call
@@ -425,15 +440,30 @@ async function evaluateExpression(expr, resolveValueFn, variableGetFn, variableH
         }
         const builtInFunc = getBuiltinFunctionFn(method);
 
+        // DOM functions receive params object directly
+        if (method.startsWith('DOM_')) {
+          return await builtInFunc(resolvedParams);
+        }
+
         // Check if this is an operation (uses named params) or a function (uses positional args)
         if (isOperationFn && isOperationFn(method)) {
           // Operations receive the params object directly (named parameters)
           return await builtInFunc(resolvedParams);
-        } else {
-          // Functions receive positional args converted from params
-          const args = callConvertParamsToArgsFn(method, resolvedParams);
-          return await builtInFunc(...args);
         }
+
+        // Check if this function has been migrated to unified parameter model
+        const converterName = `${method}_positional_args_to_named_param_map`;
+        const sibling = getBuiltinFunctionFn(converterName);
+        if (sibling) {
+          // New unified param model - call converter to transform params to named map
+          const namedParams = await sibling(...Object.values(resolvedParams));
+          return await builtInFunc(namedParams);
+        }
+
+        // Function not yet migrated - temporarily use old positional argument conversion
+        // This maintains backward compatibility until all functions are migrated
+        const args = callConvertParamsToArgsFn(method, resolvedParams);
+        return await builtInFunc(...args);
       } else {
         // Allow RPC function calls in expressions (like assignments)
         return await executeFunctionCallFn(expr);

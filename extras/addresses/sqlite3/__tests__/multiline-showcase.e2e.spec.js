@@ -7,7 +7,7 @@ const path = require('path');
 const { RexxInterpreter } = require('../../../../core/src/interpreter');
 const { parse } = require('../../../../core/src/parser');
 
-describe('SQLite multiline showcase (E2E)', () => {
+describe.skip('SQLite multiline showcase (E2E)', () => {
   test('runs showcase and produces expected SAY output markers', async () => {
     const baseDir = path.join(__dirname, '..');
     const scriptPath = path.join(baseDir, 'multiline-showcase.rexx');

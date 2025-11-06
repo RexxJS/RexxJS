@@ -317,10 +317,24 @@ function parseStatement(tokens, startIndex) {
   // ADDRESS command with MATCHING parameter - REMOVED
   // MATCHING functionality has been replaced with HEREDOC approach
   // Use: ADDRESS target followed by <<DELIMITER content DELIMITER
-  
+
   // ADDRESS command with LINES parameter - REMOVED
   // LINES functionality has been replaced with HEREDOC approach
   // Use: ADDRESS target followed by <<DELIMITER content DELIMITER
+
+  // ADDRESS remote URL registration: ADDRESS "url" [AUTH "token"] AS name
+  const addressRemoteMatch = line.match(/^ADDRESS\s+(["`'])(https?:\/\/[^"']+)\1(?:\s+AUTH\s+(["`'])([^"']+)\3)?\s+AS\s+(\w+)$/i);
+  if (addressRemoteMatch) {
+    return {
+      command: addLineNumber({
+        type: 'ADDRESS_REMOTE',
+        url: addressRemoteMatch[2],
+        authToken: addressRemoteMatch[4] || null,
+        asName: addressRemoteMatch[5]
+      }, token),
+      nextIndex: startIndex + 1
+    };
+  }
 
   // ADDRESS command with quoted string (combined form)
   const addressWithStringMatch = line.match(/^ADDRESS\s+(\w+)\s+(["`'])(.*?)\2$/i);
@@ -344,11 +358,27 @@ function parseStatement(tokens, startIndex) {
     };
   }
   
-  // ADDRESS command (target only)
-  const addressMatch = line.match(/^ADDRESS\s+(\w+)/i);
+  // ADDRESS command (target only) and optional heredoc on same line: ADDRESS <target> <<DELIM
+  let addressMatch = line.match(/^ADDRESS\s+(\w+)(?:\s+<<([A-Za-z_][A-Za-z0-9_]*))?/i);
   if (addressMatch) {
+    const target = addressMatch[1];
+    const heredocDelim = addressMatch[2];
+    // If heredoc is indicated, the tokenizer will have produced current LINE token
+    // with hasHeredoc=true and the next token will be HEREDOC containing the payload.
+    if (heredocDelim && tokens[startIndex + 1] && tokens[startIndex + 1].type === 'HEREDOC' && tokens[startIndex + 1].delimiter === heredocDelim) {
+      const heredocToken = tokens[startIndex + 1];
+      return {
+        command: addLineNumber({
+          type: 'HEREDOC_STRING',
+          value: heredocToken.content,
+          delimiter: heredocDelim,
+          addressTarget: target
+        }, token),
+        nextIndex: startIndex + 2
+      };
+    }
     return {
-      command: addLineNumber({ type: 'ADDRESS', target: addressMatch[1] }, token),
+      command: addLineNumber({ type: 'ADDRESS', target: target }, token),
       nextIndex: startIndex + 1
     };
   }
@@ -375,6 +405,38 @@ function parseStatement(tokens, startIndex) {
         source: 'ARG',
         input: '', // No input needed for ARG
         template: argMatch[1].trim()
+      },
+      nextIndex: startIndex + 1
+    };
+  }
+
+  // PARSE VAR varname template (classic REXX syntax, no WITH keyword needed)
+  const parseVarMatch = line.match(/^PARSE\s+VAR\s+(\w+)\s+(.*)/i);
+  if (parseVarMatch) {
+    return {
+      command: {
+        type: 'PARSE',
+        source: 'VAR',
+        input: parseVarMatch[1].trim(),
+        template: parseVarMatch[2].trim()
+      },
+      nextIndex: startIndex + 1
+    };
+  }
+
+  // PARSE VALUE expression template (classic REXX syntax, no WITH keyword needed)
+  // This is more complex because the expression can be anything until we hit the template variables
+  // In classic REXX, it's: PARSE VALUE <expression> <template>
+  // The expression ends where whitespace-separated words that could be template variables begin
+  // For simplicity, we'll require at least 2 space-separated tokens after VALUE
+  const parseValueMatch = line.match(/^PARSE\s+VALUE\s+(.+?)\s+([a-zA-Z_]\w*(?:\s+[a-zA-Z_]\w*)*)$/i);
+  if (parseValueMatch) {
+    return {
+      command: {
+        type: 'PARSE',
+        source: 'VALUE',
+        input: parseValueMatch[1].trim(),
+        template: parseValueMatch[2].trim()
       },
       nextIndex: startIndex + 1
     };
@@ -455,6 +517,8 @@ function parseStatement(tokens, startIndex) {
     // Determine if this is a variable reference or direct name
     const isVariableCall = variableName !== undefined;
     let subroutineName = isVariableCall ? variableName : directName;
+    // Preserve original display token for tracing (before modification)
+    const displayName = isVariableCall ? `(${variableName})` : directName;
     
     // Strip quotes from direct names (for external script paths)
     if (!isVariableCall && ((subroutineName.startsWith('"') && subroutineName.endsWith('"')) || 
@@ -554,12 +618,13 @@ function parseStatement(tokens, startIndex) {
     }
     
     return {
-      command: {
+      command: addLineNumber({
         type: 'CALL',
         subroutine: subroutineName,
+        displayName: displayName,
         isVariableCall: isVariableCall,
         arguments: args
-      },
+      }, token),
       nextIndex: startIndex + 1
     };
   }
@@ -752,6 +817,8 @@ function parseStatement(tokens, startIndex) {
       // Determine if this is a variable reference or direct name
       const isVariableCall = variableName_call !== undefined;
       let subroutineName = isVariableCall ? variableName_call : directName;
+      // Preserve original display token for tracing (before modification)
+      const displayName = isVariableCall ? `(${variableName_call})` : directName;
       
       // Strip quotes from direct names (for external script paths)
       if (!isVariableCall && ((subroutineName.startsWith('"') && subroutineName.endsWith('"')) || 
@@ -823,6 +890,7 @@ function parseStatement(tokens, startIndex) {
           command: {
             type: 'CALL',
             subroutine: subroutineName,
+            displayName: displayName,
             arguments: args,
             isVariableCall: isVariableCall
           }
@@ -1162,8 +1230,8 @@ function parseStatement(tokens, startIndex) {
     };
   }
   
-  // Simple assignment without LET (e.g., variableName = value)
-  const simpleAssignMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*(.+)/);
+  // Simple assignment without LET (e.g., variableName = value or stem.0 = value)
+  const simpleAssignMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_.]*)\s*=\s*(.+)/);
   if (simpleAssignMatch) {
     const variableName = simpleAssignMatch[1];
     const expression = simpleAssignMatch[2];
@@ -1492,7 +1560,16 @@ function parseLoopSpecification(specStr) {
       condition: parseCondition(whileMatch[1])
     };
   }
-  
+
+  // DO UNTIL condition - loops until condition becomes true
+  const untilMatch = spec.match(/^UNTIL\s+(.+)$/i);
+  if (untilMatch) {
+    return {
+      type: 'UNTIL',
+      condition: parseCondition(untilMatch[1])
+    };
+  }
+
   // DO 5 (simple repeat)
   const repeatMatch = spec.match(/^(\d+)$/);
   if (repeatMatch) {
@@ -1556,10 +1633,10 @@ function parseFunctionCall(line) {
     if (remaining.startsWith('(') && remaining.endsWith(')')) {
       remaining = remaining.substring(1, remaining.length - 1).trim();
     }
-    
+
     // Parse arguments manually to handle complex expressions properly
     const args = [];
-    
+
     while (remaining.length > 0) {
       // Match parameter name (but not arrow functions with =>)
       const nameMatch = remaining.match(/^(\w+)=(?!>)/);
@@ -1762,6 +1839,7 @@ function parseSelectStatement(tokens, startIndex) {
   
   const whenClauses = [];
   let otherwiseCommands = [];
+  let otherwiseLineNumber = null;
   let currentIndex = startIndex + 1;
   
   // Find matching END and collect WHEN clauses and OTHERWISE
@@ -1779,6 +1857,7 @@ function parseSelectStatement(tokens, startIndex) {
     if (whenSingleLineMatch) {
       const condition = parseCondition(whenSingleLineMatch[1]);
       const statement = whenSingleLineMatch[2].trim();
+      const headerLineNumber = tokens[currentIndex].lineNumber;
 
       // Parse the statement on the same line
       const stmtTokens = [{
@@ -1791,7 +1870,8 @@ function parseSelectStatement(tokens, startIndex) {
 
       whenClauses.push({
         condition: condition,
-        commands: whenCommands
+        commands: whenCommands,
+        lineNumber: headerLineNumber
       });
       currentIndex++;
       continue;
@@ -1802,6 +1882,7 @@ function parseSelectStatement(tokens, startIndex) {
     if (whenMultiLineMatch) {
       const condition = parseCondition(whenMultiLineMatch[1]);
       const whenCommands = [];
+      const headerLineNumber = tokens[currentIndex].lineNumber;
       currentIndex++;
 
       // Collect commands for this WHEN clause until next WHEN, OTHERWISE, or END
@@ -1821,7 +1902,8 @@ function parseSelectStatement(tokens, startIndex) {
 
       whenClauses.push({
         condition: condition,
-        commands: whenCommands
+        commands: whenCommands,
+        lineNumber: headerLineNumber
       });
       continue;
     }
@@ -1842,6 +1924,7 @@ function parseSelectStatement(tokens, startIndex) {
       if (stmtResult.command) {
         otherwiseCommands.push(stmtResult.command);
       }
+      otherwiseLineNumber = tokens[currentIndex].lineNumber;
 
       currentIndex++;
       continue;
@@ -1850,6 +1933,7 @@ function parseSelectStatement(tokens, startIndex) {
     // Pattern 2: OTHERWISE (multi-line)
     const otherwiseMultiLineMatch = line.match(/^OTHERWISE\s*$/i);
     if (otherwiseMultiLineMatch) {
+      otherwiseLineNumber = tokens[currentIndex].lineNumber;
       currentIndex++;
 
       // Collect commands for OTHERWISE clause until END
@@ -1880,8 +1964,10 @@ function parseSelectStatement(tokens, startIndex) {
   return {
     command: {
       type: 'SELECT',
+      lineNumber: tokens[startIndex].lineNumber,
       whenClauses: whenClauses,
-      otherwiseCommands: otherwiseCommands
+      otherwiseCommands: otherwiseCommands,
+      otherwiseLineNumber: otherwiseLineNumber
     },
     nextIndex: currentIndex + 1  // Skip past END
   };
@@ -1889,9 +1975,7 @@ function parseSelectStatement(tokens, startIndex) {
 
 function parseExpression(exprStr) {
   const expr = exprStr.trim();
-  
-  // Debug logging removed
-  
+
   // Reject array access syntax in expressions - not supported
   const arrayAccessMatch = expr.match(/^([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)*)\[(.+?)\]$/);
   if (arrayAccessMatch) {
@@ -1977,7 +2061,12 @@ function parseExpression(exprStr) {
   }
 
   // First check if this looks like a mathematical expression (contains operators or parentheses)
-  if (expr.match(/[+\-*/%()]|\*\*|\|\||\|>/)) {
+  // But exclude function calls with named parameters like FUNC(name=value)
+  // Those should be handled as function calls, not arithmetic expressions
+  const hasOperators = /[+\-*/%\|]|\*\*|\|\||\|>/.test(expr);
+  const hasFunctionCallWithNamedParams = /^[a-zA-Z_]\w*\s*\([a-zA-Z_]\w*=/.test(expr);
+
+  if (hasOperators || (expr.match(/[()]/) && !hasFunctionCallWithNamedParams)) {
     // Parse as mathematical expression (which can contain function calls, concatenation, and piping)
     return parseArithmeticExpression(expr);
   }
@@ -1987,7 +2076,6 @@ function parseExpression(exprStr) {
   const funcMatch = expr.match(/^([A-Z_]\w*)\s*\(/i);
   if (funcMatch) {
     // Try to parse as a function call with parentheses
-    // Debug logging removed
     const funcCall = parseFunctionCall(expr);
     if (funcCall) {
       return funcCall;

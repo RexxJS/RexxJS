@@ -250,7 +250,7 @@ describe('Patch Functions (@extras/patch)', () => {
       const original = interpreter.getVariable('original');
 
       // After applying patch and then reverse, should get back original
-      expect(undone.replace(/\n/g, '\\n')).toBe(original);
+      expect(undone).toBe(original);
     });
 
     it('should swap old and new filenames', async () => {

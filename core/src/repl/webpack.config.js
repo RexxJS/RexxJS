@@ -1,12 +1,8 @@
 const path = require('path');
 
-module.exports = {
-  mode: 'production',
+// Shared configuration for both builds
+const sharedConfig = {
   entry: path.resolve(__dirname, 'interpreter-bundle-entry.js'),
-  output: {
-    filename: 'rexxjs.bundle.js',
-    path: path.resolve(__dirname, 'dist')
-  },
   resolve: {
     extensions: ['.js'],
     fallback: {
@@ -26,8 +22,32 @@ module.exports = {
       "util": false
     }
   },
-  target: 'web',
-  optimization: {
-    minimize: true
-  }
+  target: 'web'
 };
+
+module.exports = [
+  // Minified production build
+  {
+    ...sharedConfig,
+    mode: 'production',
+    output: {
+      filename: 'rexxjs.bundle.min.js',
+      path: path.resolve(__dirname, 'dist')
+    },
+    optimization: {
+      minimize: true
+    }
+  },
+  // Unminified development/debugging build
+  {
+    ...sharedConfig,
+    mode: 'development',
+    output: {
+      filename: 'rexxjs.bundle.js',
+      path: path.resolve(__dirname, 'dist')
+    },
+    optimization: {
+      minimize: false
+    }
+  }
+];

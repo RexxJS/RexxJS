@@ -94,14 +94,27 @@ async function executeFunctionCall(funcCall, context) {
       }
     }
 
-    // For built-in functions, convert named parameters to positional arguments
+    // For built-in functions, handle differently based on function type
     const builtInFunc = builtInFunctions[method];
-    const args = callConvertParamsToArgsFn(method, resolvedParams);
 
+    // DOM functions receive params object directly
     if (method.startsWith('DOM_')) {
-      console.log(`${method} converted args:`, args);
+      console.log(`${method} calling with params object:`, resolvedParams);
+      return await builtInFunc(resolvedParams);
     }
 
+    // Check if this function has been migrated to unified parameter model
+    const converterName = `${method}_positional_args_to_named_param_map`;
+    if (builtInFunctions[converterName]) {
+      // New unified param model - call converter to transform params to named map
+      const converter = builtInFunctions[converterName];
+      const namedParams = await converter(...Object.values(resolvedParams));
+      return await builtInFunc(namedParams);
+    }
+
+    // Function not yet migrated - temporarily use old positional argument conversion
+    // This maintains backward compatibility until all functions are migrated
+    const args = callConvertParamsToArgsFn(method, resolvedParams);
     return await builtInFunc(...args);
   }
 

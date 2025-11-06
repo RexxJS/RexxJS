@@ -1,0 +1,19 @@
+# Test artifacts and temporary files
+ci_failures.txt
+test-results/
+test-*.rexx
+run-*.sh
+rexx-*.* 
+
+# Documentation drafts
+DOM_CLASSIFICATION.md
+docs_todo.md
+web-rename.md
+
+# Configuration and secrets
+google.txt
+oauth2-client-credentials.json
+
+# Generated directories
+unpublished_module_tests/
+published_module_tests/

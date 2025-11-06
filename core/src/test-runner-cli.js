@@ -76,12 +76,14 @@ function showHelp() {
   console.log(`${Colors.bright}Usage:${Colors.reset}`);
   console.log(`  ${Colors.green}./rexxt [options] [patterns...]${Colors.reset}`);
   console.log('');
-  
+
   console.log(`${Colors.bright}Options:${Colors.reset}`);
   console.log(`  ${Colors.green}--navigate${Colors.reset}                    - Launch TUI navigator only`);
   console.log(`  ${Colors.green}--run-and-navigate${Colors.reset}            - Run tests then launch navigator`);
   console.log(`  ${Colors.green}--pattern <glob>${Colors.reset}              - Test file pattern (can specify multiple)`);
   console.log(`  ${Colors.green}--tags <tags>${Colors.reset}                 - Filter by tags (comma-separated)`);
+  console.log(`  ${Colors.green}--honor-skip${Colors.reset}                  - Honor @skip annotations (default: true)`);
+  console.log(`  ${Colors.green}--no-honor-skip${Colors.reset}               - Run all tests, ignoring @skip annotations`);
   console.log(`  ${Colors.green}--verbose, -v${Colors.reset}                 - Verbose output`);
   console.log(`  ${Colors.green}--verbose-output${Colors.reset}              - Show all SAY output from scripts`);
   console.log(`  ${Colors.green}--live-output${Colors.reset}                 - Show SAY output in real-time without debug info`);
@@ -96,15 +98,18 @@ function showHelp() {
   console.log(`  ${Colors.cyan}./rexxt tests/math-tests.rexx${Colors.reset}             - Run specific test file`);
   console.log(`  ${Colors.cyan}./rexxt --pattern "tests/*-specs.rexx"${Colors.reset}    - Run files matching pattern`);
   console.log(`  ${Colors.cyan}./rexxt --tags math,basic${Colors.reset}                 - Run tests with specific tags`);
+  console.log(`  ${Colors.cyan}./rexxt --no-honor-skip tests/math-tests.rexx${Colors.reset} - Run all tests, ignoring @skip`);
   console.log(`  ${Colors.cyan}./rexxt --verbose-output tests/math-tests.rexx${Colors.reset} - Show all script output`);
   console.log(`  ${Colors.cyan}./rexxt --live-output tests/debug.rexx${Colors.reset}       - Show just SAY output live`);
   console.log(`  ${Colors.cyan}./rexxt --rerun-failures-with-verbose tests/*.rexx${Colors.reset} - Debug failed tests`);
   console.log(`  ${Colors.cyan}./rexxt --run-and-navigate tests/*.rexx${Colors.reset}   - Run tests then browse results`);
   console.log(`  ${Colors.cyan}./rexxt --navigate${Colors.reset}                        - Browse previous test results`);
   console.log('');
-  
-  console.log(`${Colors.bright}Test Tags:${Colors.reset}`);
+
+  console.log(`${Colors.bright}Test Annotations:${Colors.reset}`);
   console.log(`${Colors.dim}  Add /* @test-tags math, integration */ at the top of test files${Colors.reset}`);
+  console.log(`${Colors.dim}  Add /* @skip */ or /* @skip reason */ before test subroutines to skip them${Colors.reset}`);
+  console.log(`${Colors.dim}  Add /* @requires docker */ before tests that need specific capabilities${Colors.reset}`);
   console.log('');
   
   console.log(`${Colors.bright}File Conventions:${Colors.reset}`);
@@ -119,7 +124,7 @@ function parseTestTags(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf8');
     const lines = content.split('\n').slice(0, 10); // Check first 10 lines for metadata
-    
+
     for (const line of lines) {
       const tagMatch = line.match(/\/\*\s*@test-tags\s+([^*]+)\s*\*\//);
       if (tagMatch) {
@@ -130,6 +135,102 @@ function parseTestTags(filePath) {
     // Ignore file read errors
   }
   return [];
+}
+
+function parseSkippedTests(filePath) {
+  // Parse test file for @skip annotations before test subroutines
+  // Returns a Map of test name -> skip reason
+  const skippedTests = new Map();
+
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const lines = content.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Check for @skip annotation
+      const skipMatch = line.match(/\/\*\s*@skip\s*([^*]*)\s*\*\//);
+      if (skipMatch) {
+        const skipReason = skipMatch[1].trim() || 'No reason provided';
+
+        // Look ahead for the test subroutine definition
+        for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          const nextLine = lines[j].trim();
+
+          // Skip empty lines and comments
+          if (!nextLine || nextLine.startsWith('//') || nextLine.startsWith('--')) {
+            continue;
+          }
+
+          // Check for test subroutine definition (ends with Test:)
+          const testMatch = nextLine.match(/^(\w+Test):/i);
+          if (testMatch) {
+            const testName = testMatch[1];
+            skippedTests.set(testName.toUpperCase(), skipReason);
+            break;
+          }
+
+          // If we hit non-comment content that's not a test, stop looking
+          break;
+        }
+      }
+    }
+  } catch (error) {
+    // Ignore file read errors
+  }
+
+  return skippedTests;
+}
+
+function parseTestRequirements(filePath) {
+  // Parse test file for @requires annotations before test subroutines
+  // Returns a Map of test name -> array of required capabilities
+  const testRequirements = new Map();
+
+  try {
+    const content = fs.readFileSync(filePath, 'utf8');
+    const lines = content.split('\n');
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Check for @requires annotation
+      const requiresMatch = line.match(/\/\*\s*@requires\s+([^*]+)\s*\*\//);
+      if (requiresMatch) {
+        // Parse comma-separated list of requirements
+        const requirements = requiresMatch[1]
+          .split(',')
+          .map(req => req.trim())
+          .filter(Boolean);
+
+        // Look ahead for the test subroutine definition
+        for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+          const nextLine = lines[j].trim();
+
+          // Skip empty lines and comments
+          if (!nextLine || nextLine.startsWith('//') || nextLine.startsWith('--')) {
+            continue;
+          }
+
+          // Check for test subroutine definition (ends with Test:)
+          const testMatch = nextLine.match(/^(\w+Test):/i);
+          if (testMatch) {
+            const testName = testMatch[1];
+            testRequirements.set(testName.toUpperCase(), requirements);
+            break;
+          }
+
+          // If we hit non-comment content that's not a test, stop looking
+          break;
+        }
+      }
+    }
+  } catch (error) {
+    // Ignore file read errors
+  }
+
+  return testRequirements;
 }
 
 // Static analysis functions removed - test counting now done at runtime by TestRexxInterpreter
@@ -248,9 +349,15 @@ async function runTestFile(filePath, options = {}) {
   if (!fs.existsSync(filePath)) {
     return { code: 1, error: `Test file not found: ${filePath}` };
   }
-  
+
   const rexxCode = fs.readFileSync(filePath, 'utf8');
-  
+
+  // Parse skip annotations from the test file
+  const skippedTests = parseSkippedTests(filePath);
+
+  // Parse requirement annotations from the test file
+  const testRequirements = parseTestRequirements(filePath);
+
   // Clear expectation and test counters before running this file
   const expectationCounterFile = '.rexxt-expectations-count.tmp';
   const testCounterFile = '.rexxt-test-count.tmp';
@@ -264,7 +371,7 @@ async function runTestFile(filePath, options = {}) {
   } catch (error) {
     // Ignore cleanup errors
   }
-  
+
   // Test counting will be done at runtime by the TestRexxInterpreter
   const testSubroutines = [];
   const testCallCount = 0;
@@ -365,11 +472,20 @@ async function runTestFile(filePath, options = {}) {
     
     // Pass .*Test$ as default argument when no script arguments provided
     const scriptArgs = options.scriptArgs && options.scriptArgs.length > 0 ? options.scriptArgs : ['.*Test$'];
-    const interpreter = new TestRexxInterpreter(testAddressSender, {}, outputHandler, scriptArgs, options);
-    
+
+    // Merge skip information, requirements, and honor-skip flag into options
+    const testOptions = {
+      ...options,
+      skippedTests: skippedTests,
+      testRequirements: testRequirements,
+      honorSkip: options.honorSkip !== false // Default to true
+    };
+
+    const interpreter = new TestRexxInterpreter(testAddressSender, {}, outputHandler, scriptArgs, testOptions);
+
     // Set the interpreter reference in the address sender so it can check registered ADDRESS targets
     testAddressSender.setInterpreter(interpreter);
-    
+
     await interpreter.run(commands, rexxCode, filePath);
     
     // Read actual expectation count from temp file
@@ -493,6 +609,7 @@ async function main() {
     rerunFailuresWithVerbose: args.includes('--rerun-failures-with-verbose'),
     timeout: 30000,
     runAndNavigate: args.includes('--run-and-navigate'),
+    honorSkip: !args.includes('--no-honor-skip'), // Default: true (honor @skip)
     scriptArgs: []
   };
   
@@ -757,18 +874,19 @@ async function main() {
   const totalIndividualTests = allTestResults.reduce((acc, file) => acc + file.totalTests, 0);
   const totalIndividualPassed = allTestResults.reduce((acc, file) => acc + file.passedTests, 0);
   const totalIndividualFailed = allTestResults.reduce((acc, file) => acc + file.failedTests, 0);
+  const totalIndividualSkipped = allTestResults.reduce((acc, file) => acc + (file.skippedTests || 0), 0);
 
   // Final summary
   console.log(`${Colors.bright}🏁 Summary:${Colors.reset}`);
   console.log(`   ${Colors.cyan}${totalFiles} test source${totalFiles === 1 ? '' : 's'} executed${Colors.reset} (${Colors.green}${totalPassed} passed${Colors.reset}${totalFailed > 0 ? `, ${Colors.red}${totalFailed} failed${Colors.reset}` : ''})`);
-  
+
   // Calculate totals from actual runtime execution
   const totalExecutedExpectations = allTestResults.reduce((acc, file) => acc + (file.totalExpectations || 0), 0);
   const totalPassedExpectations = allTestResults.reduce((acc, file) => acc + (file.passedExpectations || 0), 0);
   const totalFailedExpectations = allTestResults.reduce((acc, file) => acc + (file.failedExpectations || 0), 0);
-  
+
   // Note: No separate "test runs" concept - we only show CALL *Test executions
-  
+
   // Calculate test execution totals (for CALL *Test subroutines)
   const totalExecutedTests = allTestResults.reduce((acc, file) => acc + (file.totalTests || 0), 0);
   const totalPassedTestSubroutines = allTestResults.reduce((acc, file) => acc + (file.passedTestSubroutines || 0), 0);
@@ -776,8 +894,16 @@ async function main() {
 
   // Show individual tests within organized structures
   if (totalIndividualTests > 0) {
-    const testsPassed = totalIndividualTests - totalIndividualFailed;
-    console.log(`   ${Colors.cyan}${totalIndividualTests} test${totalIndividualTests === 1 ? '' : 's'}${Colors.reset} (${Colors.green}${testsPassed} passed${Colors.reset}${totalIndividualFailed > 0 ? `, ${Colors.red}${totalIndividualFailed} failed${Colors.reset}` : ''})`);
+    const testsPassed = totalIndividualTests - totalIndividualFailed - totalIndividualSkipped;
+    let testSummary = `   ${Colors.cyan}${totalIndividualTests} test${totalIndividualTests === 1 ? '' : 's'}${Colors.reset} (${Colors.green}${testsPassed} passed${Colors.reset}`;
+    if (totalIndividualFailed > 0) {
+      testSummary += `, ${Colors.red}${totalIndividualFailed} failed${Colors.reset}`;
+    }
+    if (totalIndividualSkipped > 0) {
+      testSummary += `, ${Colors.yellow}${totalIndividualSkipped} skipped${Colors.reset}`;
+    }
+    testSummary += ')';
+    console.log(testSummary);
   } else if (totalExecutedTests > 0) {
     // Show test subroutine execution when no organized structure
     const testSubroutinesPassed = totalPassedTestSubroutines;

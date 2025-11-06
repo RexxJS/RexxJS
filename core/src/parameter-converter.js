@@ -326,12 +326,78 @@ function convertParamsToArgs(functionName, params) {
 
         case 'DATE':
         case 'TIME':
+            // Classic REXX date/time functions with optional format code, timezone, and locale
+            // Supports:
+            // - DATE() or TIME()
+            // - DATE('N') or TIME('N')
+            // - DATE('N', 'UTC') or TIME('N', 'America/New_York')
+            // - DATE('N', 'UTC', 'fr-FR') or TIME('N', 'UTC', 'de-DE')
+            // - DATE format='N' timezone='UTC' locale='fr-FR'
+
+            let formatCode = '';
+            let timezone = 'UTC';
+            let locale = 'en-US';
+
+            // Handle positional arguments (params.value, params.arg1, params.arg2, etc.)
+            if (params.value) {
+                formatCode = params.value;
+                // Remove quotes if present
+                if ((formatCode.startsWith('"') && formatCode.endsWith('"')) ||
+                    (formatCode.startsWith("'") && formatCode.endsWith("'"))) {
+                    formatCode = formatCode.slice(1, -1);
+                }
+            }
+
+            // Second positional argument: timezone
+            if (params.arg1) {
+                timezone = params.arg1;
+                // Remove quotes if present
+                if ((timezone.startsWith('"') && timezone.endsWith('"')) ||
+                    (timezone.startsWith("'") && timezone.endsWith("'"))) {
+                    timezone = timezone.slice(1, -1);
+                }
+            }
+
+            // Third positional argument: locale
+            if (params.arg2) {
+                locale = params.arg2;
+                // Remove quotes if present
+                if ((locale.startsWith('"') && locale.endsWith('"')) ||
+                    (locale.startsWith("'") && locale.endsWith("'"))) {
+                    locale = locale.slice(1, -1);
+                }
+            }
+
+            // Handle named parameters (override positional if provided)
+            if (params.format) {
+                formatCode = params.format;
+                if ((formatCode.startsWith('"') && formatCode.endsWith('"')) ||
+                    (formatCode.startsWith("'") && formatCode.endsWith("'"))) {
+                    formatCode = formatCode.slice(1, -1);
+                }
+            }
+            if (params.timezone) {
+                timezone = params.timezone;
+                if ((timezone.startsWith('"') && timezone.endsWith('"')) ||
+                    (timezone.startsWith("'") && timezone.endsWith("'"))) {
+                    timezone = timezone.slice(1, -1);
+                }
+            }
+            if (params.locale) {
+                locale = params.locale;
+                if ((locale.startsWith('"') && locale.endsWith('"')) ||
+                    (locale.startsWith("'") && locale.endsWith("'"))) {
+                    locale = locale.slice(1, -1);
+                }
+            }
+
+            return [formatCode, timezone, locale];
+
         case 'NOW':
-            // Modern date/time functions with optional parameters
+            // NOW can take timezone and format parameters
             return [
                 params.timezone || 'UTC',
-                params.format || (functionName === 'DATE' ? 'YYYY-MM-DD' :
-                    functionName === 'TIME' ? 'HH:MM:SS' : 'ISO')
+                params.format || 'ISO'
             ];
 
         case 'DATE_ADD':
@@ -942,10 +1008,11 @@ function convertParamsToArgs(functionName, params) {
 
         case 'LEFT':
         case 'RIGHT':
-            // Text and number of characters
+            // Text and number of characters and optional pad character
             return [
                 params.text || params.value || Object.values(params)[0] || '',
-                params.numChars || params.chars || params.length || Object.values(params)[1] || '1'
+                params.numChars || params.chars || params.length || Object.values(params)[1] || '1',
+                params.pad || Object.values(params)[2] || ' '
             ];
 
         case 'MID':
@@ -984,12 +1051,25 @@ function convertParamsToArgs(functionName, params) {
             ];
 
         case 'INDEX':
-            // array, row, col
-            return [
-                params.array || params.table || Object.values(params)[0] || '[]',
-                params.row || params.rowIndex || Object.values(params)[1] || '1',
-                params.col || params.column || params.colIndex || Object.values(params)[2] || '1'
-            ];
+            // INDEX can be used for two purposes:
+            // 1. String search: INDEX(string, needle [, start]) - like POS
+            // 2. Array indexing: INDEX(array, row, col) - for 3D arrays
+            // We detect based on the parameter names
+            if (params.string || params.text || params.haystack || params.needle || params.substring || params.search) {
+                // String search mode (like POS)
+                return [
+                    params.string || params.text || params.haystack || Object.values(params)[0] || '',
+                    params.needle || params.substring || params.search || Object.values(params)[1] || '',
+                    params.start || params.startPos || Object.values(params)[2] || 1
+                ];
+            } else {
+                // Array indexing mode (3D array)
+                return [
+                    params.array || params.table || Object.values(params)[0] || '[]',
+                    params.row || params.rowIndex || Object.values(params)[1] || '1',
+                    params.col || params.column || params.colIndex || Object.values(params)[2] || '1'
+                ];
+            }
 
         case 'MATCH':
             // lookupArray, lookupValue, matchType (data-first for pipe compatibility)
@@ -1072,17 +1152,19 @@ function convertParamsToArgs(functionName, params) {
             
         case 'LEFT':
         case 'left':
-            // LEFT(text, num_chars)
+            // LEFT(text, num_chars [, pad])
             const leftText = params.text || Object.values(params)[0] || '';
             const leftChars = parseInt(params.num_chars || params.chars || Object.values(params)[1]) || 1;
-            return [leftText, leftChars];
-            
+            const leftPad = params.pad || Object.values(params)[2] || ' ';
+            return [leftText, leftChars, leftPad];
+
         case 'RIGHT':
         case 'right':
-            // RIGHT(text, num_chars)
+            // RIGHT(text, num_chars [, pad])
             const rightText = params.text || Object.values(params)[0] || '';
             const rightChars = parseInt(params.num_chars || params.chars || Object.values(params)[1]) || 1;
-            return [rightText, rightChars];
+            const rightPad = params.pad || Object.values(params)[2] || ' ';
+            return [rightText, rightChars, rightPad];
             
         case 'MID':
         case 'mid':

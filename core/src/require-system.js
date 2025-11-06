@@ -798,7 +798,17 @@ function getLibraryDetectionFunction(libraryName) {
     return global.LIBRARY_DETECTION_REGISTRY.get(lookupName);
   }
 
-  // Handle specific known HTTPS URLs - use @rexxjs-meta comment parsing instead of hardcoded names
+  // For HTTP/HTTPS URLs in browser, check if already cached in library cache
+  if ((libraryName.startsWith('http://') || libraryName.startsWith('https://')) && typeof window !== 'undefined') {
+    // Try to extract from already-loaded library code if available
+    // Note: This is synchronous, so it only works if the library was already fetched
+    // The loadHttpsLibraryViaFetch/Script methods will need to cache this
+    if (window.__rexxjs_library_code_cache && window.__rexxjs_library_code_cache[libraryName]) {
+      return extractMetadataFunctionName(window.__rexxjs_library_code_cache[libraryName]);
+    }
+    // Return null and let the loading logic handle it
+    return null;
+  }
 
   // For local file paths, extract directly from the file
   if (typeof require !== 'undefined') {

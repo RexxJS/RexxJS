@@ -56,9 +56,9 @@ describe('Claude ADDRESS Library - Basic Functionality', () => {
     // Load claude-address library
     await interpreter.run(parse('REQUIRE "./claude-address.js"'));
     
-    // Check that the main function exists and returns correct metadata
-    expect(global.CLAUDE_ADDRESS_MAIN).toBeDefined();
-    const metadata = global.CLAUDE_ADDRESS_MAIN();
+    // Check that the meta function exists and returns correct metadata
+    expect(global.CLAUDE_ADDRESS_META).toBeDefined();
+    const metadata = global.CLAUDE_ADDRESS_META();
     
     expect(metadata.type).toBe('address-target');
     expect(metadata.name).toBe('Claude AI Chat Service');

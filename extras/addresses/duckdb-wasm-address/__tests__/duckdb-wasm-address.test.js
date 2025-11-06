@@ -43,7 +43,7 @@ describe('DuckDB-WASM ADDRESS Library Tests', () => {
 
     afterEach(() => {
         jest.resetModules();
-        delete global.DUCKDB_WASM_ADDRESS_MAIN;
+        delete global.DUCKDB_WASM_ADDRESS_META;
         delete global.ADDRESS_DUCKDB_WASM_HANDLER;
         delete global.ADDRESS_DUCKDB_WASM_METHODS;
     });
@@ -57,15 +57,15 @@ describe('DuckDB-WASM ADDRESS Library Tests', () => {
 
     test('should load without errors and define globals', () => {
         loadModule();
-        expect(global.DUCKDB_WASM_ADDRESS_MAIN).toBeDefined();
+        expect(global.DUCKDB_WASM_ADDRESS_META).toBeDefined();
         expect(global.ADDRESS_DUCKDB_WASM_HANDLER).toBeDefined();
         expect(global.ADDRESS_DUCKDB_WASM_METHODS).toBeDefined();
     });
 
-    test('should return correct metadata from DUCKDB_WASM_ADDRESS_MAIN', () => {
+    test('should return correct metadata from DUCKDB_WASM_ADDRESS_META', () => {
         loadModule();
-        const metadata = global.DUCKDB_WASM_ADDRESS_MAIN();
-        expect(metadata.type).toBe('address-target');
+        const metadata = global.DUCKDB_WASM_ADDRESS_META();
+        expect(metadata.type).toBe('address-handler');
         expect(metadata.provides.addressTarget).toBe('duckdb');
         expect(metadata.provides.commandSupport).toBe(true);
     });

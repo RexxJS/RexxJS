@@ -14,6 +14,9 @@
     <!-- Load the document write styled output handler -->
     <script src="../output/document-write-styled-output-handler.js"></script>
 
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
     <!-- REXX Script for regular expressions demonstration -->
     <script type="text/rexx" id="regex-script">
         /* Auto-executing REXX Regular Expressions Demo */
@@ -25,24 +28,21 @@
         SAY "Simple Pattern Matching:"
         LET text = "Hello123World"
         SAY "  Text: " || text
-        IF text MATCHES "[A-Za-z0-9]+" THEN
-            SAY "  Contains alphanumeric: TRUE"
+        IF text MATCHES "[A-Za-z0-9]+" THEN SAY "  Contains alphanumeric: TRUE"
         SAY ""
 
         /* Email-like pattern */
         SAY "Email Pattern Matching:"
         LET email = "user@example.com"
         SAY "  Email: " || email
-        IF email MATCHES "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+" THEN
-            SAY "  Matches email pattern: TRUE"
+        IF email MATCHES "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+" THEN SAY "  Matches email pattern: TRUE"
         SAY ""
 
         /* Digit matching */
         SAY "Digit Matching:"
         LET phone = "555-123-4567"
         SAY "  Phone: " || phone
-        IF phone MATCHES "[0-9]{3}-[0-9]{3}-[0-9]{4}" THEN
-            SAY "  Matches phone pattern: TRUE"
+        IF phone MATCHES "[0-9]{3}-[0-9]{3}-[0-9]{4}" THEN SAY "  Matches phone pattern: TRUE"
         SAY ""
 
         /* Case-insensitive matching */
@@ -53,8 +53,7 @@
         SAY "  var1: " || var1
         SAY "  var2: " || var2
         SAY "  var3: " || var3
-        IF UPPER(var1) = UPPER(var2) THEN
-            SAY "  UPPER normalized comparison: TRUE"
+        IF UPPER(var1) = UPPER(var2) THEN SAY "  UPPER normalized comparison: TRUE"
         SAY ""
 
         /* Finding patterns within text */
@@ -62,8 +61,7 @@
         LET sentence = "The year is 2025 and the time is 14:30"
         SAY "  Text: " || sentence
         LET yearPos = INDEX(sentence, "2025")
-        IF yearPos > 0 THEN
-            SAY "  Found year at position: " || yearPos
+        IF yearPos > 0 THEN SAY "  Found year at position: " || yearPos
         SAY ""
 
         /* Multiple pattern matching */
@@ -90,8 +88,7 @@
         SAY "URL Pattern:"
         LET url = "https://example.com/path"
         SAY "  URL: " || url
-        IF url MATCHES "https?://.*" THEN
-            SAY "  Is web URL: TRUE"
+        IF url MATCHES "https?://.*" THEN SAY "  Is web URL: TRUE"
         SAY ""
 
         /* Practical validation examples */
@@ -100,6 +97,8 @@
         LET badZip = "ABCDE"
         SAY "  Zipcode '" || zipcode || "' valid: " || (zipcode MATCHES "[0-9]{5}")
         SAY "  Zipcode '" || badZip || "' valid: " || (badZip MATCHES "[0-9]{5}")
+        SAY ""
+        SAY "=== Regular Expressions Demo Complete ==="
     </script>
 
 </head>
@@ -114,28 +113,36 @@
     <div class="output-section">
 
         <script>
-            // Auto-execute - DOM is already loaded since script is at bottom of page
-            (async function() {
-                // Create styled output handler with null container to trigger document.write
-                const outputHandler = new DocumentWriteStyledOutputHandler(
-                    false,         // No timestamps - we want clean output
-                    'rexx-output', // CSS class
-                    null          // trigger document.write!
-                );
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
 
-                // Create interpreter with the output handler
-                const interpreter = new RexxInterpreterBuilder(null)
-                .withOutputHandler({
-                    output: (text) => {
-                        outputHandler.output(text);
-                    }
-                })
-                .withTraceToOutput(true)  // Enable trace mode - shows executed REXX lines
-                .build();
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
 
-                // Execute the REXX script directly by ID
-                await interpreter.runScriptInId('regex-script');
-            })();
+                try {
+                    await executeRexxDemo('regex-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
         </script>
     </div>
 

@@ -811,8 +811,6 @@ if (typeof module !== 'undefined' && module.exports) {
     // Export as function (not constant) for RexxJS metadata detection
     GCP_ADDRESS_META: function() { return GCP_ADDRESS_META; },
     ADDRESS_GCP_HANDLER,
-    // Also export the handler functions
-    ADDRESS_GCP_MAIN: function() { return GCP_ADDRESS_META; },
     // Export utility functions for testing
     parseKeyValueParams
   };
@@ -828,11 +826,6 @@ if (typeof globalScope === 'object') {
   const GCP_META_DATA = GCP_ADDRESS_META;
 
   globalScope.ADDRESS_GCP_HANDLER = ADDRESS_GCP_HANDLER;
-
-  // Detection function for RexxJS REQUIRE system
-  globalScope.ADDRESS_GCP_MAIN = function() {
-    return GCP_META_DATA;
-  };
 
   // Export metadata as a function for @rexxjs-meta detection
   globalScope.GCP_ADDRESS_META = function() {

@@ -79,8 +79,21 @@ const arrayFunctions = {
       return Object.keys(array).length;
     } else if (typeof array === 'string') {
       try {
-        return JSON.parse(array).length;
+        const parsed = JSON.parse(array);
+        if (Array.isArray(parsed)) {
+          return parsed.length;
+        } else if (typeof parsed === 'object' && parsed !== null) {
+          return Object.keys(parsed).length;
+        }
+        return 0;
       } catch (e) {
+        // If JSON parsing fails, it might be a stringified array like "[object Object]"
+        // Try to detect if it looks like an array representation
+        if (array.startsWith('[') && array.endsWith(']')) {
+          // Count commas + 1 as rough estimate
+          const commas = (array.match(/,/g) || []).length;
+          return commas + 1;
+        }
         throw new Error(`Invalid array JSON: ${e.message}`);
       }
     }
@@ -199,6 +212,26 @@ const arrayFunctions = {
       if (Array.isArray(array)) {
         return array.join(separator);
       }
+
+      // Handle REXX stem arrays (have .0 property with count)
+      if (typeof array === 'object' && array !== null && array.hasOwnProperty(0)) {
+        const count = parseInt(array[0]);
+        if (!isNaN(count)) {
+          if (count === 0) {
+            return '';  // Empty REXX array
+          }
+          const values = [];
+          for (let i = 1; i <= count; i++) {
+            if (array[i] !== undefined) {
+              values.push(String(array[i]));
+            }
+          }
+          if (values.length > 0) {
+            return values.join(separator);
+          }
+        }
+      }
+
       return String(array);
     } catch (e) {
       return '';
@@ -1541,13 +1574,239 @@ const arrayFunctions = {
 
   'FILTER': function(...args) {
     return arrayFunctions.ARRAY_FILTER(...args);
+  },
+
+  'REDUCE': function(...args) {
+    return arrayFunctions.ARRAY_REDUCE(...args);
   }
 
 };
 
+// Sibling converters for unified parameter model
+// These transform positional arguments to named parameter maps
+
+function ARRAY_GET_positional_args_to_named_param_map(...args) {
+  return { array: args[0], key: args[1] };
+}
+
+function ARRAY_SET_positional_args_to_named_param_map(...args) {
+  return { array: args[0], key: args[1], value: args[2] };
+}
+
+function ARRAY_LENGTH_positional_args_to_named_param_map(...args) {
+  return { array: args[0] };
+}
+
+function ARRAY_FILTER_positional_args_to_named_param_map(...args) {
+  return { array: args[0], filterExpression: args[1] };
+}
+
+function ARRAY_SORT_positional_args_to_named_param_map(...args) {
+  return { array: args[0], property: args[1], order: args[2] };
+}
+
+function ARRAY_FIND_positional_args_to_named_param_map(...args) {
+  return { array: args[0], searchProperty: args[1], searchValue: args[2] };
+}
+
+function ARRAY_MAP_positional_args_to_named_param_map(...args) {
+  return { array: args[0], mapExpression: args[1] };
+}
+
+function ARRAY_JOIN_positional_args_to_named_param_map(...args) {
+  return { array1: args[0], array2: args[1], key1: args[2], key2: args[3] };
+}
+
+function ARRAY_CONCAT_positional_args_to_named_param_map(...args) {
+  return { array1: args[0], array2: args[1] };
+}
+
+function SPLIT_positional_args_to_named_param_map(...args) {
+  return { string: args[0], separator: args[1] };
+}
+
+function JOIN_positional_args_to_named_param_map(...args) {
+  return { array: args[0], separator: args[1] };
+}
+
+function ARRAY_SLICE_positional_args_to_named_param_map(...args) {
+  return { array: args[0], start: args[1], end: args[2] };
+}
+
+// Additional array function converters
+function ARRAY_PUSH_positional_args_to_named_param_map(...args) {
+  return { array: args[0], items: args.slice(1) };
+}
+
+function ARRAY_POP_positional_args_to_named_param_map(...args) {
+  return { array: args[0] };
+}
+
+function ARRAY_SHIFT_positional_args_to_named_param_map(...args) {
+  return { array: args[0] };
+}
+
+function ARRAY_UNSHIFT_positional_args_to_named_param_map(...args) {
+  return { array: args[0], items: args.slice(1) };
+}
+
+function ARRAY_REVERSE_positional_args_to_named_param_map(...args) {
+  return { array: args[0] };
+}
+
+function ARRAY_INCLUDES_positional_args_to_named_param_map(...args) {
+  return { array: args[0], item: args[1] };
+}
+
+function ARRAY_INDEXOF_positional_args_to_named_param_map(...args) {
+  return { array: args[0], item: args[1] };
+}
+
+function ARRAY_MIN_positional_args_to_named_param_map(...args) {
+  return { array: args[0] };
+}
+
+function ARRAY_MAX_positional_args_to_named_param_map(...args) {
+  return { array: args[0] };
+}
+
+function ARRAY_SUM_positional_args_to_named_param_map(...args) {
+  return { array: args[0] };
+}
+
+function ARRAY_AVERAGE_positional_args_to_named_param_map(...args) {
+  return { array: args[0] };
+}
+
+function ARRAY_UNIQUE_positional_args_to_named_param_map(...args) {
+  return { array: args[0], compareExpression: args[1] };
+}
+
+function ARRAY_FLATTEN_positional_args_to_named_param_map(...args) {
+  return { array: args[0], depth: args[1] };
+}
+
+function SELECT_positional_args_to_named_param_map(...args) {
+  return { array: args[0], columns: args[1], whereClause: args[2] };
+}
+
+function GROUP_BY_positional_args_to_named_param_map(...args) {
+  return { array: args[0], groupKey: args[1] };
+}
+
+function DISTINCT_positional_args_to_named_param_map(...args) {
+  return { array: args[0], property: args[1] };
+}
+
+function ARRAY_REDUCE_positional_args_to_named_param_map(...args) {
+  return { array: args[0], reduceExpression: args[1], initialValue: args[2] };
+}
+
+function SUMMARY_positional_args_to_named_param_map(...args) {
+  return { array: args[0], property: args[1] };
+}
+
+function REGRESSION_positional_args_to_named_param_map(...args) {
+  return { xArray: args[0], yArray: args[1], type: args[2] };
+}
+
+function FORECAST_positional_args_to_named_param_map(...args) {
+  return { historicalData: args[0], periods: args[1], method: args[2] };
+}
+
+function CORRELATION_MATRIX_positional_args_to_named_param_map(...args) {
+  return { data: args[0], properties: args[1] };
+}
+
+function MAP_positional_args_to_named_param_map(...args) {
+  return { array: args[0], mapExpression: args[1] };
+}
+
+function FILTER_positional_args_to_named_param_map(...args) {
+  return { array: args[0], filterExpression: args[1] };
+}
+
+function REDUCE_positional_args_to_named_param_map(...args) {
+  return { array: args[0], reduceExpression: args[1], initialValue: args[2] };
+}
+
 // Export for both Node.js and browser
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { arrayFunctions };
+  module.exports = {
+    arrayFunctions,
+    ARRAY_GET_positional_args_to_named_param_map,
+    ARRAY_SET_positional_args_to_named_param_map,
+    ARRAY_LENGTH_positional_args_to_named_param_map,
+    ARRAY_FILTER_positional_args_to_named_param_map,
+    ARRAY_SORT_positional_args_to_named_param_map,
+    ARRAY_FIND_positional_args_to_named_param_map,
+    ARRAY_MAP_positional_args_to_named_param_map,
+    ARRAY_JOIN_positional_args_to_named_param_map,
+    ARRAY_CONCAT_positional_args_to_named_param_map,
+    SPLIT_positional_args_to_named_param_map,
+    JOIN_positional_args_to_named_param_map,
+    ARRAY_SLICE_positional_args_to_named_param_map,
+    ARRAY_PUSH_positional_args_to_named_param_map,
+    ARRAY_POP_positional_args_to_named_param_map,
+    ARRAY_SHIFT_positional_args_to_named_param_map,
+    ARRAY_UNSHIFT_positional_args_to_named_param_map,
+    ARRAY_REVERSE_positional_args_to_named_param_map,
+    ARRAY_INCLUDES_positional_args_to_named_param_map,
+    ARRAY_INDEXOF_positional_args_to_named_param_map,
+    ARRAY_MIN_positional_args_to_named_param_map,
+    ARRAY_MAX_positional_args_to_named_param_map,
+    ARRAY_SUM_positional_args_to_named_param_map,
+    ARRAY_AVERAGE_positional_args_to_named_param_map,
+    ARRAY_UNIQUE_positional_args_to_named_param_map,
+    ARRAY_FLATTEN_positional_args_to_named_param_map,
+    SELECT_positional_args_to_named_param_map,
+    GROUP_BY_positional_args_to_named_param_map,
+    DISTINCT_positional_args_to_named_param_map,
+    ARRAY_REDUCE_positional_args_to_named_param_map,
+    SUMMARY_positional_args_to_named_param_map,
+    REGRESSION_positional_args_to_named_param_map,
+    FORECAST_positional_args_to_named_param_map,
+    CORRELATION_MATRIX_positional_args_to_named_param_map,
+    MAP_positional_args_to_named_param_map,
+    FILTER_positional_args_to_named_param_map,
+    REDUCE_positional_args_to_named_param_map
+  };
 } else if (typeof window !== 'undefined') {
   window.arrayFunctions = arrayFunctions;
+  window.ARRAY_GET_positional_args_to_named_param_map = ARRAY_GET_positional_args_to_named_param_map;
+  window.ARRAY_SET_positional_args_to_named_param_map = ARRAY_SET_positional_args_to_named_param_map;
+  window.ARRAY_LENGTH_positional_args_to_named_param_map = ARRAY_LENGTH_positional_args_to_named_param_map;
+  window.ARRAY_FILTER_positional_args_to_named_param_map = ARRAY_FILTER_positional_args_to_named_param_map;
+  window.ARRAY_SORT_positional_args_to_named_param_map = ARRAY_SORT_positional_args_to_named_param_map;
+  window.ARRAY_FIND_positional_args_to_named_param_map = ARRAY_FIND_positional_args_to_named_param_map;
+  window.ARRAY_MAP_positional_args_to_named_param_map = ARRAY_MAP_positional_args_to_named_param_map;
+  window.ARRAY_JOIN_positional_args_to_named_param_map = ARRAY_JOIN_positional_args_to_named_param_map;
+  window.ARRAY_CONCAT_positional_args_to_named_param_map = ARRAY_CONCAT_positional_args_to_named_param_map;
+  window.SPLIT_positional_args_to_named_param_map = SPLIT_positional_args_to_named_param_map;
+  window.JOIN_positional_args_to_named_param_map = JOIN_positional_args_to_named_param_map;
+  window.ARRAY_SLICE_positional_args_to_named_param_map = ARRAY_SLICE_positional_args_to_named_param_map;
+  window.ARRAY_PUSH_positional_args_to_named_param_map = ARRAY_PUSH_positional_args_to_named_param_map;
+  window.ARRAY_POP_positional_args_to_named_param_map = ARRAY_POP_positional_args_to_named_param_map;
+  window.ARRAY_SHIFT_positional_args_to_named_param_map = ARRAY_SHIFT_positional_args_to_named_param_map;
+  window.ARRAY_UNSHIFT_positional_args_to_named_param_map = ARRAY_UNSHIFT_positional_args_to_named_param_map;
+  window.ARRAY_REVERSE_positional_args_to_named_param_map = ARRAY_REVERSE_positional_args_to_named_param_map;
+  window.ARRAY_INCLUDES_positional_args_to_named_param_map = ARRAY_INCLUDES_positional_args_to_named_param_map;
+  window.ARRAY_INDEXOF_positional_args_to_named_param_map = ARRAY_INDEXOF_positional_args_to_named_param_map;
+  window.ARRAY_MIN_positional_args_to_named_param_map = ARRAY_MIN_positional_args_to_named_param_map;
+  window.ARRAY_MAX_positional_args_to_named_param_map = ARRAY_MAX_positional_args_to_named_param_map;
+  window.ARRAY_SUM_positional_args_to_named_param_map = ARRAY_SUM_positional_args_to_named_param_map;
+  window.ARRAY_AVERAGE_positional_args_to_named_param_map = ARRAY_AVERAGE_positional_args_to_named_param_map;
+  window.ARRAY_UNIQUE_positional_args_to_named_param_map = ARRAY_UNIQUE_positional_args_to_named_param_map;
+  window.ARRAY_FLATTEN_positional_args_to_named_param_map = ARRAY_FLATTEN_positional_args_to_named_param_map;
+  window.SELECT_positional_args_to_named_param_map = SELECT_positional_args_to_named_param_map;
+  window.GROUP_BY_positional_args_to_named_param_map = GROUP_BY_positional_args_to_named_param_map;
+  window.DISTINCT_positional_args_to_named_param_map = DISTINCT_positional_args_to_named_param_map;
+  window.ARRAY_REDUCE_positional_args_to_named_param_map = ARRAY_REDUCE_positional_args_to_named_param_map;
+  window.SUMMARY_positional_args_to_named_param_map = SUMMARY_positional_args_to_named_param_map;
+  window.REGRESSION_positional_args_to_named_param_map = REGRESSION_positional_args_to_named_param_map;
+  window.FORECAST_positional_args_to_named_param_map = FORECAST_positional_args_to_named_param_map;
+  window.CORRELATION_MATRIX_positional_args_to_named_param_map = CORRELATION_MATRIX_positional_args_to_named_param_map;
+  window.MAP_positional_args_to_named_param_map = MAP_positional_args_to_named_param_map;
+  window.FILTER_positional_args_to_named_param_map = FILTER_positional_args_to_named_param_map;
+  window.REDUCE_positional_args_to_named_param_map = REDUCE_positional_args_to_named_param_map;
 }

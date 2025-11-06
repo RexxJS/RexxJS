@@ -1,0 +1,83 @@
+>> 3 SAY "=== REXX Variables and Assignment Demo ==="
+=== REXX Variables and Assignment Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "Basic Assignment:"
+Basic Assignment:
+>> 8 LET name = "Alice"
+>> 9 LET age = 30
+>> 10 LET active = 1
+>> 11 SAY "  name = " || name
+  name = Alice
+>> 12 SAY "  age = " || age
+  age = 30
+>> 13 SAY "  active = " || active
+  active = 1
+>> 14 SAY ""
+
+>> 17 SAY "String Concatenation:"
+String Concatenation:
+>> 18 LET firstName = "John"
+>> 19 LET lastName = "Smith"
+>> 20 LET fullName = firstName || " " || lastName
+>> 21 SAY "  firstName = " || firstName
+  firstName = John
+>> 22 SAY "  lastName = " || lastName
+  lastName = Smith
+>> 23 SAY "  fullName = " || fullName
+  fullName = John Smith
+>> 24 SAY ""
+
+>> 27 SAY "Type Coercion:"
+Type Coercion:
+>> 28 LET numStr = "42"
+>> 29 LET result = numStr + 8
+>> 30 SAY "  numStr = '" || numStr || "' (treated as '" || numStr || "')"
+  numStr = '42' (treated as '42')
+>> 31 SAY "  numStr + 8 = " || result || " (numeric operation)"
+  numStr + 8 = 50 (numeric operation)
+>> 32 LET textResult = result || " items"
+>> 33 SAY "  result || ' items' = '" || textResult || "'"
+  result || ' items' = '50 items'
+>> 34 SAY ""
+
+>> 37 SAY "Numeric String Comparison:"
+Numeric String Comparison:
+>> 38 LET val1 = "10"
+>> 39 LET val2 = "2"
+>> 40 SAY "  val1 = '" || val1 || "', val2 = '" || val2 || "'"
+  val1 = '10', val2 = '2'
+>> 41 IF val1 > val2 THEN
+>> 42 SAY "  String comparison: '" || val1 || "' > '" || val2 || "' = TRUE"
+  String comparison: '10' > '2' = TRUE
+>> 44 SAY "  Numeric result: " || val1 || " > " || val2 || " = " || (val1 + 0 > val2 + 0)
+  Numeric result: 10 > 2 = 10
+>> 45 SAY ""
+
+>> 48 SAY "Variable Initialization:"
+Variable Initialization:
+>> 49 LET counter = 0
+>> 50 LET total = 0
+>> 51 LET message = ""
+>> 52 SAY "  counter = " || counter
+  counter = 0
+>> 53 SAY "  total = " || total
+  total = 0
+>> 54 SAY "  message = '" || message || "'"
+  message = ''
+>> 55 SAY ""
+
+>> 58 SAY "Variable Updates:"
+Variable Updates:
+>> 59 LET count = 5
+>> 60 SAY "  Initial count = " || count
+  Initial count = 5
+>> 61 count = count + 3
+>> 62 SAY "  After count = count + 3: " || count
+  After count = count + 3: 8
+>> 63 LET status = "active"
+>> 64 SAY "  status = " || status
+  status = active
+>> 65 status = UPPER(status)
+>> 66 SAY "  After UPPER: " || status
+  After UPPER: ACTIVE

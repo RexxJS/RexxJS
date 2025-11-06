@@ -76,24 +76,24 @@ function getLibraryType(libraryName, isBuiltinLibraryFn) {
   if (isBuiltinLibraryFn(libraryName)) {
     return 'builtin';
   }
-  
-  // Check if it's a direct HTTPS URL
-  if (libraryName.startsWith('https://')) {
-    return 'https-url';
+
+  // Check if it's a direct HTTPS or HTTP URL (including localhost development server)
+  if (libraryName.startsWith('https://') || libraryName.startsWith('http://')) {
+    return 'https-url'; // Treated as HTTPS-URL type even if HTTP for security/permission purposes
   }
-  
+
   // Check if it's a local file path
   if (libraryName.startsWith('./') || libraryName.startsWith('../') || libraryName.startsWith('/')) {
     return 'local';
   }
-  
+
   // Check if it follows Go-style module path
-  if (libraryName.startsWith('github.com/') || 
-      libraryName.startsWith('gitlab.com/') || 
+  if (libraryName.startsWith('github.com/') ||
+      libraryName.startsWith('gitlab.com/') ||
       libraryName.startsWith('dev.azure.com/')) {
     return 'module'; // e.g., "github.com/username/my-rexx-lib", "gitlab.com/user/repo", "dev.azure.com/org/project"
   }
-  
+
   // Everything else is third-party (no more complex fallback classifications)
   return 'third-party';
 }
@@ -223,11 +223,11 @@ function resolveWebLibraryUrl(libraryName) {
     }
   }
   
-  // Handle direct HTTPS URLs - return as-is
-  if (libraryName.startsWith('https://')) {
+  // Handle direct HTTP/HTTPS URLs - return as-is
+  if (libraryName.startsWith('https://') || libraryName.startsWith('http://')) {
     return libraryName;
   }
-  
+
   // Handle relative paths (../src/file.js or ./file.js) - return as-is
   if (libraryName.startsWith('../') || libraryName.startsWith('./') || libraryName.startsWith('/')) {
     return libraryName;

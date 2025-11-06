@@ -1,0 +1,23 @@
+>> 3 SAY "=== REXX Type Checking Demo ==="
+=== REXX Type Checking Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "SYMBOL() - Check Variable Definition:"
+SYMBOL() - Check Variable Definition:
+>> 8 LET defined = "I exist"
+>> 9 SAY "  SYMBOL('defined'): " || SYMBOL('defined')
+  SYMBOL('defined'): VAR
+>> 10 SAY "  SYMBOL('undefined'): " || SYMBOL('undefined')
+  SYMBOL('undefined'): LIT
+>> 11 SAY ""
+
+>> 14 SAY "Numeric String Detection:"
+Numeric String Detection:
+>> 15 LET num1 = "123"
+>> 16 LET num2 = "45.67"
+>> 17 LET text = "hello"
+>> 18 LET mixed = "12abc"
+>> 21 LET check1 = num1 + 0
+>> 22 LET check2 = text + 0
+Script Error: Error at line 22: LET check2 = undefined
+Non-numeric value in arithmetic: 'hello' is not a valid number

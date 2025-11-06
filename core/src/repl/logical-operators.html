@@ -14,6 +14,9 @@
     <!-- Load the document write styled output handler -->
     <script src="../output/document-write-styled-output-handler.js"></script>
 
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
     <!-- REXX Script for logical operators demonstration -->
     <script type="text/rexx" id="logical-operators-script">
         /* Auto-executing REXX Logical Operators Demo */
@@ -26,8 +29,7 @@
         LET age = 25
         LET hasDL = 1
         SAY "  age = " || age || ", hasDL = " || hasDL
-        IF age >= 18 & hasDL = 1 THEN
-            SAY "  Can drive: TRUE (both conditions met)"
+        IF age >= 18 & hasDL = 1 THEN SAY "  Can drive: TRUE (both conditions met)"
         SAY ""
 
         /* OR operator (|) */
@@ -35,18 +37,15 @@
         LET isWeekend = 0
         LET isHoliday = 1
         SAY "  isWeekend = " || isWeekend || ", isHoliday = " || isHoliday
-        IF isWeekend | isHoliday THEN
-            SAY "  No work today: TRUE (at least one condition met)"
+        IF isWeekend | isHoliday THEN SAY "  No work today: TRUE (at least one condition met)"
         SAY ""
 
         /* NOT operator (\) */
         SAY "NOT Operator (\):"
         LET isActive = 1
         SAY "  isActive = " || isActive
-        IF \ isActive THEN
-            SAY "  Is inactive: TRUE"
-        ELSE
-            SAY "  Is inactive: FALSE (isActive is " || isActive || ")"
+        IF \ isActive THEN SAY "  Is inactive: TRUE"
+        ELSE SAY "  Is inactive: FALSE (isActive is " || isActive || ")"
         SAY ""
 
         /* Complex boolean expressions */
@@ -55,8 +54,7 @@
         LET attendance = 0.85
         LET extraCredit = 1
         SAY "  score = " || score || ", attendance = " || attendance || ", extraCredit = " || extraCredit
-        IF (score >= 70 | extraCredit) & attendance > 0.8 THEN
-            SAY "  Passes course: TRUE (score or extra credit, AND good attendance)"
+        IF (score >= 70 | extraCredit) & attendance > 0.8 THEN SAY "  Passes course: TRUE (score or extra credit, AND good attendance)"
         SAY ""
 
         /* Operator precedence */
@@ -65,10 +63,8 @@
         LET b = 0
         LET c = 1
         SAY "  a = " || a || ", b = " || b || ", c = " || c
-        IF a | b & c THEN
-            SAY "  a | b & c: TRUE (evaluated as: a | (b & c))"
-        ELSE
-            SAY "  a | b & c: FALSE"
+        IF a | b & c THEN SAY "  a | b & c: TRUE (evaluated as: a | (b & c))"
+        ELSE SAY "  a | b & c: FALSE"
         SAY ""
 
         /* De Morgan's Laws */
@@ -76,19 +72,17 @@
         LET x = 1
         LET y = 0
         SAY "  x = " || x || ", y = " || y
-        IF \ (x & y) THEN
-            SAY "  NOT (x AND y): TRUE"
-        IF (\ x) | (\ y) THEN
-            SAY "  (NOT x) OR (NOT y): TRUE (De Morgan equivalent)"
+        IF \ (x & y) THEN SAY "  NOT (x AND y): TRUE"
+        IF (\ x) | (\ y) THEN SAY "  (NOT x) OR (NOT y): TRUE (De Morgan equivalent)"
         SAY ""
 
         /* Short-circuit evaluation */
         SAY "Short-circuit Evaluation:"
         LET value = 10
         SAY "  value = " || value
-        IF value > 5 | (value / 0) THEN
-            SAY "  First part true, short-circuit prevents division by zero"
+        IF value > 5 | (value / 0) THEN SAY "  First part true, short-circuit prevents division by zero"
         SAY ""
+        SAY "=== Logical Operators Demo Complete ==="
 
         /* Truth table demonstration */
         SAY "AND Truth Table:"
@@ -122,28 +116,36 @@
     <div class="output-section">
 
         <script>
-            // Auto-execute - DOM is already loaded since script is at bottom of page
-            (async function() {
-                // Create styled output handler with null container to trigger document.write
-                const outputHandler = new DocumentWriteStyledOutputHandler(
-                    false,         // No timestamps - we want clean output
-                    'rexx-output', // CSS class
-                    null          // trigger document.write!
-                );
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
 
-                // Create interpreter with the output handler
-                const interpreter = new RexxInterpreterBuilder(null)
-                .withOutputHandler({
-                    output: (text) => {
-                        outputHandler.output(text);
-                    }
-                })
-                .withTraceToOutput(true)  // Enable trace mode - shows executed REXX lines
-                .build();
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
 
-                // Execute the REXX script directly by ID
-                await interpreter.runScriptInId('logical-operators-script');
-            })();
+                try {
+                    await executeRexxDemo('logical-operators-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
         </script>
     </div>
 

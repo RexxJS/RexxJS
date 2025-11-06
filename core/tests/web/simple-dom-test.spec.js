@@ -10,14 +10,14 @@ test.describe('Simple DOM Function Test', () => {
     await page.waitForSelector('#rexx-script');
 
     const script = `
--- Simple test of DOM functions
-LET buttons = DOM_GET_ALL selector=".test-collection button"
+-- Simple test of DOM functions using unified ELEMENT() API
+LET buttons = ELEMENT(selector=".test-collection button" operation="all")
 SAY "Found " || buttons.length || " buttons"
 
 LET firstButton = ARRAY_GET(buttons, 1)
 SAY "First button reference: " || firstButton
 
-LET text = DOM_ELEMENT_TEXT element=firstButton
+LET text = ELEMENT(element=firstButton operation="text")
 SAY "First button text: " || text
     `;
     

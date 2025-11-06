@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>DOM Scoped REXX - Interpreter Scope Registration Test</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .script-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .rexx-script {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .rexx-script h2 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            color: #555;
+        }
+
+        .rexx-script.RexxScript {
+            border-color: #4CAF50;
+            background: #fafafa;
+        }
+
+        .rexx-script.RexxScript::before {
+            content: "✓ RexxScript Scope";
+            display: block;
+            font-size: 12px;
+            color: #4CAF50;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 80px;
+            padding: 10px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            resize: vertical;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .output {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            min-height: 60px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #333;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .output.success {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .output.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.running {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .tests-section {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 20px;
+            margin-top: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .tests-section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .test-controls button {
+            margin: 0;
+        }
+
+        #test-results {
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 10px;
+            background: #fafafa;
+            min-height: 60px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .test-result-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-left: 3px solid #ddd;
+            background: white;
+        }
+
+        .test-result-item.pass {
+            border-left-color: #4CAF50;
+            background: #f1f8f5;
+        }
+
+        .test-result-item.pass::before {
+            content: "✓ PASS";
+            color: #4CAF50;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .test-result-item.fail {
+            border-left-color: #f44336;
+            background: #fef5f5;
+        }
+
+        .test-result-item.fail::before {
+            content: "✗ FAIL";
+            color: #f44336;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 DOM Scoped REXX Interpreter Test</h1>
+
+        <div class="script-container">
+            <!-- Script 1: With RexxScript class for isolated scope -->
+            <div class="rexx-script RexxScript" id="script1-container">
+                <h2>Script 1 (Isolated Scope)</h2>
+                <textarea id="script1" placeholder="Enter REXX code...">SAY "Hello from Script 1"
+LET x = 42
+INTERPRET_JS "window.script1TestValue = {x: x.value, funcExists: typeof window.FILTER_BY_ATTR !== 'undefined'}"</textarea>
+                <button onclick="runScript1()">Run Script 1</button>
+                <div class="status" id="status1">Ready</div>
+                <div class="output" id="output1"></div>
+            </div>
+
+            <!-- Script 2: With RexxScript class for isolated scope -->
+            <div class="rexx-script RexxScript" id="script2-container">
+                <h2>Script 2 (Isolated Scope)</h2>
+                <textarea id="script2" placeholder="Enter REXX code...">SAY "Hello from Script 2"
+LET y = 84
+INTERPRET_JS "window.script2TestValue = {y: y.value, funcExists: typeof window.FILTER_BY_ATTR !== 'undefined'}"</textarea>
+                <button onclick="runScript2()">Run Script 2</button>
+                <div class="status" id="status2">Ready</div>
+                <div class="output" id="output2"></div>
+            </div>
+        </div>
+
+        <div class="rexx-script">
+            <h2>Script 3 (Window Scope - no RexxScript class)</h2>
+            <textarea id="script3" placeholder="Enter REXX code...">SAY "Hello from Script 3 - using global window"
+LET z = 126
+INTERPRET_JS "window.script3TestValue = {z: z.value}"</textarea>
+            <button onclick="runScript3()">Run Script 3</button>
+            <div class="status" id="status3">Ready</div>
+            <div class="output" id="output3"></div>
+        </div>
+
+        <div class="tests-section">
+            <h2>🧪 Automated Tests</h2>
+            <div class="test-controls">
+                <button onclick="runAllTests()">Run All Tests</button>
+                <button onclick="clearTestResults()">Clear Results</button>
+            </div>
+            <div id="test-results"></div>
+        </div>
+    </div>
+
+    <!-- Load REXX interpreter -->
+    <script src="../../src/interpreter-web-loader.js"></script>
+
+    <script>
+        let interpreter1 = null;
+        let interpreter2 = null;
+        let interpreter3 = null;
+        let testCount = 0;
+
+        /**
+         * Update UI status
+         */
+        function updateStatus(elementId, message, type = 'ready') {
+            const statusEl = document.getElementById(elementId);
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        /**
+         * Update output display
+         */
+        function updateOutput(elementId, text, isError = false) {
+            const outputEl = document.getElementById(elementId);
+            outputEl.textContent += text + '\n';
+            outputEl.className = `output ${isError ? 'error' : 'success'}`;
+        }
+
+        /**
+         * Initialize interpreters when page loads
+         */
+        async function initializeInterpreters() {
+            try {
+                await RexxWebLoader.load();
+
+                // Create three interpreters with different scope configurations
+                const script1Container = document.getElementById('script1-container');
+                const script2Container = document.getElementById('script2-container');
+
+                // Interpreters 1 and 2 should find RexxScript class and isolate their scope
+                interpreter1 = new RexxInterpreter(null, {
+                    scopeElement: script1Container,
+                    output: (text) => updateOutput('output1', text)
+                });
+
+                interpreter2 = new RexxInterpreter(null, {
+                    scopeElement: script2Container,
+                    output: (text) => updateOutput('output2', text)
+                });
+
+                // Interpreter 3 uses global window scope
+                interpreter3 = new RexxInterpreter(null, {
+                    output: (text) => updateOutput('output3', text)
+                });
+
+                updateStatus('status1', 'Ready (Isolated Scope)', 'ready');
+                updateStatus('status2', 'Ready (Isolated Scope)', 'ready');
+                updateStatus('status3', 'Ready (Window Scope)', 'ready');
+
+            } catch (error) {
+                console.error('Failed to initialize interpreters:', error);
+                updateStatus('status1', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        /**
+         * Run Script 1
+         */
+        async function runScript1() {
+            if (!interpreter1) {
+                updateStatus('status1', 'Interpreter not ready', 'error');
+                return;
+            }
+
+            updateStatus('status1', 'Running...', 'running');
+            document.getElementById('output1').textContent = '';
+
+            try {
+                const code = document.getElementById('script1').value;
+                const commands = parse(code);
+                await interpreter1.run(commands);
+                updateStatus('status1', 'Completed', 'ready');
+            } catch (error) {
+                updateStatus('status1', `Error: ${error.message}`, 'error');
+                updateOutput('output1', `ERROR: ${error.message}`, true);
+            }
+        }
+
+        /**
+         * Run Script 2
+         */
+        async function runScript2() {
+            if (!interpreter2) {
+                updateStatus('status2', 'Interpreter not ready', 'error');
+                return;
+            }
+
+            updateStatus('status2', 'Running...', 'running');
+            document.getElementById('output2').textContent = '';
+
+            try {
+                const code = document.getElementById('script2').value;
+                const commands = parse(code);
+                await interpreter2.run(commands);
+                updateStatus('status2', 'Completed', 'ready');
+            } catch (error) {
+                updateStatus('status2', `Error: ${error.message}`, 'error');
+                updateOutput('output2', `ERROR: ${error.message}`, true);
+            }
+        }
+
+        /**
+         * Run Script 3
+         */
+        async function runScript3() {
+            if (!interpreter3) {
+                updateStatus('status3', 'Interpreter not ready', 'error');
+                return;
+            }
+
+            updateStatus('status3', 'Running...', 'running');
+            document.getElementById('output3').textContent = '';
+
+            try {
+                const code = document.getElementById('script3').value;
+                const commands = parse(code);
+                await interpreter3.run(commands);
+                updateStatus('status3', 'Completed', 'ready');
+            } catch (error) {
+                updateStatus('status3', `Error: ${error.message}`, 'error');
+                updateOutput('output3', `ERROR: ${error.message}`, true);
+            }
+        }
+
+        /**
+         * Add test result to UI
+         */
+        function addTestResult(testName, passed, details = '') {
+            const resultsDiv = document.getElementById('test-results');
+            const resultItem = document.createElement('div');
+            resultItem.className = `test-result-item ${passed ? 'pass' : 'fail'}`;
+            resultItem.textContent = testName;
+            if (details) {
+                resultItem.textContent += ` - ${details}`;
+            }
+            resultsDiv.appendChild(resultItem);
+            testCount++;
+        }
+
+        /**
+         * Clear test results
+         */
+        function clearTestResults() {
+            document.getElementById('test-results').textContent = '';
+            testCount = 0;
+        }
+
+        /**
+         * Run all automated tests
+         */
+        async function runAllTests() {
+            clearTestResults();
+            testCount = 0;
+
+            try {
+                // Test 1: Interpreters are created
+                addTestResult('Interpreters initialized',
+                    interpreter1 !== null && interpreter2 !== null && interpreter3 !== null,
+                    'All three interpreters created successfully'
+                );
+
+                // Test 2: Scope elements are correctly identified
+                addTestResult('Script 1 has isolated scope',
+                    interpreter1.scopeElement === document.getElementById('script1-container'),
+                    'Script 1 scope element matches container'
+                );
+
+                addTestResult('Script 2 has isolated scope',
+                    interpreter2.scopeElement === document.getElementById('script2-container'),
+                    'Script 2 scope element matches container'
+                );
+
+                addTestResult('Script 3 uses window scope',
+                    interpreter3.scopeElement === null,
+                    'Script 3 defaults to window'
+                );
+
+                // Test 3: Run scripts and capture outputs
+                await runScript1();
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                await runScript2();
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                await runScript3();
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                // Test 4: Check outputs are present
+                const output1 = document.getElementById('output1').textContent;
+                const output2 = document.getElementById('output2').textContent;
+                const output3 = document.getElementById('output3').textContent;
+
+                addTestResult('Script 1 produces output',
+                    output1.includes('Hello from Script 1'),
+                    'Script 1 output found'
+                );
+
+                addTestResult('Script 2 produces output',
+                    output2.includes('Hello from Script 2'),
+                    'Script 2 output found'
+                );
+
+                addTestResult('Script 3 produces output',
+                    output3.includes('Hello from Script 3'),
+                    'Script 3 output found'
+                );
+
+                // Test 5: Scope isolation test - check if window has global FILTER_BY_ATTR
+                const hasGlobalFunction = typeof window.FILTER_BY_ATTR !== 'undefined';
+                addTestResult('Global window functions available',
+                    hasGlobalFunction,
+                    'FILTER_BY_ATTR exists in window'
+                );
+
+                // Test 6: Check INTERPRET_JS execution with scope verification
+                if (window.script1TestValue) {
+                    addTestResult('Script 1 scope isolation verified',
+                        window.script1TestValue.x === 42,
+                        `Script 1 variable x = ${window.script1TestValue.x}`
+                    );
+                }
+
+                if (window.script2TestValue) {
+                    addTestResult('Script 2 scope isolation verified',
+                        window.script2TestValue.y === 84,
+                        `Script 2 variable y = ${window.script2TestValue.y}`
+                    );
+                }
+
+                if (window.script3TestValue) {
+                    addTestResult('Script 3 uses global scope',
+                        window.script3TestValue.z === 126,
+                        `Script 3 variable z = ${window.script3TestValue.z}`
+                    );
+                }
+
+                // Test 7: Check that scope registries are unique
+                const registry1HasFuncs = interpreter1.scopeRegistry &&
+                    interpreter1.scopeElement &&
+                    interpreter1.scopeElement.__rexxFunctions;
+                const registry2HasFuncs = interpreter2.scopeRegistry &&
+                    interpreter2.scopeElement &&
+                    interpreter2.scopeElement.__rexxFunctions;
+
+                addTestResult('Interpreters have isolated scope registries',
+                    registry1HasFuncs !== registry2HasFuncs || (registry1HasFuncs === undefined && registry2HasFuncs === undefined),
+                    'Scope registries are separate'
+                );
+
+            } catch (error) {
+                addTestResult('Test execution', false, `Error: ${error.message}`);
+            }
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', initializeInterpreters);
+    </script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+>> 3 SAY "=== REXX SELECT/WHEN/OTHERWISE Demo ===\n"
+=== REXX SELECT/WHEN/OTHERWISE Demo ===
+
+>> 6 SAY "1. Basic SELECT Statement:"
+1. Basic SELECT Statement:
+>> 7 LET grade = "B"
+>> (no line#) SELECT
+>> 12 SAY "  Good job!"
+  Good job!
+>> 18 SAY ""
+
+>> 21 SAY "2. SELECT with Numeric Comparison:"
+2. SELECT with Numeric Comparison:
+>> 22 LET score = 85
+>> (no line#) SELECT
+>> 27 SAY "  Grade: B"
+  Grade: B
+>> 35 SAY ""
+
+>> 38 SAY "3. SELECT with Complex Conditions:"
+3. SELECT with Complex Conditions:
+>> 39 LET age = 25
+>> 40 LET isStudent = 1
+>> (no line#) SELECT
+>> 49 SAY "  Category: Adult Student"
+  Category: Adult Student
+>> 55 SAY ""
+
+>> 58 SAY "4. SELECT with String Operations:"
+4. SELECT with String Operations:
+>> 59 LET color = "red"
+>> 60 LET color_upper = UPPER(color)
+>> (no line#) SELECT
+>> 63 SAY "  You chose: Warm color (Red)"
+  You chose: Warm color (Red)
+>> 73 SAY ""
+
+>> 76 SAY "5. Nested SELECT Statement:"
+5. Nested SELECT Statement:
+>> 77 LET department = "Sales"
+>> 78 LET level = "Manager"
+>> (no line#) SELECT
+>> (no line#) SELECT
+>> 83 SAY "  Role: Sales Manager"
+  Role: Sales Manager
+>> 106 SAY ""
+
+>> 109 SAY "6. SELECT with Specific Match and Fallback:"
+6. SELECT with Specific Match and Fallback:
+>> 110 LET status = "inactive"
+>> (no line#) SELECT
+>> 117 SAY "  Status: System is " || status
+  Status: System is inactive
+>> 119 SAY ""
+
+>> 122 SAY "7. SELECT for Action Dispatch:"
+7. SELECT for Action Dispatch:
+>> 123 LET command = "list"
+>> (no line#) SELECT
+>> 130 SAY "  Action: Displaying all items"
+  Action: Displaying all items
+>> 136 SAY ""
+
+>> 139 SAY "8. SELECT with Range Conditions:"
+8. SELECT with Range Conditions:
+>> 140 LET temperature = 22
+>> (no line#) SELECT
+>> 149 SAY "  Condition: Warm"
+  Condition: Warm
+>> 153 SAY ""
+
+>> 155 SAY "=== SELECT/WHEN/OTHERWISE Demo Complete ==="
+=== SELECT/WHEN/OTHERWISE Demo Complete ===

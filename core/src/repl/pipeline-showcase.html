@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS Pipeline Showcase</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for pipeline showcase -->
+    <script type="text/rexx" id="pipeline-script">
+        /* Auto-executing REXX Pipeline Showcase */
+
+        SAY "=== RexxJS Pipeline Operator (|>) Showcase ===\n"
+
+        /* Example 1: Simple data transformation */
+        SAY "1. Simple Number Transformation:"
+        LET numbers = [1, 2, 3, 4, 5]
+        LET result = numbers |> ARRAY_MAP("x * 2") |> ARRAY_MAP("x + 1")
+        SAY "  Original: " || JSON_STRINGIFY(numbers)
+        SAY "  After (x*2) then (x+1): " || JSON_STRINGIFY(result)
+        SAY ""
+
+        /* Example 2: Filtering and reducing */
+        SAY "2. Filter Then Reduce:"
+        LET values = [10, 5, 20, 15, 8, 25]
+        LET evens = values |> ARRAY_FILTER("x % 2 = 0")
+        LET evenSum = evens |> ARRAY_REDUCE("sum + x", 0)
+        SAY "  Original: " || JSON_STRINGIFY(values)
+        SAY "  Even numbers: " || JSON_STRINGIFY(evens)
+        SAY "  Sum of evens: " || evenSum
+        SAY ""
+
+        /* Example 3: String transformations */
+        SAY "3. String Processing Pipeline:"
+        LET text = "  hello world  "
+        LET processed = text |> STRIP() |> UPPER() |> LEFT(5)
+        SAY "  Original: '" || text || "'"
+        SAY "  After STRIP() |> UPPER() |> LEFT(5): '" || processed || "'"
+        SAY ""
+
+        /* Example 4: Complex data pipeline */
+        SAY "4. Complex Data Pipeline:"
+        LET data = [5, 2, 8, 1, 9, 3, 7, 4]
+        LET sorted = data |> ARRAY_SORT()
+        LET reversed = sorted |> ARRAY_REVERSE()
+        LET top3 = reversed |> ARRAY_SLICE(0, 3)
+        SAY "  Original: " || JSON_STRINGIFY(data)
+        SAY "  Sorted: " || JSON_STRINGIFY(sorted)
+        SAY "  Reversed: " || JSON_STRINGIFY(reversed)
+        SAY "  Top 3: " || JSON_STRINGIFY(top3)
+        SAY ""
+
+        /* Example 5: Pipe with JSON parsing */
+        SAY "5. JSON Parse Pipeline:"
+        LET jsonStr = '{"name": "Alice", "age": 30, "city": "NYC"}'
+        LET person = jsonStr |> JSON_PARSE()
+        LET name = person.name |> UPPER()
+        SAY "  JSON: " || jsonStr
+        SAY "  Parsed name (uppercase): " || name
+        SAY ""
+
+        /* Example 6: Array unique and sort */
+        SAY "6. Deduplication and Sorting:"
+        LET items = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3]
+        LET unique = items |> ARRAY_UNIQUE() |> ARRAY_SORT()
+        SAY "  Original: " || JSON_STRINGIFY(items)
+        SAY "  Unique and sorted: " || JSON_STRINGIFY(unique)
+        SAY ""
+
+        /* Example 7: Pipeline with type conversion */
+        SAY "7. Type Conversion Pipeline:"
+        LET words = ["100", "200", "300", "400"]
+        LET numbers = words |> ARRAY_MAP("x / 2")
+        SAY "  String array: " || JSON_STRINGIFY(words)
+        SAY "  Parsed and halved: " || JSON_STRINGIFY(numbers)
+        SAY ""
+
+        SAY "=== Pipeline Showcase Complete ===\n"
+        SAY "The pipe operator (|>) enables elegant data transformation chains!"
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS Pipeline Operator Showcase</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating the powerful pipe operator (|>).</p>
+        <p>The pipe operator allows elegant chaining of function calls, enabling functional programming patterns for data transformation.</p>
+        <p>Compare: <code>result = ARRAY_MAP(ARRAY_FILTER(data, "x > 5"), "x * 2")</code> vs. <code>result = data |> ARRAY_FILTER("x > 5") |> ARRAY_MAP("x * 2")</code></p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('pipeline-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>Why Pipes?</h2>
+    <ul>
+        <li><strong>Readability</strong> - Left-to-right evaluation matches data flow thinking</li>
+        <li><strong>Composability</strong> - Chain operations naturally without nesting parentheses</li>
+        <li><strong>Reusability</strong> - Build complex transformations from simple functions</li>
+        <li><strong>Functional Style</strong> - Aligns with modern functional programming patterns</li>
+    </ul>
+
+    <h2>Common Pipeline Patterns</h2>
+    <ul>
+        <li><strong>MAP + FILTER</strong> - Transform then select elements</li>
+        <li><strong>FILTER + REDUCE</strong> - Select elements then aggregate</li>
+        <li><strong>SORT + UNIQUE</strong> - Organize and deduplicate data</li>
+        <li><strong>PARSE + MAP</strong> - Extract then transform data</li>
+        <li><strong>CHAINING FUNCTIONS</strong> - Build complex workflows from simple operations</li>
+    </ul>
+
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS OS Functions Showcase</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for OS functions showcase -->
+    <script type="text/rexx" id="os-functions-script">
+        /* Auto-executing REXX OS Functions Showcase */
+
+        SAY "=== RexxJS OS Functions Showcase ===\n"
+        SAY "100+ Toybox-inspired functions for modern development\n"
+
+        /* System Information */
+        SAY "1. System Information Functions:"
+        SAY "  UNAME: " || UNAME()
+        SAY "  HOSTNAME: " || HOSTNAME()
+        SAY "  ARCH: " || ARCH()
+        SAY "  NPROC (CPUs): " || NPROC()
+        SAY "  UPTIME: " || UPTIME() || " seconds"
+        SAY ""
+
+        /* User Information */
+        SAY "2. User Information:"
+        SAY "  WHOAMI: " || WHOAMI()
+        SAY "  LOGNAME: " || LOGNAME()
+        SAY "  GROUPS: " || JSON_STRINGIFY(GROUPS())
+        SAY ""
+
+        /* Path Operations */
+        SAY "3. Path Operations:"
+        LET path = "/home/user/documents/file.txt"
+        SAY "  Original: " || path
+        SAY "  DIRNAME: " || DIRNAME(path=path)
+        SAY "  BASENAME: " || BASENAME(path=path)
+        SAY "  EXTNAME: " || PATH_EXTNAME(path=path)
+        SAY ""
+
+        /* Text Processing */
+        SAY "4. Text Processing Pipeline:"
+        LET lines = "apple\nbanana\napricot\nblueberry"
+        LET sorted = lines |> SORT()
+        LET unique = sorted |> UNIQ()
+        SAY "  Original:\n" || lines
+        SAY "  After SORT |> UNIQ:\n" || unique
+        SAY ""
+
+        /* Hashing Functions */
+        SAY "5. Cryptographic Hashing:"
+        LET message = "Hello, World!"
+        SAY "  Message: " || message
+        SAY "  MD5: " || HASH_MD5(data=message)
+        SAY "  SHA256: " || HASH_SHA256(data=message)
+        SAY ""
+
+        /* Encoding Functions */
+        SAY "6. Encoding Functions:"
+        LET text = "RexxJS"
+        LET encoded = BASE64_ENCODE(data=text)
+        LET decoded = BASE64_DECODE(data=encoded)
+        SAY "  Original: " || text
+        SAY "  Base64 encoded: " || encoded
+        SAY "  Base64 decoded: " || decoded
+        SAY ""
+
+        /* Compression */
+        SAY "7. Compression Functions:"
+        SAY "  GZIP/GUNZIP available for data compression"
+        SAY "  ZCAT for reading compressed files"
+        SAY ""
+
+        /* Sequence Generation */
+        SAY "8. Sequence Generation:"
+        LET seq = SEQ(from=1, to=5)
+        SAY "  SEQ(1..5): " || JSON_STRINGIFY(seq)
+        LET shuffled = SHUF(array=seq)
+        SAY "  SHUF result: " || JSON_STRINGIFY(shuffled)
+        SAY ""
+
+        /* Number Operations */
+        SAY "9. Number Operations:"
+        SAY "  FACTOR(24): " || JSON_STRINGIFY(FACTOR(n=24))
+        SAY "  MAX(10, 5, 20, 3): " || MAX(10, 5, 20, 3)
+        SAY "  MIN(10, 5, 20, 3): " || MIN(10, 5, 20, 3)
+        SAY ""
+
+        /* Utility Functions */
+        SAY "10. Utility Functions:"
+        SAY "  WHICH(cmd='node'): " || WHICH(cmd="node")
+        SAY "  UUID(): " || UUID()
+        SAY "  CAL (calendar): Available"
+        SAY ""
+
+        SAY "=== OS Functions Showcase Complete ===\n"
+        SAY "RexxJS provides 100+ functions inspired by Toybox/Unix tools!"
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS OS Functions Showcase</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating 100+ OS-inspired functions.</p>
+        <p>RexxJS includes comprehensive implementations of classic Unix/Toybox commands reimagined for modern programming.</p>
+        <p>All functions work with Node.js APIs - no external processes, pure JavaScript implementations.</p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('os-functions-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>Function Categories</h2>
+
+    <h3>File Operations (40+)</h3>
+    <p>LS, CAT, GREP, FIND, MKDIR, CP, MV, RM, STAT, BASENAME, DIRNAME, HEAD, TAIL, WC, SORT, UNIQ, CUT, PASTE, and many more.</p>
+
+    <h3>Text Processing (30+)</h3>
+    <p>String manipulation, line processing, formatting, and transformation functions.</p>
+
+    <h3>Cryptography & Hashing (15+)</h3>
+    <p>HASH_MD5, HASH_SHA1, HASH_SHA256, HASH_SHA384, HASH_SHA512, BASE64_ENCODE/DECODE, UUENCODE/DECODE, and more.</p>
+
+    <h3>System Information (15+)</h3>
+    <p>UNAME, HOSTNAME, WHOAMI, NPROC, ARCH, ENV, UPTIME, GROUPS, USERINFO, and configuration utilities.</p>
+
+    <h3>Utilities & Tools (20+)</h3>
+    <p>SEQ, SHUF, FACTOR, UUID, WHICH, MKTEMP, XARGS, TIMEOUT, and specialized tools.</p>
+
+    <h2>Key Features</h2>
+    <ul>
+        <li><strong>Pure JavaScript</strong> - No external process spawning required</li>
+        <li><strong>Cross-platform</strong> - Works on Linux, macOS, Windows via Node.js</li>
+        <li><strong>Pipeline-friendly</strong> - All functions work with the |> operator</li>
+        <li><strong>Modern API</strong> - Named parameters for ergonomic code</li>
+        <li><strong>No dependencies</strong> - Built-in functions, minimal external deps</li>
+    </ul>
+
+</body>
+</html>

@@ -15,21 +15,33 @@ class TestRexxInterpreter extends RexxInterpreter {
       }
     };
     super(sender, variables, outputHandler);
-    
+
     // Store test runner options
     this.testOptions = options;
 
+    // Store skip information
+    this.skippedTests = options.skippedTests || new Map();
+    this.honorSkip = options.honorSkip !== false; // Default to true
+
+    // Store test requirements
+    this.testRequirements = options.testRequirements || new Map();
+
+    // Load system capability checker
+    const systemCapabilities = require('./system-capabilities.js');
+    this.checkCapability = systemCapabilities.checkCapability;
+
     // Set up command line arguments - stored as array for ARG() and PARSE ARG
     this.argv = commandLineArgs;
-    
+
     // Test state tracking
     this.testResults = {
       tests: [],
       totalTests: 0,
       passedTests: 0,
-      failedTests: 0
+      failedTests: 0,
+      skippedTests: 0
     };
-    
+
     // Register test functions as subroutines
     this.registerTestFunctions();
   }
@@ -54,23 +66,65 @@ class TestRexxInterpreter extends RexxInterpreter {
     
   }
 
-  // Override executeCommand to handle test function calls
+  // Override executeCommand to handle test function calls and skip logic
   async executeCommand(command) {
-    // Handle CALL and FUNCTION_CALL commands for PASS and FAIL
-    if (command.type === 'CALL' || command.type === 'FUNCTION_CALL') {
+    // Handle CALL commands - check if test should be skipped
+    if (command.type === 'CALL') {
       const subroutineName = command.subroutine || command.command;
-      
+
       if (subroutineName) {
         const upperSubroutine = subroutineName.toUpperCase();
-        
+
+        // Check if this is a test subroutine
+        if (upperSubroutine.endsWith('TEST')) {
+          // Check if test should be skipped (manual @skip annotation)
+          if (this.honorSkip && this.skippedTests.has(upperSubroutine)) {
+            const skipReason = this.skippedTests.get(upperSubroutine);
+            this.handleSkippedTest(subroutineName, skipReason);
+            return; // Don't execute the test
+          }
+
+          // Check if test has unmet requirements (@requires annotation)
+          if (this.testRequirements.has(upperSubroutine)) {
+            const requirements = this.testRequirements.get(upperSubroutine);
+            const unmetRequirements = [];
+
+            for (const requirement of requirements) {
+              if (!this.checkCapability(requirement)) {
+                unmetRequirements.push(requirement);
+              }
+            }
+
+            if (unmetRequirements.length > 0) {
+              const reqList = unmetRequirements.join(', ');
+              this.handleSkippedTest(subroutineName, `Missing required: ${reqList}`);
+              return; // Don't execute the test
+            }
+          }
+        }
+
+        // Handle PASS and FAIL calls
         if (upperSubroutine === 'PASS' || upperSubroutine === 'FAIL') {
-          // Extract arguments from the params or arguments
           const args = command.arguments || (command.params ? [command.params.value] : []);
           return this.executeCall(subroutineName, args);
         }
       }
     }
-    
+
+    // Handle FUNCTION_CALL commands for PASS and FAIL
+    if (command.type === 'FUNCTION_CALL') {
+      const subroutineName = command.subroutine || command.command;
+
+      if (subroutineName) {
+        const upperSubroutine = subroutineName.toUpperCase();
+
+        if (upperSubroutine === 'PASS' || upperSubroutine === 'FAIL') {
+          const args = command.arguments || (command.params ? [command.params.value] : []);
+          return this.executeCall(subroutineName, args);
+        }
+      }
+    }
+
     // For all other commands, use parent implementation
     return super.executeCommand(command);
   }
@@ -89,13 +143,20 @@ class TestRexxInterpreter extends RexxInterpreter {
   // Override executeCall to count test subroutines and handle test functions
   executeCall(subroutine, args) {
     const uppercaseSubroutine = subroutine.toUpperCase();
-    
+
     // Check if this is a test subroutine (ends with 'Test')
     if (uppercaseSubroutine.endsWith('TEST')) {
+      // Check if test should be skipped
+      if (this.honorSkip && this.skippedTests.has(uppercaseSubroutine)) {
+        const skipReason = this.skippedTests.get(uppercaseSubroutine);
+        this.handleSkippedTest(subroutine, skipReason);
+        return; // Don't execute the test
+      }
+
       // Count this as a test execution
       this.handleTestSubroutineCall(subroutine);
     }
-    
+
     // Handle test function calls
     switch (uppercaseSubroutine) {
       case 'PASS':
@@ -126,9 +187,31 @@ class TestRexxInterpreter extends RexxInterpreter {
     this.testResults.tests.push(test);
     this.testResults.totalTests++;
     this.testResults.passedTests++; // Count as passed for now
-    
+
     if (this.outputHandler) {
       this.outputHandler.output(`🔍 ${subroutineName}`);
+    }
+  }
+
+  // Handle skipped test
+  handleSkippedTest(subroutineName, skipReason) {
+    const test = {
+      name: subroutineName,
+      passed: null, // null indicates skipped
+      skipped: true,
+      skipReason: skipReason,
+      output: [],
+      startTime: new Date().toISOString(),
+      endTime: new Date().toISOString(),
+      error: null
+    };
+    this.testResults.tests.push(test);
+    this.testResults.totalTests++;
+    this.testResults.skippedTests++;
+
+    if (this.outputHandler) {
+      const reasonText = skipReason && skipReason !== 'No reason provided' ? ` (${skipReason})` : '';
+      this.outputHandler.output(`⏭️  ${subroutineName} - SKIPPED${reasonText}`);
     }
   }
   

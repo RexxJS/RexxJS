@@ -1,0 +1,133 @@
+{
+  "name": "Sample Budget",
+  "version": "1.0",
+  "setupScript": "-- Budget spreadsheet setup\nLET TAX_RATE = 0.08",
+  "cells": {
+    "A1": {
+      "value": "Item",
+      "expression": null,
+      "format": null,
+      "comment": "Item name"
+    },
+    "B1": {
+      "value": "Price",
+      "expression": null,
+      "format": null,
+      "comment": "Price before tax"
+    },
+    "C1": {
+      "value": "Tax",
+      "expression": null,
+      "format": null,
+      "comment": "Calculated tax"
+    },
+    "D1": {
+      "value": "Total",
+      "expression": null,
+      "format": null,
+      "comment": "Total with tax"
+    },
+    "A2": {
+      "value": "Laptop",
+      "expression": null,
+      "format": null,
+      "comment": null
+    },
+    "B2": {
+      "value": "1200",
+      "expression": null,
+      "format": null,
+      "comment": null
+    },
+    "C2": {
+      "value": "96",
+      "expression": "B2 * TAX_RATE",
+      "format": null,
+      "comment": null
+    },
+    "D2": {
+      "value": "1296",
+      "expression": "B2 + C2",
+      "format": null,
+      "comment": null
+    },
+    "A3": {
+      "value": "Mouse",
+      "expression": null,
+      "format": null,
+      "comment": null
+    },
+    "B3": {
+      "value": "25",
+      "expression": null,
+      "format": null,
+      "comment": null
+    },
+    "C3": {
+      "value": "2",
+      "expression": "B3 * TAX_RATE",
+      "format": null,
+      "comment": null
+    },
+    "D3": {
+      "value": "27",
+      "expression": "B3 + C3",
+      "format": null,
+      "comment": null
+    },
+    "A4": {
+      "value": "Keyboard",
+      "expression": null,
+      "format": null,
+      "comment": null
+    },
+    "B4": {
+      "value": "75",
+      "expression": null,
+      "format": null,
+      "comment": null
+    },
+    "C4": {
+      "value": "6",
+      "expression": "B4 * TAX_RATE",
+      "format": null,
+      "comment": null
+    },
+    "D4": {
+      "value": "81",
+      "expression": "B4 + C4",
+      "format": null,
+      "comment": null
+    },
+    "A6": {
+      "value": "TOTAL",
+      "expression": null,
+      "format": null,
+      "comment": null
+    },
+    "B6": {
+      "value": "1300",
+      "expression": "SUM_RANGE(\"B2:B4\")",
+      "format": null,
+      "comment": null
+    },
+    "C6": {
+      "value": "104",
+      "expression": "SUM_RANGE(\"C2:C4\")",
+      "format": null,
+      "comment": null
+    },
+    "D6": {
+      "value": "1404",
+      "expression": "SUM_RANGE(\"D2:D4\")",
+      "format": null,
+      "comment": null
+    }
+  },
+  "metadata": {
+    "rows": 100,
+    "cols": 26,
+    "created": "2025-11-05T18:00:00.000Z",
+    "modified": "2025-11-05T18:00:00.000Z"
+  }
+}

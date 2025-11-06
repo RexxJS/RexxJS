@@ -35,7 +35,7 @@ describe('Pyodide ADDRESS Library Tests', () => {
 
   afterEach(() => {
     jest.resetModules();
-    delete global.PYODIDE_ADDRESS_MAIN;
+    delete global.PYODIDE_ADDRESS_META;
     delete global.ADDRESS_PYODIDE_HANDLER;
     delete global.ADDRESS_PYODIDE_METHODS;
   });
@@ -50,15 +50,15 @@ describe('Pyodide ADDRESS Library Tests', () => {
 
   test('should load without errors and define globals', () => {
     loadModule();
-    expect(global.PYODIDE_ADDRESS_MAIN).toBeDefined();
+    expect(global.PYODIDE_ADDRESS_META).toBeDefined();
     expect(global.ADDRESS_PYODIDE_HANDLER).toBeDefined();
     expect(global.ADDRESS_PYODIDE_METHODS).toBeDefined();
   });
 
-  test('should return correct metadata from PYODIDE_ADDRESS_MAIN', () => {
+  test('should return correct metadata from PYODIDE_ADDRESS_META', () => {
     loadModule();
-    const metadata = global.PYODIDE_ADDRESS_MAIN();
-    expect(metadata.type).toBe('address-target');
+    const metadata = global.PYODIDE_ADDRESS_META();
+    expect(metadata.type).toBe('address-handler');
     expect(metadata.provides.addressTarget).toBe('pyodide');
     expect(metadata.provides.commandSupport).toBe(true);
   });

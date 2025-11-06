@@ -48,13 +48,29 @@ const stringFunctions = {
     return str.length;
   },
 
-  'SUBSTR': (str, start, length) => {
+  'SUBSTR': (strOrParams, start, length) => {
+    // Handle both unified parameter model and positional arguments
+    // If first arg is an object with 'string' property, it's the new unified model
+    let str, actualStart, actualLength;
+
+    if (typeof strOrParams === 'object' && strOrParams !== null && 'string' in strOrParams) {
+      // Unified parameter model: { string, start, length }
+      str = strOrParams.string;
+      actualStart = strOrParams.start;
+      actualLength = strOrParams.length;
+    } else {
+      // Positional arguments (backward compatible)
+      str = strOrParams;
+      actualStart = start;
+      actualLength = length;
+    }
+
     if (typeof str !== 'string') str = String(str);
-    const startPos = Math.max(0, (parseInt(start) || 1) - 1); // Convert 1-based to 0-based
-    if (length === undefined) {
+    const startPos = Math.max(0, (parseInt(actualStart) || 1) - 1); // Convert 1-based to 0-based
+    if (actualLength === undefined) {
       return str.substring(startPos);
     } else {
-      const len = parseInt(length) || 0;
+      const len = parseInt(actualLength) || 0;
       return str.substring(startPos, startPos + len);
     }
   },
@@ -65,6 +81,37 @@ const stringFunctions = {
     const startPos = Math.max(0, (parseInt(start) || 1) - 1); // Convert 1-based to 0-based
     const pos = string.indexOf(needle, startPos);
     return pos === -1 ? 0 : pos + 1; // Convert 0-based to 1-based, 0 means not found
+  },
+
+  'INDEX': (string, needle, start = 1) => {
+    // INDEX is an alias for POS - finds the position of a substring
+    if (typeof string !== 'string') string = String(string);
+    if (typeof needle !== 'string') needle = String(needle);
+    const startPos = Math.max(0, (parseInt(start) || 1) - 1); // Convert 1-based to 0-based
+    const pos = string.indexOf(needle, startPos);
+    return pos === -1 ? 0 : pos + 1; // Convert 0-based to 1-based, 0 means not found
+  },
+
+  'ABBREV': (string, abbrev, length = 1) => {
+    try {
+      const str = String(string).toUpperCase();
+      const abbr = String(abbrev).toUpperCase();
+      const minLen = parseInt(length) || 1;
+
+      // Check if abbrev is long enough
+      if (abbr.length < minLen) {
+        return 0;
+      }
+
+      // Check if string starts with abbrev
+      if (str.startsWith(abbr)) {
+        return 1;
+      }
+
+      return 0;
+    } catch (e) {
+      return 0;
+    }
   },
 
   'TRIM': (string) => {
@@ -975,9 +1022,242 @@ const stringFunctions = {
 
 };
 
+// Sibling converters for unified parameter model
+function UPPER_positional_args_to_named_param_map(...args) {
+  return { str: args[0] };
+}
+
+function LOWER_positional_args_to_named_param_map(...args) {
+  return { str: args[0] };
+}
+
+function TRIM_positional_args_to_named_param_map(...args) {
+  return { str: args[0] };
+}
+
+function LEFT_positional_args_to_named_param_map(...args) {
+  return { str: args[0], length: args[1] };
+}
+
+function RIGHT_positional_args_to_named_param_map(...args) {
+  return { str: args[0], length: args[1] };
+}
+
+function STRIP_positional_args_to_named_param_map(...args) {
+  return { str: args[0], pattern: args[1] };
+}
+
+function REPLACE_positional_args_to_named_param_map(...args) {
+  return { str: args[0], oldValue: args[1], newValue: args[2] };
+}
+
+function INDEX_positional_args_to_named_param_map(...args) {
+  return { str: args[0], search: args[1], start: args[2] };
+}
+
+function LENGTH_positional_args_to_named_param_map(...args) {
+  return { str: args[0] };
+}
+
+function POS_positional_args_to_named_param_map(...args) {
+  return { string: args[0], needle: args[1], start: args[2] };
+}
+
+function ABBREV_positional_args_to_named_param_map(...args) {
+  return { string: args[0], abbrev: args[1], length: args[2] };
+}
+
+function TRIM_START_positional_args_to_named_param_map(...args) {
+  return { string: args[0] };
+}
+
+function TRIM_END_positional_args_to_named_param_map(...args) {
+  return { string: args[0] };
+}
+
+function REVERSE_positional_args_to_named_param_map(...args) {
+  return { string: args[0] };
+}
+
+function SPACE_positional_args_to_named_param_map(...args) {
+  return { string: args[0], n: args[1], pad: args[2] };
+}
+
+function WORD_positional_args_to_named_param_map(...args) {
+  return { string: args[0], n: args[1] };
+}
+
+function WORDS_positional_args_to_named_param_map(...args) {
+  return { string: args[0] };
+}
+
+function WORDPOS_positional_args_to_named_param_map(...args) {
+  return { string: args[0], phrase: args[1], start: args[2] };
+}
+
+function DELWORD_positional_args_to_named_param_map(...args) {
+  return { string: args[0], start: args[1], length: args[2] };
+}
+
+function SUBWORD_positional_args_to_named_param_map(...args) {
+  return { string: args[0], start: args[1], length: args[2] };
+}
+
+function INDEXOF_positional_args_to_named_param_map(...args) {
+  return { string: args[0], searchString: args[1], fromIndex: args[2] };
+}
+
+function INCLUDES_positional_args_to_named_param_map(...args) {
+  return { string: args[0], searchString: args[1] };
+}
+
+function STARTS_WITH_positional_args_to_named_param_map(...args) {
+  return { string: args[0], searchString: args[1] };
+}
+
+function ENDS_WITH_positional_args_to_named_param_map(...args) {
+  return { string: args[0], searchString: args[1] };
+}
+
+function REPEAT_positional_args_to_named_param_map(...args) {
+  return { string: args[0], count: args[1] };
+}
+
+function COPIES_positional_args_to_named_param_map(...args) {
+  return { string: args[0], count: args[1] };
+}
+
+function PAD_START_positional_args_to_named_param_map(...args) {
+  return { string: args[0], targetLength: args[1], padString: args[2] };
+}
+
+function PAD_END_positional_args_to_named_param_map(...args) {
+  return { string: args[0], targetLength: args[1], padString: args[2] };
+}
+
+function TRANSLATE_positional_args_to_named_param_map(...args) {
+  return { string: args[0], outputTable: args[1], inputTable: args[2] };
+}
+
+function VERIFY_positional_args_to_named_param_map(...args) {
+  return { string: args[0], reference: args[1], option: args[2], start: args[3] };
+}
+
+function SUBSTRING_positional_args_to_named_param_map(...args) {
+  return { string: args[0], start: args[1], length: args[2] };
+}
+
+function CENTER_positional_args_to_named_param_map(...args) {
+  return { string: args[0], length: args[1], pad: args[2] };
+}
+
+function SLUG_positional_args_to_named_param_map(...args) {
+  return { string: args[0] };
+}
+
+function WORD_FREQUENCY_positional_args_to_named_param_map(...args) {
+  return { text: args[0] };
+}
+
+function SENTIMENT_ANALYSIS_positional_args_to_named_param_map(...args) {
+  return { text: args[0] };
+}
+
+function EXTRACT_KEYWORDS_positional_args_to_named_param_map(...args) {
+  return { text: args[0], maxKeywords: args[1] };
+}
+
+/**
+ * Sibling function: Convert positional arguments to named parameter map for SUBSTR
+ * SUBSTR(string, start, length) -> { string, start, length }
+ */
+function SUBSTR_positional_args_to_named_param_map(...args) {
+  return {
+    string: args[0],
+    start: args[1],
+    length: args[2]
+  };
+}
+
 // Export for both Node.js and browser
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { stringFunctions };
+  module.exports = {
+    stringFunctions,
+    UPPER_positional_args_to_named_param_map,
+    LOWER_positional_args_to_named_param_map,
+    TRIM_positional_args_to_named_param_map,
+    LEFT_positional_args_to_named_param_map,
+    RIGHT_positional_args_to_named_param_map,
+    STRIP_positional_args_to_named_param_map,
+    REPLACE_positional_args_to_named_param_map,
+    INDEX_positional_args_to_named_param_map,
+    LENGTH_positional_args_to_named_param_map,
+    POS_positional_args_to_named_param_map,
+    ABBREV_positional_args_to_named_param_map,
+    TRIM_START_positional_args_to_named_param_map,
+    TRIM_END_positional_args_to_named_param_map,
+    REVERSE_positional_args_to_named_param_map,
+    SPACE_positional_args_to_named_param_map,
+    WORD_positional_args_to_named_param_map,
+    WORDS_positional_args_to_named_param_map,
+    WORDPOS_positional_args_to_named_param_map,
+    DELWORD_positional_args_to_named_param_map,
+    SUBWORD_positional_args_to_named_param_map,
+    INDEXOF_positional_args_to_named_param_map,
+    INCLUDES_positional_args_to_named_param_map,
+    STARTS_WITH_positional_args_to_named_param_map,
+    ENDS_WITH_positional_args_to_named_param_map,
+    REPEAT_positional_args_to_named_param_map,
+    COPIES_positional_args_to_named_param_map,
+    PAD_START_positional_args_to_named_param_map,
+    PAD_END_positional_args_to_named_param_map,
+    TRANSLATE_positional_args_to_named_param_map,
+    VERIFY_positional_args_to_named_param_map,
+    SUBSTRING_positional_args_to_named_param_map,
+    CENTER_positional_args_to_named_param_map,
+    SLUG_positional_args_to_named_param_map,
+    WORD_FREQUENCY_positional_args_to_named_param_map,
+    SENTIMENT_ANALYSIS_positional_args_to_named_param_map,
+    EXTRACT_KEYWORDS_positional_args_to_named_param_map,
+    SUBSTR_positional_args_to_named_param_map
+  };
 } else if (typeof window !== 'undefined') {
   window.stringFunctions = stringFunctions;
+  window.UPPER_positional_args_to_named_param_map = UPPER_positional_args_to_named_param_map;
+  window.LOWER_positional_args_to_named_param_map = LOWER_positional_args_to_named_param_map;
+  window.TRIM_positional_args_to_named_param_map = TRIM_positional_args_to_named_param_map;
+  window.LEFT_positional_args_to_named_param_map = LEFT_positional_args_to_named_param_map;
+  window.RIGHT_positional_args_to_named_param_map = RIGHT_positional_args_to_named_param_map;
+  window.STRIP_positional_args_to_named_param_map = STRIP_positional_args_to_named_param_map;
+  window.REPLACE_positional_args_to_named_param_map = REPLACE_positional_args_to_named_param_map;
+  window.INDEX_positional_args_to_named_param_map = INDEX_positional_args_to_named_param_map;
+  window.LENGTH_positional_args_to_named_param_map = LENGTH_positional_args_to_named_param_map;
+  window.POS_positional_args_to_named_param_map = POS_positional_args_to_named_param_map;
+  window.ABBREV_positional_args_to_named_param_map = ABBREV_positional_args_to_named_param_map;
+  window.TRIM_START_positional_args_to_named_param_map = TRIM_START_positional_args_to_named_param_map;
+  window.TRIM_END_positional_args_to_named_param_map = TRIM_END_positional_args_to_named_param_map;
+  window.REVERSE_positional_args_to_named_param_map = REVERSE_positional_args_to_named_param_map;
+  window.SPACE_positional_args_to_named_param_map = SPACE_positional_args_to_named_param_map;
+  window.WORD_positional_args_to_named_param_map = WORD_positional_args_to_named_param_map;
+  window.WORDS_positional_args_to_named_param_map = WORDS_positional_args_to_named_param_map;
+  window.WORDPOS_positional_args_to_named_param_map = WORDPOS_positional_args_to_named_param_map;
+  window.DELWORD_positional_args_to_named_param_map = DELWORD_positional_args_to_named_param_map;
+  window.SUBWORD_positional_args_to_named_param_map = SUBWORD_positional_args_to_named_param_map;
+  window.INDEXOF_positional_args_to_named_param_map = INDEXOF_positional_args_to_named_param_map;
+  window.INCLUDES_positional_args_to_named_param_map = INCLUDES_positional_args_to_named_param_map;
+  window.STARTS_WITH_positional_args_to_named_param_map = STARTS_WITH_positional_args_to_named_param_map;
+  window.ENDS_WITH_positional_args_to_named_param_map = ENDS_WITH_positional_args_to_named_param_map;
+  window.REPEAT_positional_args_to_named_param_map = REPEAT_positional_args_to_named_param_map;
+  window.COPIES_positional_args_to_named_param_map = COPIES_positional_args_to_named_param_map;
+  window.PAD_START_positional_args_to_named_param_map = PAD_START_positional_args_to_named_param_map;
+  window.PAD_END_positional_args_to_named_param_map = PAD_END_positional_args_to_named_param_map;
+  window.TRANSLATE_positional_args_to_named_param_map = TRANSLATE_positional_args_to_named_param_map;
+  window.VERIFY_positional_args_to_named_param_map = VERIFY_positional_args_to_named_param_map;
+  window.SUBSTRING_positional_args_to_named_param_map = SUBSTRING_positional_args_to_named_param_map;
+  window.CENTER_positional_args_to_named_param_map = CENTER_positional_args_to_named_param_map;
+  window.SLUG_positional_args_to_named_param_map = SLUG_positional_args_to_named_param_map;
+  window.WORD_FREQUENCY_positional_args_to_named_param_map = WORD_FREQUENCY_positional_args_to_named_param_map;
+  window.SENTIMENT_ANALYSIS_positional_args_to_named_param_map = SENTIMENT_ANALYSIS_positional_args_to_named_param_map;
+  window.EXTRACT_KEYWORDS_positional_args_to_named_param_map = EXTRACT_KEYWORDS_positional_args_to_named_param_map;
+  window.SUBSTR_positional_args_to_named_param_map = SUBSTR_positional_args_to_named_param_map;
 }

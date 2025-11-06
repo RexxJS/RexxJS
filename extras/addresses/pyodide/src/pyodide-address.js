@@ -393,3 +393,13 @@ if (typeof window !== 'undefined') {
   global.ADDRESS_PYODIDE_HANDLER = ADDRESS_PYODIDE_HANDLER;
   global.ADDRESS_PYODIDE_METHODS = ADDRESS_PYODIDE_METHODS;
 }
+
+// Export via CommonJS for Node.js
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    PYODIDE_ADDRESS_META,
+    ORG_REXXJS_PYODIDE_ADDRESS_META,
+    ADDRESS_PYODIDE_HANDLER,
+    ADDRESS_PYODIDE_METHODS
+  };
+}

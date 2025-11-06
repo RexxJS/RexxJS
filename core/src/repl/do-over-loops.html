@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS DO OVER Loops Demo</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for DO OVER loops demonstration -->
+    <script type="text/rexx" id="do-over-script">
+        /* Auto-executing REXX DO OVER Loops Demo */
+
+        SAY "=== REXX DO OVER Loops Demo ===\n"
+
+        /* Basic DO OVER with array */
+        SAY "1. DO OVER with Array:"
+        LET fruits = ["Apple", "Banana", "Cherry", "Date"]
+        DO fruit OVER fruits
+          SAY "  Fruit: " || fruit
+        END
+        SAY ""
+
+        /* DO OVER with numeric range */
+        SAY "2. DO OVER with Range Array:"
+        LET numbers = [1, 2, 3, 4, 5]
+        LET sum = 0
+        DO num OVER numbers
+          LET sum = sum + num
+        END
+        SAY "  Numbers: " || JSON_STRINGIFY(numbers)
+        SAY "  Sum: " || sum
+        SAY ""
+
+        /* DO OVER with objects */
+        SAY "3. DO OVER with Objects Array:"
+        LET people = [
+            { name: "Alice", age: 30 },
+            { name: "Bob", age: 25 },
+            { name: "Carol", age: 35 }
+        ]
+        DO person OVER people
+          SAY "  Person: " || person.name || " (age: " || person.age || ")"
+        END
+        SAY ""
+
+        /* DO OVER with indexed access */
+        SAY "4. DO OVER with String Array and Index:"
+        LET colors = ["Red", "Green", "Blue", "Yellow"]
+        LET enumerated = ""
+        DO color OVER colors
+          IF enumerated = "" THEN
+            LET enumerated = color
+          ELSE
+            LET enumerated = enumerated || ", " || color
+          ENDIF
+        END
+        SAY "  Colors: " || enumerated
+        SAY ""
+
+        /* Nested DO OVER */
+        SAY "5. Nested DO OVER:"
+        LET matrix = [[1, 2], [3, 4], [5, 6]]
+        LET total = 0
+        DO row OVER matrix
+          DO value OVER row
+            LET total = total + value
+          END
+        END
+        SAY "  Matrix: " || JSON_STRINGIFY(matrix)
+        SAY "  Sum of all elements: " || total
+        SAY ""
+
+        /* DO OVER with filtering */
+        SAY "6. DO OVER with Conditional Processing:"
+        LET scores = [85, 92, 78, 95, 88, 76]
+        LET count_passing = 0
+        DO score OVER scores
+          IF score >= 80 THEN
+            LET count_passing = count_passing + 1
+          ENDIF
+        END
+        SAY "  Scores: " || JSON_STRINGIFY(scores)
+        SAY "  Scores >= 80: " || count_passing
+        SAY ""
+
+        /* DO OVER with string manipulation */
+        SAY "7. DO OVER with String Manipulation:"
+        LET words = ["hello", "world", "rexx", "programming"]
+        LET uppercase_words = []
+        DO word OVER words
+          LET uppercase_words = uppercase_words || [UPPER(word)]
+        END
+        SAY "  Original: " || JSON_STRINGIFY(words)
+        SAY "  Uppercase: " || JSON_STRINGIFY(uppercase_words)
+        SAY ""
+
+        /* DO OVER combining items */
+        SAY "8. DO OVER Building Aggregates:"
+        LET items = ["Apple", "Banana", "Cherry"]
+        LET combined = ""
+        DO item OVER items
+          IF combined = "" THEN
+            LET combined = item
+          ELSE
+            LET combined = combined || " + " || item
+        END
+        SAY "  Items: " || JSON_STRINGIFY(items)
+        SAY "  Combined: " || combined
+        SAY ""
+
+        SAY "=== DO OVER Loops Demo Complete ==="
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS DO OVER Loops Demo</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating DO OVER loops for iterating over arrays and collections.</p>
+        <p>DO OVER is a powerful iteration mechanism that allows processing each element in an array without managing an index manually.</p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('do-over-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>DO OVER Syntax</h2>
+    <ul>
+        <li><strong>DO variable OVER array</strong> - Iterate over each element</li>
+        <li><strong>Nested DO OVER</strong> - Multiple levels of iteration</li>
+        <li><strong>DO ... OVER ... END</strong> - Clear block structure</li>
+    </ul>
+
+    <h2>Key Advantages</h2>
+    <ul>
+        <li><strong>Simplicity</strong> - No index variable management</li>
+        <li><strong>Readability</strong> - Intent is clear and direct</li>
+        <li><strong>Safety</strong> - No off-by-one errors</li>
+        <li><strong>Flexibility</strong> - Works with any collection type</li>
+        <li><strong>Composability</strong> - Nest multiple levels</li>
+    </ul>
+
+    <h2>Common Patterns</h2>
+    <pre>
+/* Simple iteration */
+DO item OVER array
+  SAY item
+END
+
+/* Aggregation */
+LET sum = 0
+DO value OVER numbers
+  LET sum = sum + value
+END
+
+/* Filtering with conditions */
+DO element OVER collection
+  IF condition THEN
+    /* process element */
+  ENDIF
+END
+
+/* Nested iteration */
+DO row OVER matrix
+  DO column OVER row
+    /* process element */
+  END
+END
+
+/* Building new collections */
+LET results = []
+DO item OVER source
+  LET results = results || [transform(item)]
+END
+    </pre>
+
+    <h2>Comparison: DO OVER vs DO Index Loop</h2>
+    <pre>
+/* With index (error-prone) */
+DO i = 1 TO LENGTH(array)
+  LET item = array[i]
+  SAY item
+END
+
+/* With DO OVER (safer, clearer) */
+DO item OVER array
+  SAY item
+END
+    </pre>
+
+    <h2>Use Cases</h2>
+    <ul>
+        <li><strong>Data Processing</strong> - Process records from a collection</li>
+        <li><strong>Aggregation</strong> - Sum, count, or combine elements</li>
+        <li><strong>Transformation</strong> - Convert elements to new form</li>
+        <li><strong>Filtering</strong> - Select items matching criteria</li>
+        <li><strong>Reporting</strong> - Generate output for each element</li>
+    </ul>
+
+</body>
+</html>

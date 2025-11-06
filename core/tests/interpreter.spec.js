@@ -1398,28 +1398,28 @@ describe('Rexx-lite Interpreter', () => {
         await interpreter.run(commands);
         
         const result = interpreter.getVariable('result');
-        expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/); // YYYY-MM-DD format
-        
+        expect(result).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/); // Classic REXX: "DD Mon YYYY"
+
         const meals = kitchenService.getMeals();
-        expect(meals[0].name).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(meals[0].name).toMatch(/^ {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/);
       });
 
-      it('should execute DATE function with custom format', async () => {
+      it('should execute DATE function with sortable format code', async () => {
         const script = `
-          LET result = DATE format="MM/DD/YYYY"
+          LET result = DATE 'S'
           ADDRESS kitchen
           prepareDish name=result servings=1
         `;
-        
+
         const commands = parse(script);
         const interpreter = new Interpreter(addressSender);
         await interpreter.run(commands);
-        
+
         const result = interpreter.getVariable('result');
-        expect(result).toMatch(/^\d{2}\/\d{2}\/\d{4}$/); // MM/DD/YYYY format
-        
+        expect(result).toMatch(/^\d{8}$/); // YYYYMMDD format
+
         const meals = kitchenService.getMeals();
-        expect(meals[0].name).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+        expect(meals[0].name).toMatch(/^\d{8}$/);
       });
 
       it('should execute TIME function with default format', async () => {
@@ -1637,10 +1637,10 @@ describe('Rexx-lite Interpreter', () => {
         await interpreter.run(commands);
         
         const message = interpreter.getVariable('message');
-        expect(message).toMatch(/^Welcome CHEF on \d{4}-\d{2}-\d{2}$/);
-        
+        expect(message).toMatch(/^Welcome CHEF on  {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/);
+
         const meals = kitchenService.getMeals();
-        expect(meals[0].name).toMatch(/^Welcome CHEF on \d{4}-\d{2}-\d{2}$/);
+        expect(meals[0].name).toMatch(/^Welcome CHEF on  {0,2}\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}$/);
       });
     });
 

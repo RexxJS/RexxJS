@@ -1,0 +1,131 @@
+>> 3 SAY "=== REXX String Escape Sequences Demo ===\n"
+=== REXX String Escape Sequences Demo ===
+
+>> 6 SAY "1. Newline (\\n) - Modern REXX approach:"
+1. Newline (\n) - Modern REXX approach:
+>> 7 LET text1 = "Line 1\nLine 2\nLine 3"
+>> 8 SAY text1
+Line 1
+Line 2
+Line 3
+>> 9 SAY ""
+
+>> 12 SAY "2. Tab (\\t) - For indentation:"
+2. Tab (\t) - For indentation:
+>> 13 LET columnar = "Name\tAge\tCity\nAlice\t30\tNY\nBob\t25\tLA"
+>> 14 SAY columnar
+Name	Age	City
+Alice	30	NY
+Bob	25	LA
+>> 15 SAY ""
+
+>> 18 SAY "3. Backslash escape (\\\\) - Literal backslash:"
+3. Backslash escape (\\) - Literal backslash:
+>> 19 LET path_like = "C:\\Users\\Paul\\Documents"
+>> 20 SAY "  Path: " || path_like
+  Path: C:\Users\Paul\Documents
+>> 21 SAY ""
+
+>> 24 SAY "4. Quote escaping (\\\") - Inside double-quoted strings:"
+4. Quote escaping (\") - Inside double-quoted strings:
+>> 25 LET quoted = "She said \"Hello\" to him"
+>> 26 SAY "  Quote example: " || quoted
+  Quote example: She said "Hello" to him
+>> 27 SAY ""
+
+>> 30 SAY "5. Single quotes in double quotes:"
+5. Single quotes in double quotes:
+>> 31 LET apostrophe = "It's a beautiful day"
+>> 32 SAY "  Apostrophe: " || apostrophe
+  Apostrophe: It's a beautiful day
+>> 33 SAY ""
+
+>> 36 SAY "6. Multiple Escape Sequences:"
+6. Multiple Escape Sequences:
+>> 37 LET report = "REPORT\n=======\nName\tStatus\n---\nProject A\tDone\nProject B\tPending"
+>> 38 SAY report
+REPORT
+=======
+Name	Status
+---
+Project A	Done
+Project B	Pending
+>> 39 SAY ""
+
+>> 42 SAY "7. Building Formatted Output:"
+7. Building Formatted Output:
+>> 43 LET header = "ID\tName\tScore"
+>> 44 LET data1 = "1\tAlice\t95"
+>> 45 LET data2 = "2\tBob\t87"
+>> 46 LET data3 = "3\tCarol\t92"
+>> 47 SAY header
+ID	Name	Score
+>> 48 SAY data1
+1	Alice	95
+>> 49 SAY data2
+2	Bob	87
+>> 50 SAY data3
+3	Carol	92
+>> 51 SAY ""
+
+>> 54 SAY "8. Multi-line String Building:"
+8. Multi-line String Building:
+>> 55 LET multiline = "{\n  name: \"John\",\n  age: 30,\n  city: \"NYC\"\n}"
+>> 56 SAY multiline
+{
+  name: "John",
+  age: 30,
+  city: "NYC"
+}
+>> 57 SAY ""
+
+>> 60 SAY "9. SQL-like Query Building:"
+9. SQL-like Query Building:
+>> 61 LET query = "SELECT *\nFROM users\nWHERE status = 'active'\nORDER BY name"
+>> 62 SAY query
+SELECT *
+FROM users
+WHERE status = 'active'
+ORDER BY name
+>> 63 SAY ""
+
+>> 66 SAY "10. Escape Sequences with Interpolation:"
+10. Escape Sequences with Interpolation:
+>> 67 LET name = "Alice"
+>> 68 LET title = "Manager"
+>> 69 LET message = "Employee Record\n================\nName:\t" || name || "\nTitle:\t" || title
+>> 70 SAY message
+Employee Record
+================
+Name:	Alice
+Title:	Manager
+>> 71 SAY ""
+
+>> 74 SAY "11. Clean Spacing (using \\n):"
+11. Clean Spacing (using \n):
+>> 75 LET sections = "Section A\nContent A\n\nSection B\nContent B\n\nSection C\nContent C"
+>> 76 SAY sections
+Section A
+Content A
+
+Section B
+Content B
+
+Section C
+Content C
+>> 77 SAY ""
+
+>> 80 SAY "12. Mixed Escape Sequences:"
+12. Mixed Escape Sequences:
+>> 81 LET formatted = "Status Report\n=============\nTask\tProgress\n\"Setup\"\t25%\n\"Testing\"\t50%\n\"Deploy\"\t0%"
+>> 82 SAY formatted
+Status Report
+=============
+Task	Progress
+"Setup"	25%
+"Testing"	50%
+"Deploy"	0%
+>> 83 SAY ""
+
+>> 85 SAY "=== String Escape Sequences Demo Complete ==="
+=== String Escape Sequences Demo Complete ===

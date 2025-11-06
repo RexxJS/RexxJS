@@ -43,13 +43,14 @@ if (typeof require !== 'undefined') {
  * @param {*} value - Value to resolve (could be string, number, object, etc.)
  * @param {Map} variables - Variables map
  * @param {Function} evaluateExpressionFn - Function to evaluate expressions
+ * @param {Function} variableResolver - Optional callback for resolving missing variables
  * @returns {*} Resolved value
  */
-async function resolveVariableValue(value, variables, evaluateExpressionFn) {
+async function resolveVariableValue(value, variables, evaluateExpressionFn, variableResolver) {
   // Handle expression objects
   if (typeof value === 'object' && value !== null && value.type) {
     if (value.type === 'INTERPOLATED_STRING') {
-      return await interpolateString(value.template, (varName) => resolveVariableValue(varName, variables, evaluateExpressionFn));
+      return await interpolateString(value.template, (varName) => resolveVariableValue(varName, variables, evaluateExpressionFn, variableResolver));
     }
     if (value.type === 'HEREDOC_STRING') {
       // Auto-parse JSON if delimiter contains 'json' (case-insensitive)
@@ -143,6 +144,14 @@ async function resolveVariableValue(value, variables, evaluateExpressionFn) {
   if (typeof value === 'string' && variables.has(value)) {
     return variables.get(value);
   }
+
+  // Check variableResolver callback for missing variables
+  if (typeof value === 'string' && variableResolver && typeof variableResolver === 'function') {
+    const resolved = variableResolver(value);
+    if (resolved !== undefined) {
+      return resolved;
+    }
+  }
   
   // Check if the value looks like a function call (for resolveValue legacy compatibility)
   if (typeof value === 'string' && value.match(/^[a-zA-Z_][a-zA-Z0-9_]*\s*\(/)) {
@@ -159,9 +168,10 @@ async function resolveVariableValue(value, variables, evaluateExpressionFn) {
  * Interpolate a string template with variable values
  * @param {string} template - String template with {varName} placeholders
  * @param {Map} variables - Variables map
+ * @param {Function} variableResolver - Optional callback for resolving missing variables
  * @returns {string} Interpolated string
  */
-async function interpolateStringWithVars(template, variables) {
+async function interpolateStringWithVars(template, variables, variableResolver) {
   let interpolateFn;
   if (typeof interpolateString !== 'undefined') {
     interpolateFn = interpolateString;
@@ -170,17 +180,32 @@ async function interpolateStringWithVars(template, variables) {
   } else if (typeof window !== 'undefined' && window.interpolateString) {
     interpolateFn = window.interpolateString;
   }
-  return await interpolateFn(template, (varName) => resolveVariableValue(varName, variables, null));
+  return await interpolateFn(template, (varName) => resolveVariableValue(varName, variables, null, variableResolver));
 }
 
 /**
  * Get variable value
  * @param {string} name - Variable name
  * @param {Map} variables - Variables map
+ * @param {Function} variableResolver - Optional callback for resolving missing variables
  * @returns {*} Variable value or undefined
  */
-function getVariable(name, variables) {
-  return variables.get(name);
+function getVariable(name, variables, variableResolver) {
+  // First check the variables map
+  if (variables.has(name)) {
+    return variables.get(name);
+  }
+
+  // If not found, try the variableResolver callback
+  if (variableResolver && typeof variableResolver === 'function') {
+    const resolved = variableResolver(name);
+    if (resolved !== undefined) {
+      return resolved;
+    }
+  }
+
+  // Not found - return undefined
+  return undefined;
 }
 
 /**

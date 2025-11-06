@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS SELECT Statement Demo</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for SELECT statement demonstration -->
+    <script type="text/rexx" id="select-script">
+        /* Auto-executing REXX SELECT/WHEN/OTHERWISE Demo */
+
+        SAY "=== REXX SELECT/WHEN/OTHERWISE Demo ===\n"
+
+        /* Basic SELECT statement */
+        SAY "1. Basic SELECT Statement:"
+        LET grade = "B"
+        SELECT
+          WHEN grade = "A" THEN
+            SAY "  Excellent!"
+          WHEN grade = "B" THEN
+            SAY "  Good job!"
+          WHEN grade = "C" THEN
+            SAY "  Acceptable"
+          OTHERWISE
+            SAY "  Needs improvement"
+        END
+        SAY ""
+
+        /* SELECT with numeric comparison */
+        SAY "2. SELECT with Numeric Comparison:"
+        LET score = 85
+        SELECT
+          WHEN score >= 90 THEN
+            SAY "  Grade: A"
+          WHEN score >= 80 THEN
+            SAY "  Grade: B"
+          WHEN score >= 70 THEN
+            SAY "  Grade: C"
+          WHEN score >= 60 THEN
+            SAY "  Grade: D"
+          OTHERWISE
+            SAY "  Grade: F"
+        END
+        SAY ""
+
+        /* SELECT with multiple conditions */
+        SAY "3. SELECT with Complex Conditions:"
+        LET age = 25
+        LET isStudent = 1
+        SELECT
+          WHEN age < 13 THEN
+            SAY "  Category: Child"
+          WHEN age < 18 && isStudent THEN
+            SAY "  Category: Teenage Student"
+          WHEN age < 18 THEN
+            SAY "  Category: Teenager"
+          WHEN age < 65 && isStudent THEN
+            SAY "  Category: Adult Student"
+          WHEN age < 65 THEN
+            SAY "  Category: Adult"
+          OTHERWISE
+            SAY "  Category: Senior"
+        END
+        SAY ""
+
+        /* SELECT with string operations */
+        SAY "4. SELECT with String Operations:"
+        LET color = "red"
+        LET color_upper = UPPER(color)
+        SELECT
+          WHEN color_upper = "RED" THEN
+            SAY "  You chose: Warm color (Red)"
+          WHEN color_upper = "BLUE" THEN
+            SAY "  You chose: Cool color (Blue)"
+          WHEN color_upper = "GREEN" THEN
+            SAY "  You chose: Nature color (Green)"
+          WHEN color_upper = "YELLOW" THEN
+            SAY "  You chose: Bright color (Yellow)"
+          OTHERWISE
+            SAY "  You chose: Unknown color"
+        END
+        SAY ""
+
+        /* Nested SELECT statement */
+        SAY "5. Nested SELECT Statement:"
+        LET department = "Sales"
+        LET level = "Manager"
+        SELECT
+          WHEN department = "Sales" THEN
+            SELECT
+              WHEN level = "Manager" THEN
+                SAY "  Role: Sales Manager"
+              WHEN level = "Executive" THEN
+                SAY "  Role: Sales Executive"
+              OTHERWISE
+                SAY "  Role: Sales Representative"
+            END
+          WHEN department = "IT" THEN
+            SELECT
+              WHEN level = "Manager" THEN
+                SAY "  Role: IT Manager"
+              WHEN level = "Executive" THEN
+                SAY "  Role: CTO"
+              OTHERWISE
+                SAY "  Role: Developer"
+            END
+          OTHERWISE
+            SELECT
+              WHEN level = "Manager" THEN
+                SAY "  Role: Department Manager"
+              OTHERWISE
+                SAY "  Role: Staff"
+            END
+        END
+        SAY ""
+
+        /* SELECT with OTHERWISE only */
+        SAY "6. SELECT with Specific Match and Fallback:"
+        LET status = "inactive"
+        SELECT
+          WHEN status = "active" THEN
+            SAY "  Status: System is running"
+          WHEN status = "paused" THEN
+            SAY "  Status: System is paused"
+          OTHERWISE
+            SAY "  Status: System is " || status
+        END
+        SAY ""
+
+        /* SELECT determining action type */
+        SAY "7. SELECT for Action Dispatch:"
+        LET command = "list"
+        SELECT
+          WHEN command = "add" THEN
+            SAY "  Action: Adding item to collection"
+          WHEN command = "remove" THEN
+            SAY "  Action: Removing item from collection"
+          WHEN command = "list" THEN
+            SAY "  Action: Displaying all items"
+          WHEN command = "clear" THEN
+            SAY "  Action: Clearing all items"
+          OTHERWISE
+            SAY "  Action: Unknown command - " || command
+        END
+        SAY ""
+
+        /* SELECT with range conditions */
+        SAY "8. SELECT with Range Conditions:"
+        LET temperature = 22
+        SELECT
+          WHEN temperature < 0 THEN
+            SAY "  Condition: Freezing"
+          WHEN temperature < 10 THEN
+            SAY "  Condition: Cold"
+          WHEN temperature < 20 THEN
+            SAY "  Condition: Cool"
+          WHEN temperature < 30 THEN
+            SAY "  Condition: Warm"
+          OTHERWISE
+            SAY "  Condition: Hot"
+        END
+        SAY ""
+
+        SAY "=== SELECT/WHEN/OTHERWISE Demo Complete ==="
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS SELECT/WHEN/OTHERWISE Demo</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating SELECT/WHEN/OTHERWISE for multi-way branching.</p>
+        <p>SELECT statements provide clean, readable alternatives to nested IF/THEN/ELSE structures, making code easier to maintain and understand.</p>
+    </div>
+
+    <style>
+        .dual-pane { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+        .code-pane { border: 1px solid #ddd; border-radius: 6px; background: #fafafa; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 13px; line-height: 1.45; padding: 8px 0; max-height: 70vh; overflow: auto; }
+        .code-line { display: grid; grid-template-columns: 3ch auto; padding: 0 10px; }
+        .ln { color: #999; text-align: right; padding-right: 10px; user-select: none; }
+        .src { white-space: pre; }
+        .code-line.executed { background: #e7f7ec; }
+        .code-line.current { background: #d1ecf1; }
+        .code-line.skipped { opacity: 0.5; }
+        .pane-title { margin: 0 0 8px 0; font-size: 16px; }
+        .output-pane { border: 1px solid #ddd; border-radius: 6px; padding: 8px; max-height: 70vh; overflow: auto; }
+        #code-pane, .output-pane { scroll-behavior: smooth; }
+    </style>
+
+    <div class="dual-pane">
+        <div>
+            <h2 class="pane-title">REXX Code</h2>
+            <div id="code-pane" class="code-pane" aria-label="Rexx source with line numbers"></div>
+        </div>
+        <div>
+            <h2 class="pane-title">REXX Output</h2>
+            <div class="output-section output-pane" id="output-pane">
+                <div id="rexx-output-container"></div>
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                // Build left code pane with numbered lines
+                const scriptEl = document.getElementById('select-script');
+                const source = scriptEl.textContent.replace(/\r\n/g, '\n');
+                const lines = source.split('\n');
+                const codePane = document.getElementById('code-pane');
+                codePane.innerHTML = '';
+                lines.forEach((txt, idx) => {
+                    const row = document.createElement('div');
+                    row.className = 'code-line';
+                    row.dataset.lineNumber = String(idx + 1);
+                    const ln = document.createElement('span');
+                    ln.className = 'ln';
+                    ln.textContent = String(idx + 1);
+                    const src = document.createElement('span');
+                    src.className = 'src';
+                    src.textContent = txt.length ? txt : ' ';
+                    row.appendChild(ln); row.appendChild(src);
+                    codePane.appendChild(row);
+                });
+
+                const executed = new Set();
+                let currentEl = null;
+
+                // Wrap output handler to get trace-like hooks
+                const outputContainerId = 'rexx-output-container';
+
+                function markCurrent(line) {
+                    if (!line) return;
+                    if (currentEl) currentEl.classList.remove('current');
+                    const el = codePane.querySelector(`.code-line[data-line-number="${line}"]`);
+                    if (el) {
+                        el.classList.add('current');
+                        currentEl = el;
+                        el.scrollIntoView({ block: 'nearest' });
+                        syncScroll();
+                    }
+                }
+
+                function markExecuted(line) {
+                    if (!line) return;
+                    const el = codePane.querySelector(`.code-line[data-line-number="${line}"]`);
+                    if (el) {
+                        el.classList.add('executed');
+                        executed.add(line);
+                    }
+                }
+
+                // Build a small proxy output handler that attempts to parse the interpreter's trace prefix
+                const customHandler = new DocumentWriteStyledOutputHandler(
+                  false,
+                  'rexx-output',
+                  outputContainerId,
+                  (exception) => console.error(exception)
+                );
+
+                // Intercept output: detect trace lines (for highlighting) and suppress them from SAY output
+                const originalOutput = customHandler.output.bind(customHandler);
+                customHandler.output = (text) => {
+                    // Highlight line if trace prefix present
+                    const m = /^\s*>>\s*(\d+)\b/.exec(text);
+                    if (m) {
+                        const line = parseInt(m[1], 10);
+                        markCurrent(line);
+                        markExecuted(line);
+                        // Do not print trace lines to the output pane
+                        return;
+                    }
+                    // Forward SAY and other non-trace outputs
+                    originalOutput(text);
+                };
+
+                // Scroll sync setup
+                const outputPane = document.getElementById('output-pane');
+                let isSyncing = false;
+                function syncScrollFrom(source, target) {
+                    if (!target) return;
+                    if (isSyncing) return;
+                    isSyncing = true;
+                    const denom = (source.scrollHeight - source.clientHeight) || 1;
+                    const ratio = source.scrollTop / denom;
+                    target.scrollTop = ratio * ((target.scrollHeight - target.clientHeight) || 0);
+                    setTimeout(() => { isSyncing = false; }, 0);
+                }
+                function syncScroll() {
+                    if (outputPane) syncScrollFrom(codePane, outputPane);
+                }
+                codePane.addEventListener('scroll', () => syncScrollFrom(codePane, outputPane));
+                if (outputPane) outputPane.addEventListener('scroll', () => syncScrollFrom(outputPane, codePane));
+
+                try {
+                    await executeRexxDemo('select-script', {
+                        traceMode: 'NORMAL',
+                        // Keep trace enabled but do not render it in output (we filter above)
+                        traceToOutput: true,
+                        outputHandler: customHandler,
+                        containerId: outputContainerId
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+
+                // After run, fade non-executed lines but keep visible
+                const all = codePane.querySelectorAll('.code-line');
+                all.forEach(el => {
+                    const ln = parseInt(el.dataset.lineNumber, 10);
+                    if (!executed.has(ln)) {
+                        el.classList.add('skipped');
+                    }
+                });
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>SELECT/WHEN/OTHERWISE Syntax</h2>
+    <ul>
+        <li><strong>SELECT</strong> - Begin multi-way branch</li>
+        <li><strong>WHEN condition THEN</strong> - Test condition, execute if true</li>
+        <li><strong>OTHERWISE</strong> - Default case if no WHEN matches</li>
+        <li><strong>END</strong> - Complete the SELECT block</li>
+    </ul>
+
+    <h2>Advantages Over Nested IF/THEN</h2>
+    <ul>
+        <li><strong>Readability</strong> - Clear structure for multi-way decisions</li>
+        <li><strong>Maintainability</strong> - Easier to add/remove cases</li>
+        <li><strong>Performance</strong> - May be optimized for dispatch</li>
+        <li><strong>Intent</strong> - Shows mutual exclusivity of conditions</li>
+        <li><strong>Nesting</strong> - Can nest SELECT within SELECT</li>
+    </ul>
+
+    <h2>Pattern Examples</h2>
+    <pre>
+/* Simple dispatch */
+SELECT
+  WHEN action = "add" THEN
+    /* process add */
+  WHEN action = "remove" THEN
+    /* process remove */
+  OTHERWISE
+    /* handle error */
+END
+
+/* Range conditions */
+SELECT
+  WHEN value < 10 THEN
+    SAY "Small"
+  WHEN value < 100 THEN
+    SAY "Medium"
+  OTHERWISE
+    SAY "Large"
+END
+
+/* Nested SELECT */
+SELECT
+  WHEN category = "A" THEN
+    SELECT
+      WHEN subtype = "1" THEN /* A1 */
+      WHEN subtype = "2" THEN /* A2 */
+      OTHERWISE               /* A-other */
+    END
+  WHEN category = "B" THEN
+    /* B processing */
+END
+
+/* Complex conditions */
+SELECT
+  WHEN age < 18 && isStudent THEN
+    SAY "Young Student"
+  WHEN age < 65 && isWorking THEN
+    SAY "Working Adult"
+  OTHERWISE
+    SAY "Other Status"
+END
+    </pre>
+
+    <h2>vs IF/THEN/ELSE Comparison</h2>
+    <pre>
+/* Using IF/THEN/ELSE (harder to read) */
+IF status = "active" THEN
+  SAY "Running"
+ELSE IF status = "paused" THEN
+  SAY "Paused"
+ELSE IF status = "stopped" THEN
+  SAY "Stopped"
+ELSE
+  SAY "Unknown"
+ENDIF
+ENDIF
+ENDIF
+
+/* Using SELECT/WHEN (cleaner) */
+SELECT
+  WHEN status = "active" THEN
+    SAY "Running"
+  WHEN status = "paused" THEN
+    SAY "Paused"
+  WHEN status = "stopped" THEN
+    SAY "Stopped"
+  OTHERWISE
+    SAY "Unknown"
+END
+    </pre>
+
+    <h2>Common Use Cases</h2>
+    <ul>
+        <li><strong>Command Dispatch</strong> - Route based on user command</li>
+        <li><strong>Status Handling</strong> - Handle different states</li>
+        <li><strong>Type Checking</strong> - Different logic per type</li>
+        <li><strong>Range Processing</strong> - Categorize numeric ranges</li>
+        <li><strong>Error Classification</strong> - Categorize error types</li>
+        <li><strong>State Machines</strong> - Manage state transitions</li>
+    </ul>
+
+</body>
+</html>

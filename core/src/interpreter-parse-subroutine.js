@@ -251,6 +251,7 @@ async function executeCall(command, variables, subroutines, callStack, evaluateE
     currentCtx ? currentCtx.sourceFilename : sourceFilename || '',
     { subroutine, args }
   );
+  // Do not emit a CALL trace here; the interpreter emits a single canonical CALL header.
   
   // Resolve subroutine name if it's a variable call
   let actualSubroutineName = subroutine;

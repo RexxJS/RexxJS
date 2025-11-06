@@ -26,6 +26,28 @@ function executeAddressCommand(command, interpreter) {
 }
 
 /**
+ * Execute ADDRESS_REMOTE command - register remote HTTP endpoint and switch to it
+ * @param {Object} command - ADDRESS_REMOTE command object
+ * @param {Object} interpreter - Interpreter instance
+ */
+function executeAddressRemoteCommand(command, interpreter) {
+  // Initialize remote endpoints registry if not exists
+  if (!interpreter.addressRemoteEndpoints) {
+    interpreter.addressRemoteEndpoints = {};
+  }
+
+  // Register the remote endpoint
+  const targetName = command.asName.toLowerCase();
+  interpreter.addressRemoteEndpoints[targetName] = {
+    url: command.url,
+    authToken: command.authToken
+  };
+
+  // Automatically switch to the registered ADDRESS
+  interpreter.address = targetName;
+}
+
+/**
  * Execute ADDRESS_WITH_STRING command - set address and execute command string
  * @param {Object} command - ADDRESS_WITH_STRING command object
  * @param {Object} interpreter - Interpreter instance
@@ -72,6 +94,7 @@ if (typeof module !== 'undefined' && module.exports) {
   // Node.js environment
   module.exports = {
     executeAddressCommand,
+    executeAddressRemoteCommand,
     executeAddressWithStringCommand,
     executeSignalCommand,
     executeSignalJumpCommand
@@ -84,6 +107,7 @@ if (typeof module !== 'undefined' && module.exports) {
   if (!window.rexxModuleRegistry.has('commandAddress')) {
     window.rexxModuleRegistry.set('commandAddress', {
       executeAddressCommand,
+      executeAddressRemoteCommand,
       executeAddressWithStringCommand,
       executeSignalCommand,
       executeSignalJumpCommand

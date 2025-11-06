@@ -1,6 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
-test.describe('DOM Element Functions - Phase 1 Implementation', () => {
+test.describe('ELEMENT() Function - Phase 1: Basic Element Operations', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to the DOM stale test harness which has our DOM functions
     await page.goto('/tests/web/test-harness-dom-stale.html');
@@ -10,10 +10,10 @@ test.describe('DOM Element Functions - Phase 1 Implementation', () => {
     await page.waitForSelector('#rexx-script');
   });
 
-  test('DOM_GET should get single element reference', async ({ page }) => {
+  test('ELEMENT() with operation="get" should get single element reference', async ({ page }) => {
     const script = `
--- Test DOM_GET function
-LET button = DOM_GET selector="button:first-child"
+-- Test ELEMENT() get operation function
+LET button = ELEMENT(selector="button:first-child" operation="get")
 SAY "Got button reference: " || button
 SAY "Reference type: " || TYPEOF(button)
     `;
@@ -27,10 +27,10 @@ SAY "Reference type: " || TYPEOF(button)
     expect(output).toContain('Reference type: string');
   });
 
-  test('DOM_GET_ALL should get array of element references', async ({ page }) => {
+  test('ELEMENT() with operation="all" should get array of element references', async ({ page }) => {
     const script = `
--- Test DOM_GET_ALL function
-LET buttons = DOM_GET_ALL selector=".test-collection button"
+-- Test ELEMENT() get operation_ALL function
+LET buttons = ELEMENT(selector=".test-collection button" operation="all")
 SAY "Found " || buttons.length || " button references"
 SAY "First button: " || ARRAY_GET(buttons, 1)
 SAY "Second button: " || ARRAY_GET(buttons, 2)
@@ -48,16 +48,16 @@ SAY "Array type: " || TYPEOF(buttons)
     expect(output).toContain('Array type: object');
   });
 
-  test('DOM_ELEMENT_TEXT should get element text content', async ({ page }) => {
+  test('ELEMENT() with operation="text" should get element text content', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_TEXT function
-LET buttons = DOM_GET_ALL selector=".test-collection button"
+-- Test ELEMENT() text operation function
+LET buttons = ELEMENT(selector=".test-collection button" operation="all")
 LET firstButton = ARRAY_GET(buttons, 1)
-LET text = DOM_ELEMENT_TEXT element=firstButton
+LET text = ELEMENT(element=firstButton operation="text")
 SAY "First button text: " || text
 
 LET secondButton = ARRAY_GET(buttons, 2)
-LET text2 = DOM_ELEMENT_TEXT element=secondButton
+LET text2 = ELEMENT(element=secondButton operation="text")
 SAY "Second button text: " || text2
     `;
     
@@ -70,14 +70,14 @@ SAY "Second button text: " || text2
     expect(output).toContain('Second button text: Beta');
   });
 
-  test('DOM_ELEMENT_CLICK should click elements', async ({ page }) => {
+  test('ELEMENT() with operation="click" should click elements', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_CLICK function
-LET buttons = DOM_GET_ALL selector=".test-collection button"
+-- Test ELEMENT() click operation function
+LET buttons = ELEMENT(selector=".test-collection button" operation="all")
 LET firstButton = ARRAY_GET(buttons, 1)
-LET text = DOM_ELEMENT_TEXT element=firstButton
+LET text = ELEMENT(element=firstButton operation="text")
 SAY "Clicking button: " || text
-LET result = DOM_ELEMENT_CLICK element=firstButton
+LET result = ELEMENT(element=firstButton operation="click")
 SAY "Click result: " || result
     `;
     
@@ -94,21 +94,21 @@ SAY "Click result: " || result
     expect(eventLog).toContain('Alpha clicked');
   });
 
-  test('DOM_ELEMENT_SET_ATTR and DOM_ELEMENT_GET_ATTR should work', async ({ page }) => {
+  test('ELEMENT() with operation="attribute" should get and set attributes should work', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT attribute functions
-LET button = DOM_GET selector=".test-collection button:first-child"
-LET originalTitle = DOM_ELEMENT_GET_ATTR element=button name="title"
+-- Test ELEMENT() attribute operation functions
+LET button = ELEMENT(selector=".test-collection button:first-child" operation="get")
+LET originalTitle = ELEMENT(element=button operation="attribute" arg3="title")
 SAY "Original title: " || originalTitle
 
 -- Set a new title
-DOM_ELEMENT_SET_ATTR element=button name="title" value="Custom Title"
-LET newTitle = DOM_ELEMENT_GET_ATTR element=button name="title"
+ELEMENT(element=button operation="attribute" arg3="title" arg4="Custom Title")
+LET newTitle = ELEMENT(element=button operation="attribute" arg3="title")
 SAY "New title: " || newTitle
 
 -- Set a data attribute
-DOM_ELEMENT_SET_ATTR element=button name="data-test" value="phase1-test"
-LET dataAttr = DOM_ELEMENT_GET_ATTR element=button name="data-test"
+ELEMENT(element=button operation="attribute" arg3="data-test" arg4="phase1-test")
+LET dataAttr = ELEMENT(element=button operation="attribute" arg3="data-test")
 SAY "Data attribute: " || dataAttr
     `;
     
@@ -121,22 +121,22 @@ SAY "Data attribute: " || dataAttr
     expect(output).toContain('Data attribute: phase1-test');
   });
 
-  test('DOM_ELEMENT_SET_STYLE should modify element styles', async ({ page }) => {
+  test('ELEMENT() with operation="style" should modify element styles', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_SET_STYLE function
-LET button = DOM_GET selector=".test-collection button:first-child"
+-- Test ELEMENT() style operation function
+LET button = ELEMENT(selector=".test-collection button:first-child" operation="get")
 SAY "Setting button style..."
 
 -- Set background color
-DOM_ELEMENT_SET_STYLE element=button property="backgroundColor" value="red"
+ELEMENT(element=button operation="style" arg3="backgroundColor" arg4="red")
 SAY "Background color set to red"
 
 -- Set border
-DOM_ELEMENT_SET_STYLE element=button property="border" value="3px solid blue"
+ELEMENT(element=button operation="style" arg3="border" arg4="3px solid blue")
 SAY "Border set to blue"
 
 -- Set font weight
-DOM_ELEMENT_SET_STYLE element=button property="fontWeight" value="bold"
+ELEMENT(element=button operation="style" arg3="fontWeight" arg4="bold")
 SAY "Font weight set to bold"
     `;
     
@@ -164,17 +164,17 @@ SAY "Font weight set to bold"
     expect(buttonStyle.fontWeight).toBe('bold');
   });
 
-  test('DOM_ELEMENT_QUERY should find child elements', async ({ page }) => {
+  test('ELEMENT() with selector filter should find child elements', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_QUERY function
-LET container = DOM_GET selector=".test-collection"
-LET firstButton = DOM_ELEMENT_QUERY element=container selector="button:first-child"
-LET buttonText = DOM_ELEMENT_TEXT element=firstButton
+-- Test ELEMENT() selector filtering function
+LET container = ELEMENT(selector=".test-collection" operation="get")
+LET firstButton = ELEMENT(element=container selector="button:first-child" operation="children")
+LET buttonText = ELEMENT(element=firstButton operation="text")
 SAY "Found first button in container: " || buttonText
 
 -- Query for a specific button
-LET betaButton = DOM_ELEMENT_QUERY element=container selector="button:nth-child(2)"
-LET betaText = DOM_ELEMENT_TEXT element=betaButton
+LET betaButton = ELEMENT(element=container selector="button:nth-child(2)" operation="children")
+LET betaText = ELEMENT(element=betaButton operation="text")
 SAY "Found second button: " || betaText
     `;
     
@@ -187,17 +187,17 @@ SAY "Found second button: " || betaText
     expect(output).toContain('Found second button: Beta');
   });
 
-  test('DOM_ELEMENT_QUERY_ALL should find all child elements', async ({ page }) => {
+  test('ELEMENT() with selector filter (all) should find all child elements', async ({ page }) => {
     const script = `
--- Test DOM_ELEMENT_QUERY_ALL function
-LET container = DOM_GET selector=".test-collection"
-LET buttons = DOM_ELEMENT_QUERY_ALL element=container selector="button"
+-- Test ELEMENT() selector filtering_ALL function
+LET container = ELEMENT(selector=".test-collection" operation="get")
+LET buttons = ELEMENT(element=container selector="button" operation="children")
 SAY "Found " || buttons.length || " buttons in container"
 
 -- Process all buttons found
 DO i = 1 TO buttons.length
     LET button = ARRAY_GET(buttons, i)
-    LET text = DOM_ELEMENT_TEXT element=button
+    LET text = ELEMENT(element=button operation="text")
     SAY "Button " || i || ": " || text
 END
     `;
@@ -215,17 +215,17 @@ END
     expect(output).toContain('Button 5: Epsilon');
   });
 
-  test('DO...OVER should work with DOM_GET_ALL results', async ({ page }) => {
+  test('DO...OVER should work with ELEMENT() all operation results', async ({ page }) => {
     const script = `
--- Test DO...OVER with DOM element references
-LET buttons = DOM_GET_ALL selector=".test-collection button"
+-- Test DO...OVER with ELEMENT() element references
+LET buttons = ELEMENT(selector=".test-collection button" operation="all")
 SAY "Processing " || buttons.length || " buttons with DO...OVER"
 
 DO button OVER buttons
-    LET text = DOM_ELEMENT_TEXT element=button
+    LET text = ELEMENT(element=button operation="text")
     SAY "Processing: " || text
     -- Click each button
-    DOM_ELEMENT_CLICK element=button
+    ELEMENT(element=button operation="click")
 END
 
 SAY "DO...OVER processing complete"
@@ -259,7 +259,7 @@ SAY "DO...OVER processing complete"
 SAY "Testing error handling..."
 
 -- Try to get non-existent element
-LET missing = DOM_GET selector=".non-existent-element"
+LET missing = ELEMENT(selector=".non-existent-element" operation="get")
 SAY "This should not appear"
     `;
     
@@ -279,7 +279,7 @@ SAY "This should not appear"
 SAY "Testing invalid element reference..."
 
 -- Try to use invalid element reference
-LET text = DOM_ELEMENT_TEXT element="invalid_reference"
+LET text = ELEMENT(element="invalid_reference" operation="text")
 SAY "This should not appear"
     `;
     
@@ -299,34 +299,34 @@ SAY "This should not appear"
 SAY "Starting complex DOM workflow..."
 
 -- Get all buttons and style them
-LET buttons = DOM_GET_ALL selector=".test-collection button"
+LET buttons = ELEMENT(selector=".test-collection button" operation="all")
 SAY "Found " || buttons.length || " buttons to process"
 
 -- Style each button differently
 DO i = 1 TO buttons.length
     LET button = ARRAY_GET(buttons, i)
-    LET text = DOM_ELEMENT_TEXT element=button
+    LET text = ELEMENT(element=button operation="text")
     
     -- Set different colors based on position
     IF i = 1 THEN
-        DOM_ELEMENT_SET_STYLE element=button property="color" value="red"
+        ELEMENT(element=button operation="style" arg3="color" arg4="red")
     ELSEIF i = 2 THEN
-        DOM_ELEMENT_SET_STYLE element=button property="color" value="green"
+        ELEMENT(element=button operation="style" arg3="color" arg4="green")
     ELSEIF i = 3 THEN
-        DOM_ELEMENT_SET_STYLE element=button property="color" value="blue"
+        ELEMENT(element=button operation="style" arg3="color" arg4="blue")
     ELSE
-        DOM_ELEMENT_SET_STYLE element=button property="color" value="purple"
+        ELEMENT(element=button operation="style" arg3="color" arg4="purple")
     ENDIF
     
     -- Set a data attribute
-    DOM_ELEMENT_SET_ATTR element=button name="data-index" value=i
+    ELEMENT(element=button operation="attribute" arg3="data-index" arg4=i)
     
     SAY "Styled button " || i || " (" || text || ")"
 END
 
 -- Get container and query it
-LET container = DOM_GET selector=".test-collection"
-LET queriedButtons = DOM_ELEMENT_QUERY_ALL element=container selector="button[data-index]"
+LET container = ELEMENT(selector=".test-collection" operation="get")
+LET queriedButtons = ELEMENT(element=container selector="button[data-index]" operation="children")
 SAY "Found " || queriedButtons.length || " buttons with data-index attribute"
 
 SAY "Complex workflow complete!"

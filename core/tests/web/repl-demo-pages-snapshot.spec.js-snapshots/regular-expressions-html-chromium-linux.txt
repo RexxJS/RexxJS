@@ -1,0 +1,109 @@
+>> 3 SAY "=== REXX Regular Expressions Demo ==="
+=== REXX Regular Expressions Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "Simple Pattern Matching:"
+Simple Pattern Matching:
+>> 8 LET text = "Hello123World"
+>> 9 SAY "  Text: " || text
+  Text: Hello123World
+>> 10 IF text MATCHES "[A-Za-z0-9]+" THEN SAY "  Contains alphanumeric: TRUE"
+>> 10 IF text MATCHES "[A-Za-z0-9]+" THEN SAY "  Contains alphanumeric: TRUE"
+  Contains alphanumeric: TRUE
+>> 11 SAY ""
+
+>> 14 SAY "Email Pattern Matching:"
+Email Pattern Matching:
+>> 15 LET email = "user@example.com"
+>> 16 SAY "  Email: " || email
+  Email: user@example.com
+>> 17 IF email MATCHES "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+" THEN SAY "  Matches email pattern: TRUE"
+>> 17 IF email MATCHES "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+" THEN SAY "  Matches email pattern: TRUE"
+  Matches email pattern: TRUE
+>> 18 SAY ""
+
+>> 21 SAY "Digit Matching:"
+Digit Matching:
+>> 22 LET phone = "555-123-4567"
+>> 23 SAY "  Phone: " || phone
+  Phone: 555-123-4567
+>> 24 IF phone MATCHES "[0-9]{3}-[0-9]{3}-[0-9]{4}" THEN SAY "  Matches phone pattern: TRUE"
+>> 24 IF phone MATCHES "[0-9]{3}-[0-9]{3}-[0-9]{4}" THEN SAY "  Matches phone pattern: TRUE"
+  Matches phone pattern: TRUE
+>> 25 SAY ""
+
+>> 28 SAY "Case Variations:"
+Case Variations:
+>> 29 LET var1 = "HELLO"
+>> 30 LET var2 = "hello"
+>> 31 LET var3 = "Hello"
+>> 32 SAY "  var1: " || var1
+  var1: HELLO
+>> 33 SAY "  var2: " || var2
+  var2: hello
+>> 34 SAY "  var3: " || var3
+  var3: Hello
+>> 35 IF UPPER(var1) = UPPER(var2) THEN SAY "  UPPER normalized comparison: TRUE"
+>> 35 IF UPPER(var1) = UPPER(var2) THEN SAY "  UPPER normalized comparison: TRUE"
+  UPPER normalized comparison: TRUE
+>> 36 SAY ""
+
+>> 39 SAY "Finding Patterns in Text:"
+Finding Patterns in Text:
+>> 40 LET sentence = "The year is 2025 and the time is 14:30"
+>> 41 SAY "  Text: " || sentence
+  Text: The year is 2025 and the time is 14:30
+>> 42 LET yearPos = INDEX(sentence, "2025")
+>> 43 IF yearPos > 0 THEN SAY "  Found year at position: " || yearPos
+>> 43 IF yearPos > 0 THEN SAY "  Found year at position: " || yearPos
+  Found year at position: 13
+>> 44 SAY ""
+
+>> 47 SAY "Multiple Pattern Matching:"
+Multiple Pattern Matching:
+>> 48 LET test1 = "test123"
+>> 49 LET test2 = "abc"
+>> 50 LET test3 = "123xyz"
+>> 51 SAY "  test1 '" || test1 || "' starts with letter: " || (SUBSTR(test1, 1, 1) MATCHES "[A-Za-z]")
+  test1 'test123' starts with letter: t
+>> 52 SAY "  test2 '" || test2 || "' all letters: " || (test2 MATCHES "[A-Za-z]+")
+  test2 'abc' all letters: test2MATCHES
+>> 53 SAY "  test3 '" || test3 || "' starts with digit: " || (SUBSTR(test3, 1, 1) MATCHES "[0-9]")
+  test3 '123xyz' starts with digit: 1
+>> 54 SAY ""
+
+>> 57 SAY "Character Classes:"
+Character Classes:
+>> 58 LET alpha = "abc"
+>> 59 LET numeric = "123"
+>> 60 LET mixed = "a1b2c3"
+>> 61 SAY "  '" || alpha || "' is all alphabetic: " || (alpha MATCHES "[a-z]+")
+  'abc' is all alphabetic: alphaMATCHES
+>> 62 SAY "  '" || numeric || "' is all numeric: " || (numeric MATCHES "[0-9]+")
+  '123' is all numeric: numericMATCHES
+>> 63 SAY "  '" || mixed || "' is alphanumeric: " || (mixed MATCHES "[a-z0-9]+")
+  'a1b2c3' is alphanumeric: mixedMATCHES
+>> 64 SAY ""
+
+>> 67 SAY "URL Pattern:"
+URL Pattern:
+>> 68 LET url = "https://example.com/path"
+>> 69 SAY "  URL: " || url
+  URL: https://example.com/path
+>> 70 IF url MATCHES "https?://.*" THEN SAY "  Is web URL: TRUE"
+>> 70 IF url MATCHES "https?://.*" THEN SAY "  Is web URL: TRUE"
+  Is web URL: TRUE
+>> 71 SAY ""
+
+>> 74 SAY "Validation Examples:"
+Validation Examples:
+>> 75 LET zipcode = "12345"
+>> 76 LET badZip = "ABCDE"
+>> 77 SAY "  Zipcode '" || zipcode || "' valid: " || (zipcode MATCHES "[0-9]{5}")
+  Zipcode '12345' valid: zipcodeMATCHES
+>> 78 SAY "  Zipcode '" || badZip || "' valid: " || (badZip MATCHES "[0-9]{5}")
+  Zipcode 'ABCDE' valid: badZipMATCHES
+>> 79 SAY ""
+
+>> 80 SAY "=== Regular Expressions Demo Complete ==="
+=== Regular Expressions Demo Complete ===

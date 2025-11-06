@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -e
+# Exit on error, but we'll handle test failures explicitly
+set -eo pipefail
 
 # Initialize statistics
 TOTAL_JEST_SUITES=0
@@ -10,9 +11,15 @@ TOTAL_JEST_FAILED=0
 TOTAL_REXXT_FILES=0
 TOTAL_REXXT_TESTS=0
 TOTAL_REXXT_EXPECTATIONS=0
+TOTAL_PLAYWRIGHT_TESTS=0
+TOTAL_PLAYWRIGHT_PASSED=0
+TOTAL_PLAYWRIGHT_FAILED=0
+TOTAL_PLAYWRIGHT_SKIPPED=0
 JEST_MODULES=()
 REXXT_MODULES=()
+PLAYWRIGHT_MODULES=()
 SKIPPED_MODULES=()
+WEB_SERVER_PID=""
 
 # Function to extract Jest stats from output
 extract_jest_stats() {
@@ -116,12 +123,118 @@ run_test() {
   echo "  🧪 Testing $module_name..."
   cd "$module_path"
   if [ -f "package.json" ]; then
+    # Install dependencies
+    echo "    📦 Installing dependencies..."
+    npm install > /dev/null 2>&1
+
+    # Run tests
     MODULE_JEST_TEMP=$(mktemp)
-    MODULE_JEST_OUTPUT=$(npm test 2>&1 | tee "$MODULE_JEST_TEMP")
+    set +e  # Don't exit on test failures
+    MODULE_JEST_OUTPUT=$(npm test -- --ci --verbose 2>&1 | tee "$MODULE_JEST_TEMP")
+    set -e
     extract_jest_stats "$MODULE_JEST_OUTPUT" "$module_name" "$(pwd)" "$MODULE_JEST_TEMP"
     rm -f "$MODULE_JEST_TEMP"
   fi
   cd - > /dev/null
+}
+
+# Function to extract Playwright stats from output
+extract_playwright_stats() {
+  local output="$1"
+  local temp_file="$2"
+
+  # Extract test counts from Playwright output
+  local passed=$(echo "$output" | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+" | tail -1)
+  local failed=$(echo "$output" | grep -oE "[0-9]+ failed" | grep -oE "[0-9]+" | tail -1)
+  local skipped=$(echo "$output" | grep -oE "[0-9]+ skipped" | grep -oE "[0-9]+" | tail -1)
+
+  passed=${passed:-0}
+  failed=${failed:-0}
+  skipped=${skipped:-0}
+
+  local total=$((passed + failed + skipped))
+
+  TOTAL_PLAYWRIGHT_TESTS=$((TOTAL_PLAYWRIGHT_TESTS + total))
+  TOTAL_PLAYWRIGHT_PASSED=$((TOTAL_PLAYWRIGHT_PASSED + passed))
+  TOTAL_PLAYWRIGHT_FAILED=$((TOTAL_PLAYWRIGHT_FAILED + failed))
+  TOTAL_PLAYWRIGHT_SKIPPED=$((TOTAL_PLAYWRIGHT_SKIPPED + skipped))
+
+  PLAYWRIGHT_MODULES+=("core/web: $passed passed, $failed failed, $skipped skipped")
+
+  # Output failures if any
+  if [ "$failed" -gt 0 ] && [ -f "$temp_file" ]; then
+    echo "❌ Playwright test failures:"
+    cat "$temp_file" | grep -A 5 "failed"
+  fi
+}
+
+# Function to start web server for Playwright tests
+start_web_server() {
+  echo "  🌐 Starting web server on port 8000..."
+  cd "$(pwd)"
+
+  # Start server and capture output to a log file for debugging
+  npx http-server -p 8000 -s > http-server.log 2>&1 &
+  WEB_SERVER_PID=$!
+
+  # Wait up to 30s for server to respond
+  local max_seconds=30
+  local server_ready=false
+
+  for i in $(seq 1 ${max_seconds}); do
+    if curl -s http://localhost:8000/ > /dev/null 2>&1; then
+      server_ready=true
+      break
+    fi
+    sleep 1
+  done
+
+  # Final check to avoid false positives from transient responses
+  if [ "$server_ready" = true ] && curl -s http://localhost:8000/ > /dev/null 2>&1; then
+    echo "    ✅ Web server started (PID: $WEB_SERVER_PID)"
+
+    # Test a demo page to verify content is being served correctly
+    echo "    🔍 Testing demo page content..."
+    local test_response=$(curl -s http://localhost:8000/core/src/repl/variables-and-assignment.html)
+    local response_length=${#test_response}
+
+    if [ "$response_length" -gt 1000 ]; then
+      echo "    ✅ Demo page loads correctly (${response_length} bytes)"
+      # Show first 500 chars to verify HTML content
+      echo "    First 500 chars of response:"
+      echo "$test_response" | head -c 500
+      echo ""
+      echo "    ..."
+    else
+      echo "    ⚠️  Demo page response seems too short (${response_length} bytes)"
+      echo "    Full response:"
+      echo "$test_response"
+    fi
+
+    return 0
+  else
+    echo "    ❌ Web server failed to start after ${max_seconds}s"
+    if [ -f http-server.log ]; then
+      echo "    === http-server.log ==="
+      tail -n 100 http-server.log
+    fi
+    return 1
+  fi
+}
+
+# Function to stop web server
+stop_web_server() {
+  if [ -n "$WEB_SERVER_PID" ]; then
+    echo "  🛑 Stopping web server (PID: $WEB_SERVER_PID)..."
+    kill $WEB_SERVER_PID 2>/dev/null || true
+    wait $WEB_SERVER_PID 2>/dev/null || true
+
+    # Print server log tail for diagnostics
+    if [ -f http-server.log ]; then
+      echo "  === http-server.log (tail) ==="
+      tail -n 50 http-server.log || true
+    fi
+  fi
 }
 
 
@@ -131,15 +244,49 @@ echo "========================="
 # Run core tests
 echo "📦 Running core tests..."
 cd core/
+
+# Install dependencies
+echo "  📦 Installing dependencies..."
+npm install > /dev/null 2>&1
+
+echo "  Running Jest tests..."
 CORE_JEST_TEMP=$(mktemp)
-CORE_JEST_OUTPUT=$(npx jest 2>&1 | tee "$CORE_JEST_TEMP")
+set +e  # Don't exit on Jest failures, we want to collect stats
+CORE_JEST_OUTPUT=$(npx jest --ci --verbose 2>&1 | tee "$CORE_JEST_TEMP")
+JEST_EXIT_CODE=$?
+set -e
+echo "  Jest exit code: $JEST_EXIT_CODE"
 extract_jest_stats "$CORE_JEST_OUTPUT" "core" "$(pwd)" "$CORE_JEST_TEMP"
 rm -f "$CORE_JEST_TEMP"
 
+echo "  Running Rexxt dogfood tests..."
 CORE_REXXT_TEMP=$(mktemp)
+set +e  # Don't exit on Rexxt failures
 CORE_REXXT_OUTPUT=$(./rexxt tests/dogfood/* 2>&1 | tee "$CORE_REXXT_TEMP")
+REXXT_EXIT_CODE=$?
+set -e
+echo "  Rexxt exit code: $REXXT_EXIT_CODE"
 extract_rexxt_stats "$CORE_REXXT_OUTPUT" "core/dogfood" "$(pwd)" "$CORE_REXXT_TEMP"
 rm -f "$CORE_REXXT_TEMP"
+
+# Run Playwright web tests for demo pages
+# Commented out - not working in CI environment
+# echo ""
+# echo "🎭 Running Playwright web tests..."
+# start_web_server
+#
+# # Use trap to ensure web server is stopped
+# trap stop_web_server EXIT
+#
+# PLAYWRIGHT_TEMP=$(mktemp)
+# # Skip snapshot tests in CI - they're brittle and fail when output changes
+# PLAYWRIGHT_OUTPUT=$(PLAYWRIGHT_HTML_OPEN=never npx playwright test tests/web/repl-demo-pages.spec.js --project=chromium 2>&1 | tee "$PLAYWRIGHT_TEMP")
+# extract_playwright_stats "$PLAYWRIGHT_OUTPUT" "$PLAYWRIGHT_TEMP"
+# rm -f "$PLAYWRIGHT_TEMP"
+#
+# stop_web_server
+# trap - EXIT
+
 cd ..
 
 echo ""
@@ -210,6 +357,17 @@ echo "  Total Tests: $TOTAL_REXXT_TESTS"
 echo "  Total Expectations: $TOTAL_REXXT_EXPECTATIONS"
 echo ""
 
+echo "📊 Playwright Web Test Results:"
+echo "  Total Tests: $TOTAL_PLAYWRIGHT_TESTS"
+echo "  ✅ Passed: $TOTAL_PLAYWRIGHT_PASSED"
+echo "  ❌ Failed: $TOTAL_PLAYWRIGHT_FAILED"
+echo "  ⏭️  Skipped: $TOTAL_PLAYWRIGHT_SKIPPED"
+if [ "$TOTAL_PLAYWRIGHT_TESTS" -gt 0 ]; then
+  PLAYWRIGHT_PASS_RATE=$((TOTAL_PLAYWRIGHT_PASSED * 100 / TOTAL_PLAYWRIGHT_TESTS))
+  echo "  📈 Pass Rate: $PLAYWRIGHT_PASS_RATE%"
+fi
+echo ""
+
 echo "📁 Module Breakdown:"
 echo "Jest modules:"
 for module in "${JEST_MODULES[@]}"; do
@@ -225,6 +383,14 @@ if [ ${#REXXT_MODULES[@]} -gt 0 ]; then
   echo ""
 fi
 
+if [ ${#PLAYWRIGHT_MODULES[@]} -gt 0 ]; then
+  echo "Playwright web modules:"
+  for module in "${PLAYWRIGHT_MODULES[@]}"; do
+    echo "  • $module"
+  done
+  echo ""
+fi
+
 if [ ${#SKIPPED_MODULES[@]} -gt 0 ]; then
   echo "Skipped modules:"
   for module in "${SKIPPED_MODULES[@]}"; do
@@ -235,15 +401,15 @@ fi
 echo "::endgroup::"
 
 # Final status
-if [ "$TOTAL_JEST_FAILED" -eq 0 ]; then
+if [ "$TOTAL_JEST_FAILED" -eq 0 ] && [ "$TOTAL_PLAYWRIGHT_FAILED" -eq 0 ]; then
   echo "🎉 All tests passed!"
-  
+
   # Build binary after successful tests
   echo ""
   echo "🔨 Building binaries..."
-  
+
   BINARY_BUILD_SUCCESS=true
-  
+
   # Build linux-x64 binary
   echo "Building linux-x64 binary..."
   if ./make-binary.sh linux-x64; then
@@ -252,7 +418,7 @@ if [ "$TOTAL_JEST_FAILED" -eq 0 ]; then
     echo "❌ linux-x64 binary build failed"
     BINARY_BUILD_SUCCESS=false
   fi
-  
+
   # Build linux-arm64 binary (if on compatible platform)
   echo ""
   echo "Building linux-arm64 binary..."
@@ -262,15 +428,22 @@ if [ "$TOTAL_JEST_FAILED" -eq 0 ]; then
     echo "❌ linux-arm64 binary build failed"
     BINARY_BUILD_SUCCESS=false
   fi
-  
+
   if [ "$BINARY_BUILD_SUCCESS" = true ]; then
     echo "✅ All binary builds completed successfully"
   else
     echo "⚠️ Some binary builds failed"
   fi
-  
+
   exit 0
 else
-  echo "💥 $TOTAL_JEST_FAILED tests failed"
+  TOTAL_FAILURES=$((TOTAL_JEST_FAILED + TOTAL_PLAYWRIGHT_FAILED))
+  echo "💥 $TOTAL_FAILURES tests failed"
+  if [ "$TOTAL_JEST_FAILED" -gt 0 ]; then
+    echo "  - Jest: $TOTAL_JEST_FAILED failed"
+  fi
+  if [ "$TOTAL_PLAYWRIGHT_FAILED" -gt 0 ]; then
+    echo "  - Playwright: $TOTAL_PLAYWRIGHT_FAILED failed"
+  fi
   exit 1
 fi

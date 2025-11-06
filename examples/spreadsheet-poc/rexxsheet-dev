@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# rexxsheet-dev - Launch RexxJS Spreadsheet in development mode
+# Usage: ./rexxsheet-dev [spreadsheet.json]
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Change to the spreadsheet-poc directory
+cd "$SCRIPT_DIR"
+
+# Show usage if --help or -h
+if [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+    echo "RexxJS Spreadsheet - Development Mode"
+    echo ""
+    echo "Usage:"
+    echo "  $0 [OPTIONS] [FILE]    Load spreadsheet from FILE"
+    echo "  $0 [OPTIONS]           Launch with sample data"
+    echo "  $0 --help              Show this help"
+    echo ""
+    echo "Options:"
+    echo "  --control-bus          Enable HTTP control bus API on port 8083"
+    echo "                         (allows Node.js REXX scripts to control spreadsheet)"
+    echo ""
+    echo "Examples:"
+    echo "  $0 sample-budget.json"
+    echo "  $0 ~/Documents/my-sheet.json"
+    echo "  $0 --control-bus test-sheet.json"
+    echo "  $0 --control-bus"
+    echo ""
+    echo "Environment Variables:"
+    echo "  CONTROL_BUS_TOKEN      Authentication token for HTTP API"
+    echo "                         (default: dev-token-12345)"
+    echo ""
+    echo "File Format:"
+    echo "  See FILE-LOADING.md for complete format specification"
+    echo ""
+    echo "Control Bus:"
+    echo "  When --control-bus is enabled, the HTTP API listens on:"
+    echo "  http://localhost:8083/api/spreadsheet"
+    echo ""
+    echo "  Test with curl:"
+    echo "  curl -X POST http://localhost:8083/api/spreadsheet \\"
+    echo "    -H \"Authorization: Bearer dev-token-12345\" \\"
+    echo "    -H \"Content-Type: application/json\" \\"
+    echo "    -d '{\"command\": \"setCell\", \"params\": {\"ref\": \"A1\", \"content\": \"100\"}}'"
+    echo ""
+    exit 0
+fi
+
+# Check if npm is available
+if ! command -v npm &> /dev/null; then
+    echo -e "${RED}Error: npm is not installed or not in PATH${NC}"
+    echo "Please install Node.js and npm first"
+    exit 1
+fi
+
+# Check if package.json exists
+if [[ ! -f "package.json" ]]; then
+    echo -e "${RED}Error: package.json not found${NC}"
+    echo "Please run this script from the spreadsheet-poc directory"
+    exit 1
+fi
+
+# Check if node_modules exists
+if [[ ! -d "node_modules" ]]; then
+    echo -e "${YELLOW}node_modules not found. Running npm install...${NC}"
+    npm install
+fi
+
+# Parse arguments
+CONTROL_BUS=false
+FILE_PATH=""
+
+for arg in "$@"; do
+    if [[ "$arg" == "--control-bus" ]]; then
+        CONTROL_BUS=true
+    elif [[ -z "$FILE_PATH" ]]; then
+        FILE_PATH="$arg"
+    fi
+done
+
+# Build command arguments
+TAURI_ARGS=""
+
+if [[ "$CONTROL_BUS" == true ]]; then
+    TAURI_ARGS="--control-bus"
+    # Set environment variable for dev mode (CLI args don't work in tauri dev)
+    export ENABLE_CONTROL_BUS=1
+    echo -e "${GREEN}Control Bus HTTP API enabled${NC}"
+    echo -e "${YELLOW}API URL:${NC} http://localhost:8083/api/spreadsheet"
+
+    # Show token
+    TOKEN="${CONTROL_BUS_TOKEN:-dev-token-12345}"
+    echo -e "${YELLOW}Token:${NC} $TOKEN"
+    echo ""
+fi
+
+# Launch with or without file
+if [[ -n "$FILE_PATH" ]]; then
+    # Convert to absolute path if relative
+    if [[ ! "$FILE_PATH" = /* ]]; then
+        FILE_PATH="$(pwd)/$FILE_PATH"
+    fi
+
+    # Check if file exists
+    if [[ ! -f "$FILE_PATH" ]]; then
+        echo -e "${RED}Error: File not found: $FILE_PATH${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}Loading spreadsheet:${NC} $FILE_PATH"
+    npm run tauri:dev:file "$TAURI_ARGS" "$FILE_PATH"
+else
+    # No file provided - use sample data
+    echo -e "${GREEN}Launching with sample data${NC}"
+    echo -e "${YELLOW}Tip: Pass a .json file to load it instead${NC}"
+
+    if [[ "$CONTROL_BUS" == true ]]; then
+        npm run tauri:dev:file "$TAURI_ARGS"
+    else
+        npm run tauri:dev
+    fi
+fi

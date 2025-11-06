@@ -1,0 +1,90 @@
+>> 3 SAY "=== REXX Arrays and Lists Demo ==="
+=== REXX Arrays and Lists Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "Stem Variable (Array) Examples:"
+Stem Variable (Array) Examples:
+>> 8 fruits.0 = 3
+>> 9 fruits.1 = "Apple"
+>> 10 fruits.2 = "Banana"
+>> 11 fruits.3 = "Cherry"
+>> 13 SAY "  Fruit count: " || fruits.0
+  Fruit count: 3
+>> (no line#) DO
+>> 15 SAY "    " || i || ": " || fruits.i
+    1: fruits.i
+>> 15 SAY "    " || i || ": " || fruits.i
+    2: fruits.i
+>> 15 SAY "    " || i || ": " || fruits.i
+    3: fruits.i
+>> 17 SAY ""
+
+>> 20 SAY "Building a List:"
+Building a List:
+>> 21 colors.1 = "Red"
+>> 22 colors.2 = "Green"
+>> 23 colors.3 = "Blue"
+>> 24 colors.4 = "Yellow"
+>> 25 colors.0 = 4
+>> (no line#) DO
+>> 28 SAY "  Color " || i || ": " || colors.i
+  Color 1: colors.i
+>> 28 SAY "  Color " || i || ": " || colors.i
+  Color 2: colors.i
+>> 28 SAY "  Color " || i || ": " || colors.i
+  Color 3: colors.i
+>> 28 SAY "  Color " || i || ": " || colors.i
+  Color 4: colors.i
+>> 30 SAY ""
+
+>> 33 SAY "Array Access:"
+Array Access:
+>> 34 numbers.1 = 10
+>> 35 numbers.2 = 20
+>> 36 numbers.3 = 30
+>> 37 numbers.0 = 3
+>> 39 SAY "  First element: " || numbers.1
+  First element: 10
+>> 40 SAY "  Middle element: " || numbers.2
+  Middle element: 20
+>> 41 SAY "  Last element: " || numbers.3
+  Last element: 30
+>> 42 SAY ""
+
+>> 45 SAY "Dynamic Array Building:"
+Dynamic Array Building:
+>> 46 items.0 = 0
+>> 47 items.0 = items.0 + 1
+>> 48 items.1 = "First"
+>> 49 items.0 = items.0 + 1
+>> 50 items.2 = "Second"
+>> 51 items.0 = items.0 + 1
+>> 52 items.3 = "Third"
+>> 54 SAY "  Built array with " || items.0 || " items:"
+  Built array with 3 items:
+>> (no line#) DO
+>> 56 SAY "    " || i || ": " || items.i
+    1: items.i
+>> 56 SAY "    " || i || ": " || items.i
+    2: items.i
+>> 56 SAY "    " || i || ": " || items.i
+    3: items.i
+>> 58 SAY ""
+
+>> 61 SAY "Multi-dimensional Array (Matrix):"
+Multi-dimensional Array (Matrix):
+>> 62 matrix.1.1 = "A"
+>> 63 matrix.1.2 = "B"
+>> 64 matrix.2.1 = "C"
+>> 65 matrix.2.2 = "D"
+>> (no line#) DO
+>> (no line#) DO
+>> 69 SAY "  [" || row || "," || col || "] = " || matrix.row.col
+  [1,1] = matrix.row.col
+>> 69 SAY "  [" || row || "," || col || "] = " || matrix.row.col
+  [1,2] = matrix.row.col
+>> (no line#) DO
+>> 69 SAY "  [" || row || "," || col || "] = " || matrix.row.col
+  [2,1] = matrix.row.col
+>> 69 SAY "  [" || row || "," || col || "] = " || matrix.row.col
+  [2,2] = matrix.row.col

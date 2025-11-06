@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS Pipe Operator Demo</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for pipe operator demonstration -->
+    <script type="text/rexx" id="pipe-script">
+        /* Auto-executing REXX Pipe Operator Demo */
+
+        SAY "=== REXX Pipe Operator (|>) Demo ==="
+        SAY ""
+
+        /* Basic pipe operator */
+        SAY "Basic Pipe Operator:"
+        LET text = "  hello world  "
+        LET result = text |> STRIP() |> UPPER()
+        SAY "  Original: '" || text || "'"
+        SAY "  After STRIP() |> UPPER(): '" || result || "'"
+        SAY ""
+
+        /* Piping with multiple operations */
+        SAY "Multiple Operations in Pipe:"
+        LET data = "JavaScript"
+        LET result = data |> LOWER() |> LEFT(4) |> UPPER()
+        SAY "  Original: " || data
+        SAY "  LOWER() |> LEFT(4) |> UPPER(): " || result
+        SAY ""
+
+        /* Piping with lambda expressions */
+        SAY "Piping with Lambda Expressions:"
+        LET numbers = [1, 2, 3, 4, 5]
+        LET result = numbers |> MAP("x * 2") |> REDUCE("sum + x", 0)
+        SAY "  Array: " || JSON_STRINGIFY(numbers)
+        SAY "  MAP('x * 2') |> REDUCE('sum + x', 0): " || result
+        SAY ""
+
+        /* Chaining transformations */
+        SAY "Chaining Transformations:"
+        LET array = [5, 2, 8, 1, 9, 3]
+        LET result = array |> SORT() |> REVERSE() |> SLICE(0, 3)
+        SAY "  Original: " || JSON_STRINGIFY(array)
+        SAY "  SORT() |> REVERSE() |> SLICE(0, 3): " || JSON_STRINGIFY(result)
+        SAY ""
+
+        /* Piping with object transformation */
+        SAY "Object Transformation via Pipe:"
+        LET jsonData = '{"name": "Alice", "age": 30}'
+        LET obj = jsonData |> JSON_PARSE()
+        LET name = obj.name
+        SAY "  JSON: " || jsonData
+        SAY "  Parsed name: " || name
+        SAY ""
+
+        /* Practical example: data transformation pipeline */
+        SAY "Practical Example - Data Pipeline:"
+        LET values = [3, 1, 4, 1, 5, 9, 2, 6]
+        LET stats = {
+            "original": values,
+            "sorted": values |> SORT(),
+            "unique_count": values |> SORT() |> UNIQUE() |> LENGTH(),
+            "sum": values |> REDUCE("s + x", 0),
+            "max": values |> REDUCE("m, x ? (x > m ? x : m) : x")
+        }
+        SAY "  Input: " || JSON_STRINGIFY(values)
+        SAY "  Unique count: " || stats.unique_count
+        SAY "  Sum: " || stats.sum
+        SAY ""
+
+        SAY "=== Pipe Operator Demo Complete ==="
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS Pipe Operator Demo</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating the pipe operator (<code>|></code>) for function chaining.</p>
+        <p>The pipe operator allows elegant composition of transformations, passing the result of one operation as input to the next.</p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('pipe-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>Pipe Operator Syntax</h2>
+    <ul>
+        <li><strong>expression |> function()</strong> - Pass expression result as first argument to function</li>
+        <li><strong>value |> f1() |> f2() |> f3()</strong> - Chain multiple transformations</li>
+        <li><strong>data |> MAP("x * 2")</strong> - Lambda expressions in pipe chains</li>
+    </ul>
+
+    <h2>Key Benefits</h2>
+    <ul>
+        <li><strong>Readability</strong> - Left-to-right flow matches natural thinking</li>
+        <li><strong>Composability</strong> - Combine functions elegantly</li>
+        <li><strong>Reduplication</strong> - No need for intermediate variables</li>
+        <li><strong>Functional Style</strong> - Pure functions without side effects</li>
+    </ul>
+
+    <h2>Common Use Cases</h2>
+    <ul>
+        <li><strong>String Transformation</strong> - STRIP() |> UPPER() |> TRIM()</li>
+        <li><strong>Array Processing</strong> - SORT() |> REVERSE() |> SLICE()</li>
+        <li><strong>JSON Processing</strong> - JSON_PARSE() |> transform |> JSON_STRINGIFY()</li>
+        <li><strong>Data Pipelines</strong> - Multiple operations in sequence</li>
+        <li><strong>Functional Programming</strong> - MAP() |> FILTER() |> REDUCE()</li>
+    </ul>
+
+    <h2>Comparison with Variable Assignment</h2>
+    <pre>
+/* Without pipe operator (verbose) */
+LET temp1 = LOWER(text)
+LET temp2 = STRIP(temp1)
+LET result = UPPER(temp2)
+
+/* With pipe operator (elegant) */
+LET result = text |> LOWER() |> STRIP() |> UPPER()
+    </pre>
+
+
+</body>
+</html>

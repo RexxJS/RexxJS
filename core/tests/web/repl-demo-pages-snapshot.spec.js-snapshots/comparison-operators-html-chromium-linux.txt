@@ -1,0 +1,157 @@
+>> 3 SAY "=== REXX Comparison Operators Demo ===\n"
+=== REXX Comparison Operators Demo ===
+
+>> 6 SAY "1. Equality Operator (=):"
+1. Equality Operator (=):
+>> 7 LET a = 42
+>> 8 LET b = 42
+>> 9 LET c = "42"
+>> 10 IF a = b THEN SAY "  42 = 42: true" ELSE SAY "  42 = 42: false" ENDIF
+>> 10 IF a = b THEN SAY "  42 = 42: true" ELSE SAY "  42 = 42: false" ENDIF
+  42 = 42: true ELSE SAY   42 = 42: false ENDIF
+>> 11 IF a = c THEN SAY "  42 = '42': true (numeric coercion)" ELSE SAY "  42 = '42': false" ENDIF
+>> 11 IF a = c THEN SAY "  42 = '42': true (numeric coercion)" ELSE SAY "  42 = '42': false" ENDIF
+  42 = '42': true (numeric coercion) ELSE SAY   42 = '42': false ENDIF
+>> 12 SAY ""
+
+>> 15 SAY "2. Strict Equality (==):"
+2. Strict Equality (==):
+>> 16 LET str1 = "hello"
+>> 17 LET str2 = "hello"
+>> 18 LET str3 = "Hello"
+>> 19 IF str1 == str2 THEN SAY "  'hello' == 'hello': true" ELSE SAY "  'hello' == 'hello': false" ENDIF
+>> 19 IF str1 == str2 THEN SAY "  'hello' == 'hello': true" ELSE SAY "  'hello' == 'hello': false" ENDIF
+  'hello' == 'hello': true ELSE SAY   'hello' == 'hello': false ENDIF
+>> 20 IF str1 == str3 THEN SAY "  'hello' == 'Hello': true" ELSE SAY "  'hello' == 'Hello': false (case sensitive)" ENDIF
+>> 21 SAY ""
+
+>> 24 SAY "3. Inequality Operators (\\=, !=, <>, ><):"
+3. Inequality Operators (\=, !=, <>, ><):
+>> 25 LET x = 10
+>> 26 LET y = 20
+>> 27 IF x \= y THEN SAY "  10 \\= 20: true" ELSE SAY "  10 \\= 20: false" ENDIF
+>> 27 IF x \= y THEN SAY "  10 \\= 20: true" ELSE SAY "  10 \\= 20: false" ENDIF
+  10 \= 20: true ELSE SAY   10 \= 20: false ENDIF
+>> 28 IF x != y THEN SAY "  10 != 20: true" ELSE SAY "  10 != 20: false" ENDIF
+>> 28 IF x != y THEN SAY "  10 != 20: true" ELSE SAY "  10 != 20: false" ENDIF
+  10 != 20: true ELSE SAY   10 != 20: false ENDIF
+>> 29 IF x <> y THEN SAY "  10 <> 20: true" ELSE SAY "  10 <> 20: false" ENDIF
+>> 29 IF x <> y THEN SAY "  10 <> 20: true" ELSE SAY "  10 <> 20: false" ENDIF
+  10 <> 20: true ELSE SAY   10 <> 20: false ENDIF
+>> 30 IF x >< y THEN SAY "  10 >< 20: true" ELSE SAY "  10 >< 20: false" ENDIF
+>> 30 IF x >< y THEN SAY "  10 >< 20: true" ELSE SAY "  10 >< 20: false" ENDIF
+  10 >< 20: true ELSE SAY   10 >< 20: false ENDIF
+>> 31 SAY ""
+
+>> 34 SAY "4. Greater Than (>):"
+4. Greater Than (>):
+>> 35 LET num1 = 25
+>> 36 LET num2 = 15
+>> 37 IF num1 > num2 THEN SAY "  25 > 15: true" ELSE SAY "  25 > 15: false" ENDIF
+>> 37 IF num1 > num2 THEN SAY "  25 > 15: true" ELSE SAY "  25 > 15: false" ENDIF
+  25 > 15: true ELSE SAY   25 > 15: false ENDIF
+>> 38 IF num2 > num1 THEN SAY "  15 > 25: true" ELSE SAY "  15 > 25: false" ENDIF
+>> 39 SAY ""
+
+>> 42 SAY "5. Less Than (<):"
+5. Less Than (<):
+>> 43 IF num2 < num1 THEN SAY "  15 < 25: true" ELSE SAY "  15 < 25: false" ENDIF
+>> 43 IF num2 < num1 THEN SAY "  15 < 25: true" ELSE SAY "  15 < 25: false" ENDIF
+  15 < 25: true ELSE SAY   15 < 25: false ENDIF
+>> 44 IF num1 < num2 THEN SAY "  25 < 15: true" ELSE SAY "  25 < 15: false" ENDIF
+>> 45 SAY ""
+
+>> 48 SAY "6. Greater Than or Equal (>=):"
+6. Greater Than or Equal (>=):
+>> 49 LET val1 = 30
+>> 50 LET val2 = 30
+>> 51 LET val3 = 25
+>> 52 IF val1 >= val2 THEN SAY "  30 >= 30: true" ELSE SAY "  30 >= 30: false" ENDIF
+>> 52 IF val1 >= val2 THEN SAY "  30 >= 30: true" ELSE SAY "  30 >= 30: false" ENDIF
+  30 >= 30: true ELSE SAY   30 >= 30: false ENDIF
+>> 53 IF val1 >= val3 THEN SAY "  30 >= 25: true" ELSE SAY "  30 >= 25: false" ENDIF
+>> 53 IF val1 >= val3 THEN SAY "  30 >= 25: true" ELSE SAY "  30 >= 25: false" ENDIF
+  30 >= 25: true ELSE SAY   30 >= 25: false ENDIF
+>> 54 SAY ""
+
+>> 57 SAY "7. Less Than or Equal (<=):"
+7. Less Than or Equal (<=):
+>> 58 IF val2 <= val1 THEN SAY "  30 <= 30: true" ELSE SAY "  30 <= 30: false" ENDIF
+>> 58 IF val2 <= val1 THEN SAY "  30 <= 30: true" ELSE SAY "  30 <= 30: false" ENDIF
+  30 <= 30: true ELSE SAY   30 <= 30: false ENDIF
+>> 59 IF val3 <= val1 THEN SAY "  25 <= 30: true" ELSE SAY "  25 <= 30: false" ENDIF
+>> 59 IF val3 <= val1 THEN SAY "  25 <= 30: true" ELSE SAY "  25 <= 30: false" ENDIF
+  25 <= 30: true ELSE SAY   25 <= 30: false ENDIF
+>> 60 SAY ""
+
+>> 63 SAY "8. Logical NOT (\\) - With Comparisons:"
+8. Logical NOT (\) - With Comparisons:
+>> 64 LET p = 5
+>> 65 LET q = 10
+>> 66 IF \(p > q) THEN SAY "  NOT(5 > 10): true" ELSE SAY "  NOT(5 > 10): false" ENDIF
+>> 67 IF \(p < q) THEN SAY "  NOT(5 < 10): true" ELSE SAY "  NOT(5 < 10): false" ENDIF
+>> 67 IF \(p < q) THEN SAY "  NOT(5 < 10): true" ELSE SAY "  NOT(5 < 10): false" ENDIF
+  NOT(5 < 10): true ELSE SAY   NOT(5 < 10): false ENDIF
+>> 68 SAY ""
+
+>> 71 SAY "9. Logical AND (&&):"
+9. Logical AND (&&):
+>> 72 LET age = 25
+>> 73 LET hasLicense = 1
+>> 74 IF age >= 18 && hasLicense THEN SAY "  Age >= 18 AND hasLicense: true" ELSE SAY "  Age >= 18 AND hasLicense: false" ENDIF
+>> 74 IF age >= 18 && hasLicense THEN SAY "  Age >= 18 AND hasLicense: true" ELSE SAY "  Age >= 18 AND hasLicense: false" ENDIF
+  Age >= 18 AND hasLicense: true ELSE SAY   Age >= 18 AND hasLicense: false ENDIF
+>> 75 LET age2 = 15
+>> 76 IF age2 >= 18 && hasLicense THEN SAY "  Age 15 >= 18 AND hasLicense: false" ELSE SAY "  Age 15 >= 18 AND hasLicense: false" ENDIF
+>> 77 SAY ""
+
+>> 80 SAY "10. Logical OR (||, or):"
+10. Logical OR (||, or):
+>> 81 LET isWeekend = 0
+>> 82 LET isHoliday = 1
+>> 83 IF isWeekend || isHoliday THEN SAY "  isWeekend OR isHoliday: true" ELSE SAY "  isWeekend OR isHoliday: false" ENDIF
+>> 83 IF isWeekend || isHoliday THEN SAY "  isWeekend OR isHoliday: true" ELSE SAY "  isWeekend OR isHoliday: false" ENDIF
+  isWeekend OR isHoliday: true ELSE SAY   isWeekend OR isHoliday: false ENDIF
+>> 84 LET isWeekend2 = 0
+>> 85 LET isHoliday2 = 0
+>> 86 IF isWeekend2 || isHoliday2 THEN SAY "  Both false: true" ELSE SAY "  Both false: false" ENDIF
+>> 86 IF isWeekend2 || isHoliday2 THEN SAY "  Both false: true" ELSE SAY "  Both false: false" ENDIF
+  Both false: true ELSE SAY   Both false: false ENDIF
+>> 87 SAY ""
+
+>> 90 SAY "11. String Comparisons (Lexicographic):"
+11. String Comparisons (Lexicographic):
+>> 91 LET apple = "apple"
+>> 92 LET banana = "banana"
+>> 93 IF apple < banana THEN SAY "  'apple' < 'banana': true" ELSE SAY "  'apple' < 'banana': false" ENDIF
+>> 93 IF apple < banana THEN SAY "  'apple' < 'banana': true" ELSE SAY "  'apple' < 'banana': false" ENDIF
+  'apple' < 'banana': true ELSE SAY   'apple' < 'banana': false ENDIF
+>> 94 IF banana > apple THEN SAY "  'banana' > 'apple': true" ELSE SAY "  'banana' > 'apple': false" ENDIF
+>> 94 IF banana > apple THEN SAY "  'banana' > 'apple': true" ELSE SAY "  'banana' > 'apple': false" ENDIF
+  'banana' > 'apple': true ELSE SAY   'banana' > 'apple': false ENDIF
+>> 95 SAY ""
+
+>> 98 SAY "12. Numeric String Coercion:"
+12. Numeric String Coercion:
+>> 99 LET num_val = 100
+>> 100 LET str_val = "100"
+>> 101 IF num_val = str_val THEN SAY "  100 = '100': true (coerced)" ELSE SAY "  100 = '100': false" ENDIF
+>> 101 IF num_val = str_val THEN SAY "  100 = '100': true (coerced)" ELSE SAY "  100 = '100': false" ENDIF
+  100 = '100': true (coerced) ELSE SAY   100 = '100': false ENDIF
+>> 102 IF num_val == str_val THEN SAY "  100 == '100': might depend on mode" ELSE SAY "  100 == '100': different types" ENDIF
+>> 102 IF num_val == str_val THEN SAY "  100 == '100': might depend on mode" ELSE SAY "  100 == '100': different types" ENDIF
+  100 == '100': might depend on mode ELSE SAY   100 == '100': different types ENDIF
+>> 103 SAY ""
+
+>> 106 SAY "13. Combined Conditions:"
+13. Combined Conditions:
+>> 107 LET score = 85
+>> 108 LET min_pass = 60
+>> 109 LET excellence = 90
+>> 110 IF score >= min_pass && score < excellence THEN
+>> 113 SAY "  Score 85 in passing range (60-90): false"
+  Score 85 in passing range (60-90): false
+>> 115 SAY ""
+
+>> 117 SAY "=== Comparison Operators Demo Complete ==="
+=== Comparison Operators Demo Complete ===

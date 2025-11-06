@@ -14,6 +14,9 @@
     <!-- Load the document write styled output handler -->
     <script src="../output/document-write-styled-output-handler.js"></script>
 
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
     <!-- REXX Script for arithmetic operations demonstration -->
     <script type="text/rexx" id="arithmetic-script">
         /* Auto-executing REXX Arithmetic Operations Demo */
@@ -68,6 +71,31 @@
         SAY "  After increment: " || counter
         counter = counter - 1
         SAY "  After decrement: " || counter
+        SAY ""
+
+        /* Operator Precedence (BODMAS/PEMDAS) */
+        SAY "Operator Precedence (BODMAS):"
+        SAY "  2 + 3 * 4 = " || (2 + 3 * 4) || " (multiply first, then add)"
+        SAY "  (2 + 3) * 4 = " || ((2 + 3) * 4) || " (parentheses override)"
+        SAY "  10 - 6 / 2 = " || (10 - 6 / 2) || " (divide first)"
+        SAY "  2 ** 3 * 4 = " || (2 ** 3 * 4) || " (power first, then multiply)"
+        SAY "  10 / 2 * 3 = " || (10 / 2 * 3) || " (left-to-right for same level)"
+        SAY "  2 + 3 ** 2 - 1 = " || (2 + 3 ** 2 - 1) || " (power > add/sub)"
+        SAY ""
+
+        /* Complex expressions */
+        SAY "Complex Expressions with Precedence:"
+        LET p = 5
+        LET q = 3
+        LET r = 2
+        SAY "  p=" || p || ", q=" || q || ", r=" || r
+        SAY "  p + q * r = " || (p + q * r) || " (equals " || (3 * 2) || " + " || p || ")"
+        SAY "  (p + q) * r = " || ((p + q) * r) || " (sum multiplied by r)"
+        SAY "  p * q + r ** 2 = " || (p * q + r ** 2) || " (multiply, power, then add)"
+        SAY "  100 / 4 / 5 = " || (100 / 4 / 5) || " (left-to-right: (100/4)/5)"
+        SAY ""
+
+        SAY "=== Arithmetic Operations Demo Complete ==="
     </script>
 
 </head>
@@ -82,28 +110,36 @@
     <div class="output-section">
 
         <script>
-            // Auto-execute - DOM is already loaded since script is at bottom of page
-            (async function() {
-                // Create styled output handler with null container to trigger document.write
-                const outputHandler = new DocumentWriteStyledOutputHandler(
-                    false,         // No timestamps - we want clean output
-                    'rexx-output', // CSS class
-                    null          // trigger document.write!
-                );
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
 
-                // Create interpreter with the output handler
-                const interpreter = new RexxInterpreterBuilder(null)
-                .withOutputHandler({
-                    output: (text) => {
-                        outputHandler.output(text);
-                    }
-                })
-                .withTraceToOutput(true)  // Enable trace mode - shows executed REXX lines
-                .build();
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
 
-                // Execute the REXX script directly by ID
-                await interpreter.runScriptInId('arithmetic-script');
-            })();
+                try {
+                    await executeRexxDemo('arithmetic-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
         </script>
     </div>
 

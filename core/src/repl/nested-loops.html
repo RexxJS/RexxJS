@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS Nested Loops Demo</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for nested loops demonstration -->
+    <script type="text/rexx" id="nested-loops-script">
+        /* Auto-executing REXX Nested Loops Demo */
+
+        SAY "=== REXX Nested Loops Demo ===\n"
+
+        /* Simple 2-level nested loop */
+        SAY "1. Simple Nested Loops (2 levels):"
+        DO i = 1 TO 3
+          DO j = 1 TO 2
+            SAY "  i=" || i || ", j=" || j
+          END
+        END
+        SAY ""
+
+        /* Nested loop with calculations */
+        SAY "2. Nested Loop with Calculations:"
+        SAY "  Multiplication Table (3x3):"
+        DO multiplier = 1 TO 3
+          LET row = ""
+          DO multiplicand = 1 TO 3
+            LET product = multiplier * multiplicand
+            IF row = "" THEN
+              LET row = product
+            ELSE
+              LET row = row || " | " || product
+          END
+          SAY "  Row " || multiplier || ": " || row
+        END
+        SAY ""
+
+        /* Nested loop aggregation */
+        SAY "3. Nested Loops with Aggregation:"
+        LET total_sum = 0
+        LET iteration_count = 0
+        DO outer = 1 TO 2
+          DO inner = 1 TO 3
+            LET total_sum = total_sum + (outer * inner)
+            LET iteration_count = iteration_count + 1
+          END
+        END
+        SAY "  Total iterations: " || iteration_count
+        SAY "  Sum of products: " || total_sum
+        SAY ""
+
+        /* Triple-nested loop */
+        SAY "4. Triple Nested Loops:"
+        LET cube_sum = 0
+        DO x = 1 TO 2
+          DO y = 1 TO 2
+            DO z = 1 TO 2
+              LET product = x * y * z
+              LET cube_sum = cube_sum + product
+            END
+          END
+        END
+        SAY "  Sum from 2x2x2 nested loops: " || cube_sum
+        SAY ""
+
+        /* Nested loops with conditions */
+        SAY "5. Nested Loops with Filtering:"
+        LET even_products = 0
+        DO i = 1 TO 4
+          DO j = 1 TO 4
+            LET product = i * j
+            IF product % 2 = 0 THEN
+              LET even_products = even_products + 1
+          END
+        END
+        SAY "  Even products in 4x4 grid: " || even_products
+        SAY ""
+
+        /* Nested loop pattern generation */
+        SAY "6. Nested Loops for Pattern Generation:"
+        DO row = 1 TO 4
+          LET pattern = ""
+          DO col = 1 TO row
+            LET pattern = pattern || "*"
+          END
+          SAY "  " || pattern
+        END
+        SAY ""
+
+        /* Nested loops with early termination */
+        SAY "7. Nested Loops with Maximum Value:"
+        LET max_value = 0
+        DO i = 1 TO 5
+          DO j = 1 TO 5
+            LET value = i + j
+            IF value > max_value THEN
+              LET max_value = value
+          END
+        END
+        SAY "  Maximum value (i+j, both 1-5): " || max_value
+        SAY ""
+
+        /* Nested loops building matrix */
+        SAY "8. Nested Loops Building Data Structure:"
+        LET matrix = []
+        DO row = 1 TO 3
+          LET row_data = []
+          DO col = 1 TO 3
+            LET row_data = row_data || [row * col]
+          END
+          LET matrix = matrix || [row_data]
+        END
+        SAY "  3x3 Matrix (multiplication):"
+        DO row_elem OVER matrix
+          SAY "  " || JSON_STRINGIFY(row_elem)
+        END
+        SAY ""
+
+        /* Nested loops with string operations */
+        SAY "9. Nested Loops with String Building:"
+        LET grid = ""
+        DO row = 1 TO 3
+          DO col = 1 TO 3
+            LET cell = row || "-" || col || " "
+            LET grid = grid || cell
+          END
+          LET grid = grid || "\n"
+        END
+        SAY "  Grid structure:"
+        SAY grid
+        SAY ""
+
+        SAY "=== Nested Loops Demo Complete ==="
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS Nested Loops Demo</h1>
+    <div class="intro">
+        <p><strong>Auto-executing REXX script</strong> demonstrating nested loops for multi-dimensional iteration.</p>
+        <p>Nested loops are essential for processing multi-dimensional data structures, generating patterns, and performing complex iterations.</p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('nested-loops-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>Nested Loop Syntax</h2>
+    <ul>
+        <li><strong>DO var1 = start TO end</strong> - Outer loop</li>
+        <li><strong>  DO var2 = start TO end</strong> - Inner loop (indented for clarity)</li>
+        <li><strong>  END</strong> - Close inner loop</li>
+        <li><strong>END</strong> - Close outer loop</li>
+    </ul>
+
+    <h2>Key Concepts</h2>
+    <ul>
+        <li><strong>Iteration Count</strong> - Inner loop executes for each outer iteration</li>
+        <li><strong>Scope</strong> - Variables from outer loop accessible in inner</li>
+        <li><strong>Independence</strong> - Inner loop completes fully before moving to next outer iteration</li>
+        <li><strong>Depth</strong> - Can nest 3, 4, or more levels deep</li>
+        <li><strong>Performance</strong> - Exponential growth: n-level nesting = O(n^levels)</li>
+    </ul>
+
+    <h2>Common Patterns</h2>
+    <pre>
+/* 2-level iteration (matrix processing) */
+DO row = 1 TO rows
+  DO col = 1 TO cols
+    LET element = matrix[row][col]
+    /* process element */
+  END
+END
+
+/* With aggregation */
+LET sum = 0
+DO i = 1 TO n
+  DO j = 1 TO m
+    LET sum = sum + data[i][j]
+  END
+END
+
+/* Pattern generation */
+DO i = 1 TO size
+  DO j = 1 TO i
+    SAY "*"
+  END
+  SAY ""
+END
+
+/* Building nested structure */
+LET matrix = []
+DO row = 1 TO rows
+  LET row_data = []
+  DO col = 1 TO cols
+    LET row_data = row_data || [value]
+  END
+  LET matrix = matrix || [row_data]
+END
+
+/* With conditions */
+DO i = 1 TO n
+  DO j = 1 TO m
+    IF condition THEN
+      /* process specific element */
+    ENDIF
+  END
+END
+    </pre>
+
+    <h2>Execution Model</h2>
+    <pre>
+2x3 Nested Loop Execution Order:
+┌─ i=1 ─┐
+│       ├─ j=1 (1,1)
+│       ├─ j=2 (1,2)
+│       └─ j=3 (1,3)
+├─ i=2 ─┐
+│       ├─ j=1 (2,1)
+│       ├─ j=2 (2,2)
+│       └─ j=3 (2,3)
+└─ i=3 ─┐
+        ├─ j=1 (3,1)
+        ├─ j=2 (3,2)
+        └─ j=3 (3,3)
+
+Total iterations: 2 * 3 = 6
+    </pre>
+
+    <h2>Performance Considerations</h2>
+    <ul>
+        <li><strong>Time Complexity</strong> - O(n * m) for 2-level, O(n * m * p) for 3-level</li>
+        <li><strong>Space Complexity</strong> - Minimal loop overhead, depends on processing</li>
+        <li><strong>Deep Nesting</strong> - Avoid 4+ levels if possible (hard to understand, exponential time)</li>
+        <li><strong>Break Pattern</strong> - Use IF conditions to skip unnecessary iterations</li>
+        <li><strong>Aggregation</strong> - Better than creating intermediate arrays</li>
+    </ul>
+
+    <h2>When to Use Nested Loops</h2>
+    <ul>
+        <li><strong>Matrix Operations</strong> - 2D or higher dimensional arrays</li>
+        <li><strong>Combinations</strong> - All pairs, triplets, etc.</li>
+        <li><strong>Pattern Generation</strong> - Grids, tables, visual patterns</li>
+        <li><strong>Cross-Product</strong> - All combinations of two sets</li>
+        <li><strong>Hierarchical Processing</strong> - Groups within groups</li>
+    </ul>
+
+</body>
+</html>

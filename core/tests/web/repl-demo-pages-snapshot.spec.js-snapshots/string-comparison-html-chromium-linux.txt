@@ -1,0 +1,118 @@
+>> 3 SAY "=== REXX String Comparison Demo ==="
+=== REXX String Comparison Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "Basic String Equality:"
+Basic String Equality:
+>> 8 LET str1 = "hello"
+>> 9 LET str2 = "hello"
+>> 10 LET str3 = "world"
+>> 11 SAY "  str1 = '" || str1 || "'"
+  str1 = 'hello'
+>> 12 SAY "  str2 = '" || str2 || "'"
+  str2 = 'hello'
+>> 13 SAY "  str3 = '" || str3 || "'"
+  str3 = 'world'
+>> 14 IF str1 = str2 THEN
+>> 15 SAY "  str1 = str2: TRUE"
+  str1 = str2: TRUE
+>> 17 IF str1 <> str3 THEN
+>> 18 SAY "  str1 <> str3: TRUE"
+  str1 <> str3: TRUE
+>> 20 SAY ""
+
+>> 23 SAY "Case Sensitivity:"
+Case Sensitivity:
+>> 24 LET lower = "abc"
+>> 25 LET upper = "ABC"
+>> 26 SAY "  lower = '" || lower || "'"
+  lower = 'abc'
+>> 27 SAY "  upper = '" || upper || "'"
+  upper = 'ABC'
+>> 28 IF lower = upper THEN
+>> 31 SAY "  'abc' <> 'ABC': TRUE (if case-sensitive)"
+  'abc' <> 'ABC': TRUE (if case-sensitive)
+>> 33 SAY ""
+
+>> 36 SAY "Numeric vs String Comparison:"
+Numeric vs String Comparison:
+>> 37 LET numStr1 = "10"
+>> 38 LET numStr2 = "2"
+>> 39 SAY "  numStr1 = '" || numStr1 || "', numStr2 = '" || numStr2 || "'"
+  numStr1 = '10', numStr2 = '2'
+>> 40 IF numStr1 > numStr2 THEN
+>> 41 SAY "  String comparison: '10' > '2': TRUE (lexical)"
+  String comparison: '10' > '2': TRUE (lexical)
+>> 43 SAY "  Numeric comparison: 10 > 2: " || (numStr1 + 0 > numStr2 + 0)
+  Numeric comparison: 10 > 2: 10
+>> 44 SAY ""
+
+>> 47 SAY "Prefix Matching with ABBREV:"
+Prefix Matching with ABBREV:
+>> 48 LET command = "DELETE"
+>> 49 SAY "  command = '" || command || "'"
+  command = 'DELETE'
+>> 50 IF ABBREV(command, "DEL") THEN
+>> 51 SAY "  ABBREV('DELETE', 'DEL'): TRUE"
+  ABBREV('DELETE', 'DEL'): TRUE
+>> 53 IF ABBREV(command, "DEX", 2) THEN
+>> 56 SAY ""
+
+>> 59 SAY "Substring Position Checking:"
+Substring Position Checking:
+>> 60 LET text = "The quick brown fox"
+>> 61 LET search = "quick"
+>> 62 LET pos = INDEX(text, search)
+>> 63 SAY "  text = '" || text || "'"
+  text = 'The quick brown fox'
+>> 64 SAY "  search = '" || search || "'"
+  search = 'quick'
+>> 65 IF pos > 0 THEN
+>> 66 SAY "  Found at position " || pos
+  Found at position 5
+>> 70 SAY ""
+
+>> 73 SAY "Whitespace Handling:"
+Whitespace Handling:
+>> 74 LET padded = "  hello  "
+>> 75 LET unpadded = "hello"
+>> 76 SAY "  padded = '" || padded || "'"
+  padded = '  hello  '
+>> 77 SAY "  unpadded = '" || unpadded || "'"
+  unpadded = 'hello'
+>> 78 IF padded = unpadded THEN
+>> 81 SAY "  Are they equal?: FALSE"
+  Are they equal?: FALSE
+>> 83 SAY "  After STRIP: '" || STRIP(padded) || "' = '" || unpadded || "'"
+  After STRIP: 'hello' = 'hello'
+>> 84 SAY ""
+
+>> 87 SAY "Comparative Operators:"
+Comparative Operators:
+>> 88 LET a = "apple"
+>> 89 LET b = "banana"
+>> 90 LET c = "apple"
+>> 91 SAY "  a = '" || a || "', b = '" || b || "', c = '" || c || "'"
+  a = 'apple', b = 'banana', c = 'apple'
+>> 92 SAY "  a = c: " || (a = c)
+  a = c: apple
+>> 93 SAY "  a < b: " || (a < b)
+  a < b: apple
+>> 94 SAY "  b > a: " || (b > a)
+  b > a: banana
+>> 95 SAY ""
+
+>> 98 SAY "Empty String Checks:"
+Empty String Checks:
+>> 99 LET empty = ""
+>> 100 LET notEmpty = "text"
+>> 101 SAY "  empty = '" || empty || "'"
+  empty = ''
+>> 102 SAY "  notEmpty = '" || notEmpty || "'"
+  notEmpty = 'text'
+>> 103 IF empty = "" THEN
+>> 104 SAY "  empty is empty: TRUE"
+  empty is empty: TRUE
+>> 106 IF notEmpty <> "" THEN
+>> 107 SAY "  notEmpty is not empty: TRUE"
+  notEmpty is not empty: TRUE

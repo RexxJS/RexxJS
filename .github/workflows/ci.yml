@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
     - uses: actions/checkout@v4
@@ -23,5 +24,7 @@ jobs:
     - name: Install dependencies
       run: cd core && npm ci
 
-    - name: Run tests
+    - name: Run CI tests
       run: ./ci.sh
+      env:
+        CI: true

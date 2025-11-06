@@ -346,6 +346,7 @@ describe('Rexx-lite Parser', () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual({
       type: 'SELECT',
+      lineNumber: 2,
       whenClauses: [
         {
           condition: {
@@ -362,7 +363,8 @@ describe('Rexx-lite Parser', () => {
               lineNumber: 4,
               originalLine: "prepareDish name='Feast' servings=8"
             }
-          ]
+          ],
+          lineNumber: 3
         },
         {
           condition: {
@@ -379,7 +381,8 @@ describe('Rexx-lite Parser', () => {
               lineNumber: 6,
               originalLine: 'createMeal chicken=3 potatoes=4'
             }
-          ]
+          ],
+          lineNumber: 5
         }
       ],
       otherwiseCommands: [
@@ -390,7 +393,8 @@ describe('Rexx-lite Parser', () => {
           lineNumber: 8,
           originalLine: "prepareDish name='Light Meal' servings=2"
         }
-      ]
+      ],
+      otherwiseLineNumber: 7
     });
   });
 

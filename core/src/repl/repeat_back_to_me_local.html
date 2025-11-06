@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>RexxJS REPEAT_BACK_TO_ME Demo - Local Echo ADDRESS</title>
+
+    <!-- Shared demo CSS -->
+    <link rel="stylesheet" href="demo-common.css">
+
+    <!-- Load the RexxJS bundle -->
+    <script src="dist/rexxjs.bundle.js"></script>
+
+    <!-- Load the document write styled output handler -->
+    <script src="../output/document-write-styled-output-handler.js"></script>
+
+    <!-- Load the shared demo executor -->
+    <script src="demo-executor.js"></script>
+
+    <!-- REXX Script for ADDRESS AS clause demonstration with local echo -->
+    <script type="text/rexx" id="repeat-back-script">
+        /* Auto-executing REXX ADDRESS AS Clause Script - Local Echo */
+
+        SAY "=== REXX ADDRESS AS Clause Demo (Local) ===\n"
+
+        /* Load echo ADDRESS handler from local dev server but rename it */
+        SAY "Loading echo ADDRESS from local development server...\n"
+        REQUIRE "http://localhost:8000/extras/addresses/echo/src/echo-address.js" AS MY_ECHO
+        SAY "✓ Loaded as MY_ECHO\n"
+
+        /* Now use the renamed ADDRESS target */
+        SAY "1. Using renamed ADDRESS (MY_ECHO):"
+        ADDRESS MY_ECHO
+        "Hello from local echo service"
+
+        IF RC <> 0 THEN DO
+          SAY "  Error: RC=" || RC
+        END ELSE DO
+          SAY "  Response: " || RESULT
+        END
+        SAY ""
+
+        /* Try another message */
+        SAY "2. Second message via renamed ADDRESS:"
+        ADDRESS MY_ECHO
+        "Testing local echo functionality"
+
+        IF RC <> 0 THEN DO
+          SAY "  Error: RC=" || RC
+        END ELSE DO
+          SAY "  Response: " || RESULT
+        END
+        SAY ""
+
+        /* Demonstrate empty command */
+        SAY "3. Empty command via renamed ADDRESS:"
+        ADDRESS MY_ECHO
+        ""
+
+        IF RC <> 0 THEN DO
+          SAY "  Error: RC=" || RC
+        END ELSE DO
+          SAY "  Response: '" || RESULT || "'"
+        END
+        SAY ""
+
+        /* Try key=value format (heredoc style) */
+        SAY "4. Key=value format:"
+        ADDRESS MY_ECHO
+        <<MESSAGE
+        greeting=Hello
+        name=RexxJS
+        MESSAGE
+
+        IF RC <> 0 THEN DO
+          SAY "  Error: RC=" || RC
+        END ELSE DO
+          SAY "  Response: " || RESULT
+        END
+        SAY ""
+
+        SAY "=== ADDRESS AS Clause Demo Complete ==="
+    </script>
+
+</head>
+<body>
+    <h1>RexxJS ADDRESS AS Clause Demo - Local Development</h1>
+    <div class="intro">
+        <p><strong>⚠️ LOCAL DEVELOPMENT ONLY</strong> - This page only works when serving locally from `http://localhost:8000/`. It will not work online or from other URLs due to HTTP module loading restrictions.</p>
+        <p><strong>Auto-executing REXX script</strong> demonstrating ADDRESS target renaming with the AS clause, loading from a local development server.</p>
+        <p>Loads the echo ADDRESS handler from <code>/extras/addresses/echo/src/echo-address.js</code> and renames it to <code>MY_ECHO</code> for semantic clarity.</p>
+        <p>This version uses the local development server (port 8000) instead of GitHub Pages, allowing for faster iteration and offline testing.</p>
+        <p>Shows how ADDRESS operations set standard REXX variables: <code>RC</code> (return code) and <code>RESULT</code> (response content).</p>
+    </div>
+
+    <h2>REXX Output:</h2>
+    <div class="output-section">
+
+        <script>
+            // Auto-execute using shared demo executor - wait for dependencies to load
+            async function runDemo() {
+                // Wait for all required global objects to be available
+                let attempts = 0;
+                while ((typeof executeRexxDemo === 'undefined' || typeof RexxInterpreterBuilder === 'undefined') && attempts < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (typeof executeRexxDemo === 'undefined') {
+                    console.error('executeRexxDemo not found after 5 seconds');
+                    return;
+                }
+
+                try {
+                    await executeRexxDemo('repeat-back-script', {
+                        traceMode: 'NORMAL',
+                        traceToOutput: true
+                    });
+                } catch (error) {
+                    console.error('Failed to execute demo:', error);
+                }
+            }
+
+            // Run when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', runDemo);
+            } else {
+                runDemo();
+            }
+        </script>
+    </div>
+
+    <h2>Key Differences from GitHub Version</h2>
+    <ul>
+        <li><strong>Local Source Path</strong> - Uses `/extras/addresses/echo/src/echo-address.js` instead of GitHub URL</li>
+        <li><strong>Faster Iteration</strong> - Changes to the echo address are immediately available</li>
+        <li><strong>Offline Development</strong> - No internet connection needed</li>
+        <li><strong>Development Testing</strong> - Direct access to source code for debugging</li>
+        <li><strong>Same Functionality</strong> - Identical ADDRESS handler behavior</li>
+    </ul>
+
+    <h2>File Path Types Supported</h2>
+    <pre>
+/* Absolute path (from server root) */
+REQUIRE "/extras/addresses/echo/src/echo-address.js" AS MY_ECHO
+
+/* Relative path (from current file) */
+REQUIRE "../output/handler.js" AS HANDLER
+
+/* NPM/registry style (with future registry support) */
+REQUIRE "org.rexxjs/echo-address" AS ECHO
+
+/* HTTPS URL (from GitHub or other CDN) */
+REQUIRE "https://raw.githubusercontent.com/RexxJS/dist/latest/addresses/echo-address.bundle.js" AS ECHO_BUNDLE
+    </pre>
+
+    <h2>Key Features Demonstrated</h2>
+    <ul>
+        <li><strong>Local File Module Loading</strong> - Loading RexxJS modules from the development server</li>
+        <li><strong>ADDRESS Target Renaming</strong> - Using the AS clause to give semantic names to ADDRESS targets</li>
+        <li><strong>Standard REXX Variables</strong> - How ADDRESS operations automatically set RC (return code) and RESULT (response)</li>
+        <li><strong>Heredoc Format</strong> - Using key=value pairs with heredoc syntax for complex data</li>
+        <li><strong>Error Handling</strong> - Checking RC for errors and handling appropriately</li>
+    </ul>
+
+    <h2>About the Echo ADDRESS</h2>
+    <p>The echo ADDRESS is a simple testing utility that echoes back its input. It demonstrates:</p>
+    <ul>
+        <li>How to create custom ADDRESS handlers in RexxJS</li>
+        <li>Module distribution and reuse</li>
+        <li>Semantic renaming with the AS clause</li>
+        <li>Both simple strings and key=value formats</li>
+    </ul>
+
+    <h2>Development Tips</h2>
+    <ul>
+        <li><strong>Editing Source</strong> - Modify `/extras/addresses/echo/src/echo-address.js` and reload the page</li>
+        <li><strong>Server URL</strong> - Served via Python simple server on port 8000</li>
+        <li><strong>REXX Trace</strong> - Enable with `traceMode: 'FULL'` in demo-executor options to see detailed execution</li>
+        <li><strong>Browser Console</strong> - Check console for debug messages and errors</li>
+    </ul>
+
+</body>
+</html>

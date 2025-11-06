@@ -1,6 +1,6 @@
 /**
- * DOM Functions Tests
- * 
+ * DOM Functions Tests - Unified ELEMENT() Function
+ *
  * Copyright (c) 2025 Paul Hammant
  * Licensed under the MIT License
  */
@@ -8,8 +8,9 @@
 const { domFunctions } = require('../src/dom-functions');
 const { JSDOM } = require('jsdom');
 
-describe('DOM Functions', () => {
+describe('DOM Functions - ELEMENT()', () => {
   let dom;
+  let element;
 
   beforeEach(() => {
     dom = new JSDOM(`
@@ -30,6 +31,7 @@ describe('DOM Functions', () => {
     global.window = dom.window;
     global.Event = dom.window.Event;
     global.FormData = dom.window.FormData;
+    element = domFunctions.ELEMENT;
   });
 
   afterEach(() => {
@@ -39,87 +41,87 @@ describe('DOM Functions', () => {
     global.FormData = undefined;
   });
 
-  describe('QUERY', () => {
+  describe('ELEMENT - Selector Operations', () => {
     it('should check if an element exists', () => {
-      expect(domFunctions.DOM_QUERY({ selector: '#button1' })).toBe(true);
-      expect(domFunctions.DOM_QUERY({ selector: '#non-existent' })).toBe(false);
+      expect(element({ selector: '#button1' })).toBeTruthy();
+      expect(element({ selector: '#non-existent' })).toBeFalsy();
     });
 
     it('should count the number of elements', () => {
-      expect(domFunctions.DOM_QUERY({ selector: '.btn', operation: 'count' })).toBe(1);
+      expect(element({ selector: '.btn', operation: 'count' })).toBe(1);
     });
 
     it('should get the text content of an element', () => {
-      expect(domFunctions.DOM_QUERY({ selector: '#button1', operation: 'text' })).toBe('Button 1');
+      expect(element({ selector: '#button1', operation: 'text' })).toBe('Button 1');
     });
 
     it('should get the value of an input element', () => {
-      expect(domFunctions.DOM_QUERY({ selector: '#input1', operation: 'value' })).toBe('initial value');
+      expect(element({ selector: '#input1', operation: 'value' })).toBe('initial value');
     });
 
     it('should set the value of an input element', () => {
-      domFunctions.DOM_QUERY({ selector: '#input1', operation: 'value', value: 'new value' });
+      element({ selector: '#input1', operation: 'value', arg4: 'new value' });
       expect(document.querySelector('#input1').value).toBe('new value');
     });
 
     it('should get an attribute of an element', () => {
-      expect(domFunctions.DOM_QUERY({ selector: '#button1', operation: 'attribute', attribute: 'id' })).toBe('button1');
+      expect(element({ selector: '#button1', operation: 'attribute', arg3: 'id' })).toBe('button1');
     });
 
     it('should check if an element has a class', () => {
-      expect(domFunctions.DOM_QUERY({ selector: '#button1', operation: 'has_class', class: 'btn' })).toBe(true);
+      expect(element({ selector: '#button1', operation: 'has_class', arg3: 'btn' })).toBe(true);
     });
 
     it('should serialize a form', () => {
-      const result = domFunctions.DOM_QUERY({ selector: '#form1', operation: 'serialize' });
+      const result = element({ selector: '#form1', operation: 'serialize' });
       expect(JSON.parse(result)).toEqual({ field1: 'value1' });
     });
 
     it('should get the name of an element', () => {
-      expect(domFunctions.DOM_QUERY({ selector: '#form1', operation: 'name' })).toBe(''); // form has no name
+      expect(element({ selector: '#form1', operation: 'name' })).toBe(''); // form has no name
       document.querySelector('#input1').name = 'test-input';
-      expect(domFunctions.DOM_QUERY({ selector: '#input1', operation: 'name' })).toBe('test-input');
+      expect(element({ selector: '#input1', operation: 'name' })).toBe('test-input');
     });
 
     it('should get the id of an element', () => {
-      expect(domFunctions.DOM_QUERY({ selector: '.btn', operation: 'id' })).toBe('button1');
+      expect(element({ selector: '.btn', operation: 'id' })).toBe('button1');
     });
 
     it('should get the class of an element', () => {
-      expect(domFunctions.DOM_QUERY({ selector: '#button1', operation: 'class' })).toBe('btn');
+      expect(element({ selector: '#button1', operation: 'class' })).toBe('btn');
     });
 
     it('should get a dataset attribute of an element', () => {
       document.querySelector('#button1').dataset.test = 'test-value';
-      expect(domFunctions.DOM_QUERY({ selector: '#button1', operation: 'dataset', attribute: 'test' })).toBe('test-value');
+      expect(element({ selector: '#button1', operation: 'dataset', arg3: 'test' })).toBe('test-value');
     });
 
     it('should set a dataset attribute of an element', () => {
-      domFunctions.DOM_QUERY({ selector: '#button1', operation: 'dataset', attribute: 'test', value: 'new-value' });
+      element({ selector: '#button1', operation: 'dataset', arg3: 'test', arg4: 'new-value' });
       expect(document.querySelector('#button1').dataset.test).toBe('new-value');
     });
 
     it('should return empty string for dataset of non-existent element', () => {
-        expect(domFunctions.DOM_QUERY({ selector: '#non-existent', operation: 'dataset', attribute: 'test' })).toBe('');
+        expect(element({ selector: '#non-existent', operation: 'dataset', arg3: 'test' })).toBe('');
     });
 
     it('should return empty string for attribute of non-existent element', () => {
-        expect(domFunctions.DOM_QUERY({ selector: '#non-existent', operation: 'attribute', attribute: 'id' })).toBe('');
+        expect(element({ selector: '#non-existent', operation: 'attribute', arg3: 'id' })).toBe('');
     });
 
     it('should return empty object for serialize on non-form element', () => {
-        expect(domFunctions.DOM_QUERY({ selector: '#button1', operation: 'serialize' })).toBe('{}');
+        expect(element({ selector: '#button1', operation: 'serialize' })).toBe('{}');
     });
 
     it('should throw error for unknown operation', () => {
         expect(() => {
-            domFunctions.DOM_QUERY({ selector: '#button1', operation: 'unknown' });
-        }).toThrow('Unknown query operation: unknown');
+            element({ selector: '#button1', operation: 'unknown' });
+        }).toThrow('Unknown selector operation: unknown');
     });
 
     it('should throw error if selector is missing', () => {
         expect(() => {
-            domFunctions.DOM_QUERY({ operation: 'exists' });
+            element({ operation: 'exists' });
         }).toThrow('selector parameter is required');
     });
 
@@ -130,7 +132,7 @@ describe('DOM Functions', () => {
         Object.defineProperty(visibleButton, 'offsetParent', {
             get: () => document.body,
         });
-        expect(domFunctions.DOM_QUERY({ selector: '#visibleButton', operation: 'visible' })).toBe(true);
+        expect(element({ selector: '#visibleButton', operation: 'visible' })).toBe(true);
 
         const invisibleButton = document.createElement('button');
         invisibleButton.id = 'invisibleButton';
@@ -138,65 +140,65 @@ describe('DOM Functions', () => {
         Object.defineProperty(invisibleButton, 'offsetParent', {
             get: () => null,
         });
-        expect(domFunctions.DOM_QUERY({ selector: '#invisibleButton', operation: 'visible' })).toBe(false);
+        expect(element({ selector: '#invisibleButton', operation: 'visible' })).toBe(false);
     });
   });
 
-  describe('CLICK', () => {
+  describe('ELEMENT - Click operation', () => {
     it('should click an element', () => {
       const button = document.querySelector('#button1');
       let clicked = false;
       button.addEventListener('click', () => {
         clicked = true;
       });
-      domFunctions.DOM_CLICK({ selector: '#button1' });
+      element({ selector: '#button1', operation: 'click' });
       expect(clicked).toBe(true);
     });
 
     it('should throw an error if element is not found', () => {
         expect(() => {
-            domFunctions.DOM_CLICK({ selector: '#non-existent' });
+            element({ selector: '#non-existent', operation: 'click' });
         }).toThrow('Element not found: #non-existent');
     });
   });
 
-  describe('TYPE', () => {
+  describe('ELEMENT - Type operation', () => {
     it('should type text into an input element', () => {
-      domFunctions.DOM_TYPE({ selector: '#input1', text: 'new value' });
+      element({ selector: '#input1', operation: 'type', arg3: 'new value' });
       expect(document.querySelector('#input1').value).toBe('new value');
     });
   });
 
-  describe('SET', () => {
+  describe('ELEMENT - Set operation', () => {
     it('should set a property of an element', () => {
-      domFunctions.DOM_SET({ selector: '#button1', property: 'disabled', value: true });
+      element({ selector: '#button1', operation: 'set', arg3: 'disabled', arg4: true });
       expect(document.querySelector('#button1').disabled).toBe(true);
     });
   });
 
-  describe('Class manipulation', () => {
+  describe('ELEMENT - Class manipulation', () => {
     it('ADD_CLASS should add a class to an element', () => {
-      domFunctions.DOM_ADD_CLASS({ selector: '#button1', class: 'new-class' });
+      element({ selector: '#button1', operation: 'class', arg3: 'add', arg4: 'new-class' });
       expect(document.querySelector('#button1').classList.contains('new-class')).toBe(true);
     });
 
     it('REMOVE_CLASS should remove a class from an element', () => {
       document.querySelector('#button1').classList.add('new-class');
-      domFunctions.DOM_REMOVE_CLASS({ selector: '#button1', class: 'new-class' });
+      element({ selector: '#button1', operation: 'class', arg3: 'remove', arg4: 'new-class' });
       expect(document.querySelector('#button1').classList.contains('new-class')).toBe(false);
     });
   });
 
-  describe('SET_STYLE', () => {
+  describe('ELEMENT - Style operation', () => {
     it('should set a style property of an element', () => {
-      domFunctions.DOM_SET_STYLE({ selector: '#button1', property: 'color', value: 'red' });
+      element({ selector: '#button1', operation: 'style', arg3: 'color', arg4: 'red' });
       expect(document.querySelector('#button1').style.color).toBe('red');
     });
   });
 
-  describe('WAIT_FOR', () => {
+  describe('ELEMENT - Wait operation', () => {
     it('should wait for an element to appear', async () => {
-        const promise = domFunctions.DOM_WAIT_FOR({ selector: '#new-element', timeout: 100 });
+        const promise = element({ selector: '#new-element', operation: 'wait', arg3: 100 });
         setTimeout(() => {
             const newElement = document.createElement('div');
             newElement.id = 'new-element';
@@ -205,34 +207,34 @@ describe('DOM Functions', () => {
             });
             document.body.appendChild(newElement);
         }, 50);
-        await expect(promise).resolves.toBe(true);
+        await expect(promise).resolves.toBeTruthy();
     });
 
     it('should time out if element does not appear', async () => {
-        await expect(domFunctions.DOM_WAIT_FOR({ selector: '#new-element', timeout: 100 })).resolves.toBe(false);
-    });
+        await expect(element({ selector: '#new-element', operation: 'wait', arg3: 100 })).resolves.toBeFalsy();
+    }, 10000);
   });
 
-  describe('WAIT', () => {
+  describe('ELEMENT - Wait/Sleep utility operations', () => {
     it('should wait for a specified amount of time', async () => {
       const start = Date.now();
-      await domFunctions.DOM_WAIT({ milliseconds: 100 });
+      await element({ selector: 'wait', operation: 'sleep', arg3: 100 });
       const end = Date.now();
       expect(end - start).toBeGreaterThanOrEqual(95);
     });
   });
 
-  describe('SELECT_OPTION', () => {
+  describe('ELEMENT - Select option', () => {
     it('should select an option in a select element', () => {
-      domFunctions.DOM_SELECT_OPTION({ selector: '#select1', value: 'opt2' });
+      element({ selector: '#select1', operation: 'value', arg4: 'opt2' });
       expect(document.querySelector('#select1').value).toBe('opt2');
     });
   });
 
-  describe('SLEEP', () => {
+  describe('ELEMENT - Sleep utility operation', () => {
     it('should sleep for a specified amount of time', async () => {
       const start = Date.now();
-      await domFunctions.DOM_SLEEP(100);
+      await element({ selector: 'sleep', arg3: 100 });
       const end = Date.now();
       expect(end - start).toBeGreaterThanOrEqual(100);
     });

@@ -1,0 +1,29 @@
+>> 3 SAY "=== REXX Error Handling Demo ==="
+=== REXX Error Handling Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "RC (Return Code) Variable:"
+RC (Return Code) Variable:
+>> 8 SAY "  RC is automatically set after operations"
+  RC is automatically set after operations
+>> 9 SAY "  RC = 0 typically means success"
+  RC = 0 typically means success
+>> 10 SAY "  RC <> 0 typically indicates an error"
+  RC <> 0 typically indicates an error
+>> 11 SAY ""
+
+>> 14 SAY "Arithmetic Error Checking:"
+Arithmetic Error Checking:
+>> 15 LET x = 10
+>> 16 LET y = 2
+>> 17 LET result = x / y
+>> 18 SAY "  10 / 2 = " || result || " (RC = " || RC || ")"
+  10 / 2 = 5 (RC = RC)
+>> 19 SAY ""
+
+>> 22 SAY "Handling Invalid Values:"
+Handling Invalid Values:
+>> 23 LET testVal = "not_a_number"
+>> 24 LET attemptCalc = testVal + 5
+Script Error: Error at line 24: LET attemptCalc = undefined
+Non-numeric value in arithmetic: 'not_a_number' is not a valid number

@@ -17,40 +17,24 @@ test('CHECKPOINT function basic functionality', async ({ page }) => {
     </head>
     <body>
         <div id="output"></div>
-        <script src="http://localhost:8082/src/function-parsing-strategies.js"></script>
-        <script src="http://localhost:8082/src/parameter-converter.js"></script>
-        <script src="http://localhost:8082/src/parser.js"></script>
-        
-        <!-- Load required modular dependencies -->
-        <script src="http://localhost:8082/src/interpreter-string-and-expression-processing.js"></script>
-        <script src="http://localhost:8082/src/interpreter-variable-stack.js"></script>
-        <script src="http://localhost:8082/src/interpreter-evaluation-utilities.js"></script>
-        <script src="http://localhost:8082/src/interpreter-execution-context.js"></script>
-        <script src="http://localhost:8082/src/interpreter-control-flow.js"></script>
-        <script src="http://localhost:8082/src/interpreter-expression-value-resolution.js"></script>
-        <script src="http://localhost:8082/src/interpreter-dom-manager.js"></script>
-        <script src="http://localhost:8082/src/interpreter-error-handling.js"></script>
-        <script src="http://localhost:8082/src/interpreter-parse-subroutine.js"></script>
-        <script src="http://localhost:8082/src/interpreter-trace-formatting.js"></script>
-        
-        <!-- Load utility modules -->
-        <script src="http://localhost:8082/src/utils.js"></script>
-        <script src="http://localhost:8082/src/security.js"></script>
-        <script src="http://localhost:8082/src/string-processing.js"></script>
-        
-        <script src="http://localhost:8082/tests/web/security-utils-stub.js"></script>
-        <script src="http://localhost:8082/src/interpreter.js"></script>
-        
+        <script src="http://localhost:8082/core/src/unbundled-interpreter-web-loader.js"></script>
+
         <script>
             async function testCheckpoint() {
                 try {
+                    // Load all dependencies using RexxWebLoader
+                    await RexxWebLoader.load({
+                        basePath: 'http://localhost:8082/core/src/',
+                        verbose: false
+                    });
+
                     const interpreter = new RexxInterpreter(null, {
                         output: (text) => {
                             console.log('Output:', text);
                             document.getElementById('output').innerHTML += text + '<br>';
                         }
                     });
-                    
+
                     const rexxCode = \`
                         SAY "Testing CHECKPOINT function"
                         LET test_var = 42
@@ -58,10 +42,10 @@ test('CHECKPOINT function basic functionality', async ({ page }) => {
                         SAY "CHECKPOINT response action: " || response.action
                         SAY "Test completed"
                     \`;
-                    
+
                     const commands = parse(rexxCode);
                     console.log('Commands parsed:', commands.length);
-                    
+
                     // Simulate control response
                     setTimeout(() => {
                         window.postMessage({
@@ -71,16 +55,16 @@ test('CHECKPOINT function basic functionality', async ({ page }) => {
                             timestamp: Date.now()
                         }, '*');
                     }, 100);
-                    
+
                     await interpreter.run(commands);
                     document.getElementById('output').innerHTML += 'SUCCESS: Test completed';
-                    
+
                 } catch (error) {
                     console.error('Test error:', error);
                     document.getElementById('output').innerHTML += 'ERROR: ' + error.message;
                 }
             }
-            
+
             window.testCheckpoint = testCheckpoint;
         </script>
     </body>
@@ -110,33 +94,11 @@ test('CHECKPOINT function with parameters', async ({ page }) => {
     <html>
     <body>
         <div id="output"></div>
-        <script src="http://localhost:8082/src/function-parsing-strategies.js"></script>
-        <script src="http://localhost:8082/src/parameter-converter.js"></script>
-        <script src="http://localhost:8082/src/parser.js"></script>
-        
-        <!-- Load required modular dependencies -->
-        <script src="http://localhost:8082/src/interpreter-string-and-expression-processing.js"></script>
-        <script src="http://localhost:8082/src/interpreter-variable-stack.js"></script>
-        <script src="http://localhost:8082/src/interpreter-evaluation-utilities.js"></script>
-        <script src="http://localhost:8082/src/interpreter-execution-context.js"></script>
-        <script src="http://localhost:8082/src/interpreter-control-flow.js"></script>
-        <script src="http://localhost:8082/src/interpreter-expression-value-resolution.js"></script>
-        <script src="http://localhost:8082/src/interpreter-dom-manager.js"></script>
-        <script src="http://localhost:8082/src/interpreter-error-handling.js"></script>
-        <script src="http://localhost:8082/src/interpreter-parse-subroutine.js"></script>
-        <script src="http://localhost:8082/src/interpreter-trace-formatting.js"></script>
-        
-        <!-- Load utility modules -->
-        <script src="http://localhost:8082/src/utils.js"></script>
-        <script src="http://localhost:8082/src/security.js"></script>
-        <script src="http://localhost:8082/src/string-processing.js"></script>
-        
-        <script src="http://localhost:8082/tests/web/security-utils-stub.js"></script>
-        <script src="http://localhost:8082/src/interpreter.js"></script>
-        
+        <script src="http://localhost:8082/core/src/unbundled-interpreter-web-loader.js"></script>
+
         <script>
             let progressUpdates = [];
-            
+
             // Listen for progress messages
             window.addEventListener('message', (event) => {
                 if (event.data.type === 'rexx-progress') {
@@ -144,13 +106,19 @@ test('CHECKPOINT function with parameters', async ({ page }) => {
                     console.log('Progress update received:', event.data);
                 }
             });
-            
+
             async function testCheckpointWithParams() {
                 try {
+                    // Load all dependencies using RexxWebLoader
+                    await RexxWebLoader.load({
+                        basePath: 'http://localhost:8082/core/src/',
+                        verbose: false
+                    });
+
                     const interpreter = new RexxInterpreter(null, {
                         output: (text) => console.log('SAY:', text)
                     });
-                    
+
                     const rexxCode = \`
                         LET counter = 0
                         DO i = 1 TO 3
@@ -160,9 +128,9 @@ test('CHECKPOINT function with parameters', async ({ page }) => {
                         END
                         SAY "Loop completed"
                     \`;
-                    
+
                     const commands = parse(rexxCode);
-                    
+
                     // Set up auto-response to continue
                     let responseCount = 0;
                     window.addEventListener('message', (event) => {
@@ -178,23 +146,23 @@ test('CHECKPOINT function with parameters', async ({ page }) => {
                             }, 50);
                         }
                     });
-                    
+
                     await interpreter.run(commands);
-                    
+
                     // Wait for all progress updates
                     await new Promise(resolve => setTimeout(resolve, 500));
-                    
-                    document.getElementById('output').innerHTML = 
+
+                    document.getElementById('output').innerHTML =
                         \`Progress updates received: \${progressUpdates.length}<br>\` +
-                        progressUpdates.map(p => 
+                        progressUpdates.map(p =>
                             \`Line \${p.line}: params=[\${p.params.join(',')}]\`
                         ).join('<br>') + '<br>SUCCESS';
-                    
+
                 } catch (error) {
                     document.getElementById('output').innerHTML = 'ERROR: ' + error.message;
                 }
             }
-            
+
             window.testCheckpointWithParams = testCheckpointWithParams;
         </script>
     </body>
@@ -218,21 +186,41 @@ test('Web loader can load all dependencies', async ({ page }) => {
     <!DOCTYPE html>
     <html>
     <body>
+        <div id="debug" style="background: #f0f0f0; padding: 10px; margin: 10px; font-size: 12px; font-family: monospace; max-height: 300px; overflow-y: auto; white-space: pre-wrap;"></div>
         <div id="status">Loading...</div>
-        <script src="http://localhost:8082/src/interpreter-web-loader.js"></script>
+        <script src="http://localhost:8082/core/src/unbundled-interpreter-web-loader.js"></script>
         <script>
+            const debugDiv = document.getElementById('debug');
+            const originalLog = console.log;
+            const originalError = console.error;
+
+            console.log = function(...args) {
+                originalLog.apply(console, args);
+                debugDiv.innerHTML += args.join(' ') + '\\n';
+                debugDiv.scrollTop = debugDiv.scrollHeight;
+            };
+
+            console.error = function(...args) {
+                originalError.apply(console, args);
+                debugDiv.innerHTML += '<span style="color: red;">ERROR: ' + args.join(' ') + '</span>\\n';
+                debugDiv.scrollTop = debugDiv.scrollHeight;
+            };
+
             async function testLoader() {
                 try {
+                    console.log('Starting loader test...');
                     await RexxWebLoader.load({
-                        basePath: 'http://localhost:8082/src/',
+                        basePath: 'http://localhost:8082/core/src/',
                         verbose: true
                     });
-                    
+
                     // Test that RexxInterpreter is available
                     const available = typeof RexxInterpreter !== 'undefined';
+                    console.log('RexxInterpreter available:', available);
                     document.getElementById('status').textContent = available ? 'SUCCESS' : 'FAILED';
-                    
+
                 } catch (error) {
+                    console.error('Loader error:', error.message);
                     document.getElementById('status').textContent = 'ERROR: ' + error.message;
                 }
             }
@@ -241,10 +229,14 @@ test('Web loader can load all dependencies', async ({ page }) => {
     </body>
     </html>
   `);
-  
-  await page.waitForTimeout(5000);
-  
+
+  await page.waitForTimeout(8000);
+
+  const debug = await page.locator('#debug').textContent();
+  console.log('DEBUG OUTPUT:', debug);
+
   const status = await page.locator('#status').textContent();
+  console.log('Final status:', status);
   expect(status).toBe('SUCCESS');
 });
 

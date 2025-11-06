@@ -1,0 +1,162 @@
+>> 3 SAY "=== REXX Advanced String Manipulation Demo ==="
+=== REXX Advanced String Manipulation Demo ===
+>> 4 SAY ""
+
+>> 7 SAY "Advanced Concatenation:"
+Advanced Concatenation:
+>> 8 LET firstName = "John"
+>> 9 LET lastName = "Doe"
+>> 10 LET age = 30
+>> 11 LET combined = firstName || " " || lastName || " (age: " || age || ")"
+>> 12 SAY "  " || combined
+  John Doe (age: 30)
+>> 13 SAY ""
+
+>> 16 SAY "Building Strings Incrementally:"
+Building Strings Incrementally:
+>> 17 LET message = ""
+>> 18 message = message || "Start"
+>> 19 message = message || " - "
+>> 20 message = message || "Middle"
+>> 21 message = message || " - "
+>> 22 message = message || "End"
+>> 23 SAY "  " || message
+  message || "End"
+>> 24 SAY ""
+
+>> 27 SAY "Advanced SUBSTR Operations:"
+Advanced SUBSTR Operations:
+>> 28 LET original = "ABCDEFGHIJ"
+>> 29 SAY "  Original: " || original
+  Original: ABCDEFGHIJ
+>> 30 SAY "  SUBSTR(4, 3): " || SUBSTR(original, 4, 3)
+  SUBSTR(4, 3): DEF
+>> 31 SAY "  First 5: " || SUBSTR(original, 1, 5)
+  First 5: ABCDE
+>> 32 SAY "  Last 3: " || SUBSTR(original, LENGTH(original) - 2)
+  Last 3: 
+>> 33 SAY ""
+
+>> 36 SAY "Pattern Finding and Extraction:"
+Pattern Finding and Extraction:
+>> 37 LET sentence = "The quick brown fox jumps over the lazy dog"
+>> 38 SAY "  Sentence: " || sentence
+  Sentence: The quick brown fox jumps over the lazy dog
+>> 39 LET pos = INDEX(sentence, "fox")
+>> 40 IF pos > 0 THEN DO
+>> 41 SAY "  'fox' found at position: " || pos
+  'fox' found at position: 17
+>> 42 SAY "  Characters before: " || SUBSTR(sentence, 1, pos - 1)
+  Characters before: 
+>> 43 SAY "  Characters after: " || SUBSTR(sentence, pos + 3)
+  Characters after: The quick brown fox jumps over the lazy dog
+>> 45 SAY ""
+
+>> 48 SAY "Case Manipulation:"
+Case Manipulation:
+>> 49 LET original2 = "Hello World"
+>> 50 SAY "  Original: " || original2
+  Original: Hello World
+>> 51 SAY "  UPPER: " || UPPER(original2)
+  UPPER: HELLO WORLD
+>> 52 SAY "  LOWER: " || LOWER(original2)
+  LOWER: hello world
+>> 53 SAY "  First letter upper, rest lower: " || UPPER(SUBSTR(original2, 1, 1)) || LOWER(SUBSTR(original2, 2))
+  First letter upper, rest lower: Hello world
+>> 54 SAY ""
+
+>> 57 SAY "Advanced TRANSLATE:"
+Advanced TRANSLATE:
+>> 58 LET text = "Hello123World"
+>> 59 SAY "  Original: " || text
+  Original: Hello123World
+>> 60 SAY "  Replace 'e' with '3': " || TRANSLATE(text, "3", "e")
+  Replace 'e' with '3': H3llo123World
+>> 61 SAY "  Replace vowels with '*': " || TRANSLATE(text, "*****", "aeiouAEIOU")
+  Replace vowels with '*': H*ll*123W*rld
+>> 62 SAY ""
+
+>> 65 SAY "Word-by-Word Processing:"
+Word-by-Word Processing:
+>> 66 LET phrase = "This is a test of the system"
+>> 67 SAY "  Phrase: " || phrase
+  Phrase: This is a test of the system
+>> 68 SAY "  Word count: " || WORDS(phrase)
+  Word count: 7
+>> 69 SAY "  First word: " || WORD(phrase, 1)
+  First word: This
+>> 70 SAY "  Middle word: " || WORD(phrase, INT(WORDS(phrase) / 2))
+  Middle word: This
+>> 71 SAY "  Last word: " || WORD(phrase, WORDS(phrase))
+  Last word: system
+>> 72 SAY ""
+
+>> 75 SAY "Formatting for Display:"
+Formatting for Display:
+>> 76 LET title = "REPORT TITLE"
+>> 77 LET width = 40
+>> 78 LET padding = INT((width - LENGTH(title)) / 2)
+>> 79 SAY "  " || COPIES(" ", padding) || title
+  REPORT TITLE
+>> 80 SAY ""
+
+>> 83 SAY "Character Frequency Analysis:"
+Character Frequency Analysis:
+>> 84 LET word = "banana"
+>> 85 SAY "  Word: " || word
+  Word: banana
+>> 86 SAY "  Length: " || LENGTH(word)
+  Length: 6
+>> 87 SAY "  Unique chars in 'banana': " || TRANSLATE(word, "", "n") || " (with n's removed)"
+  Unique chars in 'banana': banana (with n's removed)
+>> 88 SAY ""
+
+>> 91 SAY "Building Formatted Output:"
+Building Formatted Output:
+>> 92 items.1 = "Apple"
+>> 93 items.2 = "Banana"
+>> 94 items.3 = "Cherry"
+>> 95 items.0 = 3
+>> 96 LET list = ""
+>> (no line#) DO
+>> 98 IF i > 1 THEN list = list || ", "
+>> 99 list = list || items.i
+>> 98 IF i > 1 THEN list = list || ", "
+>> 98 IF i > 1 THEN list = list || ", "
+>> 99 list = list || items.i
+>> 98 IF i > 1 THEN list = list || ", "
+>> 98 IF i > 1 THEN list = list || ", "
+>> 99 list = list || items.i
+>> 101 SAY "  Fruit list: " || list
+  Fruit list: list || items.i
+>> 102 SAY ""
+
+>> 105 SAY "String Reversal:"
+String Reversal:
+>> 106 LET forward = "RexxJS"
+>> 107 LET backward = REVERSE(forward)
+>> 108 SAY "  Forward: " || forward
+  Forward: RexxJS
+>> 109 SAY "  Backward: " || backward
+  Backward: SJxxeR
+>> 110 SAY ""
+
+>> 113 SAY "Complex Alignment:"
+Complex Alignment:
+>> (no line#) DO
+>> 115 LET label = "Item " || i
+>> 116 LET value = i * 100
+>> 117 SAY "  " || LEFT(label, 15) || RIGHT(value, 8)
+  Item 1              100
+>> 115 LET label = "Item " || i
+>> 116 LET value = i * 100
+>> 117 SAY "  " || LEFT(label, 15) || RIGHT(value, 8)
+  Item 2              200
+>> 115 LET label = "Item " || i
+>> 116 LET value = i * 100
+>> 117 SAY "  " || LEFT(label, 15) || RIGHT(value, 8)
+  Item 3              300
+>> 119 SAY ""
+
+>> 120 SAY "=== Advanced String Manipulation Demo Complete ==="
+=== Advanced String Manipulation Demo Complete ===

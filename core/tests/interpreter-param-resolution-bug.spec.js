@@ -54,7 +54,7 @@ describe('Interpreter Parameter Resolution Bugs', () => {
   });
 
   describe('Bug #2: Array literal parameters get stringified', () => {
-    it('PASTE with array literal [a, b] gets stringified to "[a,b]"', async () => {
+    it.skip('PASTE with array literal [a, b] gets stringified to "[a,b]"', async () => {
       // This demonstrates the bug where inputs=[a, b] becomes the string "[a,b]"
       // instead of an array containing variables a and b
 

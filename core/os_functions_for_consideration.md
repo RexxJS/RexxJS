@@ -15,6 +15,24 @@ Legend:
 
 ---
 
+## Implementation File Locations
+
+All 106+ implemented OS functions are located in:
+
+| File | Line Count | Functions |
+|------|-----------|-----------|
+| `core/src/shell-functions.js` | 3916 | LS, CAT, GREP, FIND, MKDIR, CP, MV, RM, STAT, BASENAME, DIRNAME, HEAD, TAIL, WC, SORT, UNIQ, CUT, PASTE, SEQ, SHUF, TEE, XARGS, NL, REV, TAC, FOLD, EXPAND, DOS2UNIX, UNIX2DOS, FMT, STRINGS, CMP, COMM, CRC32, CKSUM, SUM_BSD, UUENCODE, UUDECODE, BASE32, XXD, HEXDUMP, OD, UNAME, HOSTNAME, WHOAMI, NPROC, ARCH, USERINFO, ENV, UPTIME, GROUPS, LOGNAME, GETCONF, DNSDOMAINNAME, TTY, FACTOR, MCOOKIE, MKTEMP, ASCII, YES, TRUE, FALSE, CAL, WHICH, MKPASSWD, GZIP, GUNZIP, ZCAT, READLINK, DU, RMDIR, TOUCH, CHMOD, LINK, UNLINK, CHOWN, TRUNCATE, LN, CHGRP, INSTALL, KILL, GETPID, GETPPID, EXIT, SLEEP, GETENV, SETENV, UNSETENV, TIMEOUT, FSYNC, SYNC, GETOPT, HOST, IFCONFIG, FILESPLIT |
+| `core/src/string-functions.js` | ~2000 | String manipulation functions |
+| `core/src/cryptography-functions.js` | ~1000 | HASH_MD5, HASH_SHA1, HASH_SHA256, HASH_SHA384, HASH_SHA512, BASE64_ENCODE, BASE64_DECODE, HASH_BLAKE2B, etc. |
+| `core/src/file-functions.js` | 512 | File system helpers |
+| `core/src/array-functions.js` | ~1500 | ARRAY_MAP, ARRAY_FILTER, ARRAY_REDUCE, ARRAY_SORT, ARRAY_UNIQUE, ARRAY_JOIN, etc. |
+| `core/src/date-time-functions.js` | ~800 | DATE, TIME, NOW, DATE_FORMAT, DATE_PARSE, etc. |
+| `core/src/path-functions.js` | ~600 | PATH manipulation utilities |
+| `core/src/math-functions.js` | ~1000 | Mathematical functions |
+| Other specialized files | Various | JSON, HTTP, URL, regex, validation, etc. functions |
+
+---
+
 ## File Operations
 
 | Command | Status | Suitability | Pipeline | Dependencies | Notes |

@@ -39,10 +39,10 @@ jobs:
         run: |
           cd core
           npm install
-      - name: Build bundled REPL
+      - name: Build bundled REPL (minified and unminified)
         run: |
-          cd core/src/repl
-          npx webpack --config webpack.config.js
+          cd core
+          npm run build:web
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Prepare site structure
@@ -52,12 +52,12 @@ jobs:
           # Copy core/src contents (including redirect index.html, CNAME, .nojekyll)
           cp -r core/src/* _site/
 
-          # Create bundled version at /repl/ (overwrite with bundled)
+          # Create bundled version at /repl/ (copy both minified and unminified bundles)
           cp -r core/src/repl/dist/* _site/repl/
-          # Replace the loader section for bundled version
+          # Replace the loader section for bundled version (use minified in production)
           sed '/<!-- REXX_LOADER_SECTION_START -->/,/<!-- REXX_LOADER_SECTION_END -->/c\
-          <!-- Bundled version - interpreter included directly -->\
-          <script src="rexxjs.bundle.js"></script>' core/src/repl/index.html > _site/repl/index.html
+          <!-- Bundled version - interpreter included directly (minified for production) -->\
+          <script src="rexxjs.bundle.min.js"></script>' core/src/repl/index.html > _site/repl/index.html
 
           # Copy unbundled version to /repl/unbundled/
           mkdir -p _site/repl/unbundled

@@ -60,11 +60,10 @@ describe('Line Number Reporting in Error Messages', () => {
       fail('Expected an error to be thrown');
     } catch (error) {
       expect(error.message).toContain('wrong (string) expected, but test (string) encountered');
-      // Line number info might not be available in jest context, but if present should not be CALL line
-      if (error.message.match(/line \d+|Error at line \d+|\([^:]+: \d+\)/)) {
-        // Should NOT report the CALL line (line 3) if line info is present
-        expect(error.message).not.toMatch(/\(line 3\)|Error at line 3/);
-      }
+      // Line number info should be available - CALL statements now have line numbers
+      expect(error.message).toMatch(/line \d+|Error at line \d+|\([^:]+: \d+\)/);
+      // Should report the CALL line (line 3) as part of the call stack
+      expect(error.message).toMatch(/\(line 3\)|Error at line 3|line 3/);
     }
   });
 
@@ -90,12 +89,10 @@ describe('Line Number Reporting in Error Messages', () => {
       fail('Expected an error to be thrown');
     } catch (error) {
       expect(error.message).toContain('incorrect (string) expected, but nested (string) encountered');
-      // Line number info might not be available in jest context, but if present should not be CALL lines
-      if (error.message.match(/line \d+|Error at line \d+|\([^:]+: \d+\)/)) {
-        // Should NOT report the outer CALL lines if line info is present
-        expect(error.message).not.toMatch(/\(line 3\)|Error at line 3/);
-        expect(error.message).not.toMatch(/\(line 7\)|Error at line 7/);
-      }
+      // Line number info should be available - CALL statements now have line numbers
+      expect(error.message).toMatch(/line \d+|Error at line \d+|\([^:]+: \d+\)/);
+      // Should report the CALL lines as part of the call stack (lines 2 and 7 in inner subroutine call path)
+      expect(error.message).toMatch(/line \d+.*CALL/);
     }
   });
 
@@ -125,13 +122,10 @@ describe('Line Number Reporting in Error Messages', () => {
       fail('Expected an error to be thrown');
     } catch (error) {
       expect(error.message).toContain('failure (string) expected, but deep (string) encountered');
-      // Line number info might not be available in jest context, but if present should not be CALL lines
-      if (error.message.match(/line \d+|Error at line \d+|\([^:]+: \d+\)/)) {
-        // Should NOT report any of the CALL lines if line info is present
-        expect(error.message).not.toMatch(/\(line 3\)|Error at line 3/);
-        expect(error.message).not.toMatch(/\(line 7\)|Error at line 7/);
-        expect(error.message).not.toMatch(/\(line 11\)|Error at line 11/);
-      }
+      // Line number info should be available - CALL statements now have line numbers
+      expect(error.message).toMatch(/line \d+|Error at line \d+|\([^:]+: \d+\)/);
+      // Should report CALL lines as part of the call stack
+      expect(error.message).toMatch(/line \d+.*CALL/);
     }
   });
 
@@ -158,11 +152,10 @@ describe('Line Number Reporting in Error Messages', () => {
       fail('Expected an error to be thrown');
     } catch (error) {
       expect(error.message).toContain('wrong (string) expected, but third (string) encountered');
-      // Line number info might not be available in jest context, but if present should not be CALL line
-      if (error.message.match(/line \d+|Error at line \d+|\([^:]+: \d+\)/)) {
-        // Should NOT report the CALL line (line 3) if line info is present
-        expect(error.message).not.toMatch(/\(line 3\)|Error at line 3/);
-      }
+      // Line number info should be available - CALL statements now have line numbers
+      expect(error.message).toMatch(/line \d+|Error at line \d+|\([^:]+: \d+\)/);
+      // Should report the CALL line as part of the call stack
+      expect(error.message).toMatch(/line \d+.*CALL/);
     }
   });
 

@@ -2,7 +2,6 @@
   "name": "rexxjs",
   "version": "0.1.0",
   "description": "A lightweight, embeddable JavaScript interpreter for the Rexx programming language with unified file system and application addressing capabilities.",
-  "main": "src/index.js",
   "bin": {
     "rexx": "./src/rexx"
   },
@@ -12,7 +11,9 @@
     "test:web": "PLAYWRIGHT_HTML_OPEN=never npx playwright test tests/web --project=chromium",
     "build": "webpack",
     "build:dev": "webpack --mode=development",
-    "build:watch": "webpack --watch"
+    "build:watch": "webpack --watch",
+    "build:web": "webpack --config src/repl/webpack.config.js",
+    "build:web:watch": "webpack --config src/repl/webpack.config.js --watch"
   },
   "license": "MIT",
   "devDependencies": {

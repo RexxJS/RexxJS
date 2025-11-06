@@ -1,0 +1,73 @@
+>> 3 SAY "=== REXX Arithmetic Operations Demo ==="
+=== REXX Arithmetic Operations Demo ===
+>> 4 SAY ""
+
+>> 7 LET a = 10
+>> 8 LET b = 3
+>> 9 SAY "Basic Arithmetic:"
+Basic Arithmetic:
+>> 10 SAY "  a = " || a || ", b = " || b
+  a = 10, b = 3
+>> 11 SAY "  Addition: a + b = " || (a + b)
+  Addition: a + b = 13
+>> 12 SAY "  Subtraction: a - b = " || (a - b)
+  Subtraction: a - b = 7
+>> 13 SAY "  Multiplication: a * b = " || (a * b)
+  Multiplication: a * b = 30
+>> 14 SAY "  Division: a / b = " || (a / b)
+  Division: a / b = 3.3333333333333335
+>> 15 SAY "  Modulo (remainder): a % b = " || (a % b)
+  Modulo (remainder): a % b = 1
+>> 16 SAY "  Power: a ** 2 = " || (a ** 2)
+  Power: a ** 2 = 100
+>> 17 SAY ""
+
+>> 20 LET x = 3.14159
+>> 21 LET y = 2.71828
+>> 22 SAY "Floating Point Arithmetic:"
+Floating Point Arithmetic:
+>> 23 SAY "  x = " || x || ", y = " || y
+  x = 3.14159, y = 2.71828
+>> 24 SAY "  x + y = " || (x + y)
+  x + y = 5.85987
+>> 25 SAY "  x * y = " || (x * y)
+  x * y = 8.539721265199999
+>> 26 SAY "  x / y = " || (x / y)
+  x / y = 1.1557271509925393
+>> 27 SAY ""
+
+>> 30 SAY "Integer Functions:"
+Integer Functions:
+>> 31 SAY "  ABS(-42) = " || ABS(-42)
+  ABS(-42) = 42
+>> 32 SAY "  ABS(42) = " || ABS(42)
+  ABS(42) = 42
+>> 33 SAY "  INT(3.7) = " || INT(3.7)
+  INT(3.7) = 3
+>> 34 SAY "  INT(-3.7) = " || INT(-3.7)
+  INT(-3.7) = -4
+>> 35 SAY ""
+
+>> 38 SAY "Mathematical Functions:"
+Mathematical Functions:
+>> 39 SAY "  SQRT(16) = " || SQRT(16)
+  SQRT(16) = SQRT(16)
+>> 40 SAY "  SQRT(2) = " || SQRT(2)
+  SQRT(2) = SQRT(2)
+>> 41 SAY "  MAX(10, 5, 20, 3) = " || MAX(10, 5, 20, 3)
+  MAX(10, 5, 20, 3) = 20
+>> 42 SAY "  MIN(10, 5, 20, 3) = " || MIN(10, 5, 20, 3)
+  MIN(10, 5, 20, 3) = 3
+>> 43 SAY ""
+
+>> 46 LET counter = 5
+>> 47 SAY "Counter Operations:"
+Counter Operations:
+>> 48 SAY "  Initial counter = " || counter
+  Initial counter = 5
+>> 49 counter = counter + 1
+>> 50 SAY "  After increment: " || counter
+  After increment: 6
+>> 51 counter = counter - 1
+>> 52 SAY "  After decrement: " || counter
+  After decrement: 5

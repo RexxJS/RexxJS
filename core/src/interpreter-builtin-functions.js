@@ -9,6 +9,14 @@
 
 // Import dependencies for builtin functions
 const variableStackUtils = require('./interpreter-variable-stack');
+const {
+  getFunctionInfo,
+  getFunctionsByCategory,
+  getFunctionsByModule,
+  getAllModules,
+  getAllCategories,
+  getFunctionCount
+} = require('./function-metadata-registry');
 
 /**
  * Initialize all built-in functions for the REXX interpreter
@@ -36,20 +44,146 @@ function initializeBuiltInFunctions() {
   let importedCryptoFunctions = {};
   let importedDomFunctions = {};
   let importedDomOperations = {};
+  let importedDomPipelineFunctions = {};
   let importedDataFunctions = {};
   let importedProbabilityFunctions = {};
   let importedShellFunctions = {};
   let importedInterpolationFunctions = {};
+  // Sibling parameter converter functions for unified parameter model
+  let UPPER_positional_args_to_named_param_map = null;
+  let LOWER_positional_args_to_named_param_map = null;
+  let TRIM_positional_args_to_named_param_map = null;
+  let LEFT_positional_args_to_named_param_map = null;
+  let RIGHT_positional_args_to_named_param_map = null;
+  let STRIP_positional_args_to_named_param_map = null;
+  let REPLACE_positional_args_to_named_param_map = null;
+  let INDEX_positional_args_to_named_param_map = null;
+  let SUBSTR_positional_args_to_named_param_map = null;
+  let PASTE_positional_args_to_named_param_map = null;
+  let ELEMENT_positional_args_to_named_param_map = null;
+  let PATH_JOIN_positional_args_to_named_param_map = null;
+  let SHUF_positional_args_to_named_param_map = null;
+  let CUT_positional_args_to_named_param_map = null;
+  let ABS_positional_args_to_named_param_map = null;
+  let MAX_positional_args_to_named_param_map = null;
+  let MIN_positional_args_to_named_param_map = null;
+  let MATH_CEIL_positional_args_to_named_param_map = null;
+  let MATH_FLOOR_positional_args_to_named_param_map = null;
+  let MATH_ROUND_positional_args_to_named_param_map = null;
+  let MATH_SQRT_positional_args_to_named_param_map = null;
+  let MATH_AVERAGE_positional_args_to_named_param_map = null;
+  let MATH_SUM_positional_args_to_named_param_map = null;
+  let MATH_POWER_positional_args_to_named_param_map = null;
+  let ARRAY_GET_positional_args_to_named_param_map = null;
+  let ARRAY_SET_positional_args_to_named_param_map = null;
+  let ARRAY_LENGTH_positional_args_to_named_param_map = null;
+  let ARRAY_FILTER_positional_args_to_named_param_map = null;
+  let ARRAY_SORT_positional_args_to_named_param_map = null;
+  let ARRAY_FIND_positional_args_to_named_param_map = null;
+  let ARRAY_MAP_positional_args_to_named_param_map = null;
+  let ARRAY_JOIN_positional_args_to_named_param_map = null;
+  let ARRAY_CONCAT_positional_args_to_named_param_map = null;
+  let SPLIT_positional_args_to_named_param_map = null;
+  let JOIN_positional_args_to_named_param_map = null;
+  let ARRAY_SLICE_positional_args_to_named_param_map = null;
+  // Data function converters
+  let CSV_TO_JSON_positional_args_to_named_param_map = null;
+  let JSON_TO_CSV_positional_args_to_named_param_map = null;
+  let XML_TO_JSON_positional_args_to_named_param_map = null;
+  let DATA_FILTER_positional_args_to_named_param_map = null;
+  let DATA_SORT_positional_args_to_named_param_map = null;
+  let DATA_GROUP_BY_positional_args_to_named_param_map = null;
+  let COPY_positional_args_to_named_param_map = null;
+  // DOM pipeline function converters
+  let FILTER_BY_ATTR_positional_args_to_named_param_map = null;
+  let FILTER_BY_CLASS_positional_args_to_named_param_map = null;
+  let GET_VALUES_positional_args_to_named_param_map = null;
+  let GET_TEXT_positional_args_to_named_param_map = null;
+  let GET_ATTRS_positional_args_to_named_param_map = null;
+  // Additional math function converters
+  let MATH_ABS_positional_args_to_named_param_map = null;
+  let INT_positional_args_to_named_param_map = null;
+  let MATH_MAX_positional_args_to_named_param_map = null;
+  let MATH_MIN_positional_args_to_named_param_map = null;
+  let MATH_ADD_positional_args_to_named_param_map = null;
+  let MATH_MULTIPLY_positional_args_to_named_param_map = null;
+  let MATH_LOG_positional_args_to_named_param_map = null;
+  let MATH_SIN_positional_args_to_named_param_map = null;
+  let MATH_COS_positional_args_to_named_param_map = null;
+  let MATH_TAN_positional_args_to_named_param_map = null;
+  let MATH_RANDOM_positional_args_to_named_param_map = null;
+  let MATH_RANDOM_INT_positional_args_to_named_param_map = null;
+  let MATH_CLAMP_positional_args_to_named_param_map = null;
+  let MATH_PERCENTAGE_positional_args_to_named_param_map = null;
+  let MATH_FACTORIAL_positional_args_to_named_param_map = null;
+  let MATH_GCD_positional_args_to_named_param_map = null;
+  let MATH_LCM_positional_args_to_named_param_map = null;
+  let MATH_DISTANCE_2D_positional_args_to_named_param_map = null;
+  let MATH_ANGLE_2D_positional_args_to_named_param_map = null;
+  // Additional array function converters
+  let ARRAY_PUSH_positional_args_to_named_param_map = null;
+  let ARRAY_POP_positional_args_to_named_param_map = null;
+  let ARRAY_SHIFT_positional_args_to_named_param_map = null;
+  let ARRAY_UNSHIFT_positional_args_to_named_param_map = null;
+  let ARRAY_REVERSE_positional_args_to_named_param_map = null;
+  let ARRAY_INCLUDES_positional_args_to_named_param_map = null;
+  let ARRAY_INDEXOF_positional_args_to_named_param_map = null;
+  let ARRAY_MIN_positional_args_to_named_param_map = null;
+  let ARRAY_MAX_positional_args_to_named_param_map = null;
+  let ARRAY_SUM_positional_args_to_named_param_map = null;
+  let ARRAY_AVERAGE_positional_args_to_named_param_map = null;
+  let ARRAY_UNIQUE_positional_args_to_named_param_map = null;
+  let ARRAY_FLATTEN_positional_args_to_named_param_map = null;
+  let SELECT_positional_args_to_named_param_map = null;
+  let GROUP_BY_positional_args_to_named_param_map = null;
+  let DISTINCT_positional_args_to_named_param_map = null;
+  let ARRAY_REDUCE_positional_args_to_named_param_map = null;
+  let SUMMARY_positional_args_to_named_param_map = null;
+  let REGRESSION_positional_args_to_named_param_map = null;
+  let FORECAST_positional_args_to_named_param_map = null;
+  let CORRELATION_MATRIX_positional_args_to_named_param_map = null;
+  let MAP_positional_args_to_named_param_map = null;
+  let FILTER_positional_args_to_named_param_map = null;
+  let REDUCE_positional_args_to_named_param_map = null;
+  // Additional string function converters
+  let LENGTH_positional_args_to_named_param_map = null;
+  let POS_positional_args_to_named_param_map = null;
+  let ABBREV_positional_args_to_named_param_map = null;
+  let TRIM_START_positional_args_to_named_param_map = null;
+  let TRIM_END_positional_args_to_named_param_map = null;
+  let REVERSE_positional_args_to_named_param_map = null;
+  let SPACE_positional_args_to_named_param_map = null;
+  let WORD_positional_args_to_named_param_map = null;
+  let WORDS_positional_args_to_named_param_map = null;
+  let WORDPOS_positional_args_to_named_param_map = null;
+  let DELWORD_positional_args_to_named_param_map = null;
+  let SUBWORD_positional_args_to_named_param_map = null;
+  let INDEXOF_positional_args_to_named_param_map = null;
+  let INCLUDES_positional_args_to_named_param_map = null;
+  let STARTS_WITH_positional_args_to_named_param_map = null;
+  let ENDS_WITH_positional_args_to_named_param_map = null;
+  let REPEAT_positional_args_to_named_param_map = null;
+  let COPIES_positional_args_to_named_param_map = null;
+  let PAD_START_positional_args_to_named_param_map = null;
+  let PAD_END_positional_args_to_named_param_map = null;
+  let TRANSLATE_positional_args_to_named_param_map = null;
+  let VERIFY_positional_args_to_named_param_map = null;
+  let SUBSTRING_positional_args_to_named_param_map = null;
+  let CENTER_positional_args_to_named_param_map = null;
+  let SLUG_positional_args_to_named_param_map = null;
+  let WORD_FREQUENCY_positional_args_to_named_param_map = null;
+  let SENTIMENT_ANALYSIS_positional_args_to_named_param_map = null;
+  let EXTRACT_KEYWORDS_positional_args_to_named_param_map = null;
   // R functions, DIFF, SED, and other @extras functions - use REQUIRE statements to load them
   try {
     if (typeof require !== 'undefined') {
       // command line mode (NodeJs) is allowed to use require() but the two web modes are not.
       // All these are co-located with interpreter.js in the main RexxJS project, we should
       // auto-load them if so (provisional decision).
-      const { stringFunctions } = require('./string-functions');
-      const { mathFunctions } = require('./math-functions');
+      const { stringFunctions, UPPER_positional_args_to_named_param_map, LOWER_positional_args_to_named_param_map, TRIM_positional_args_to_named_param_map, LEFT_positional_args_to_named_param_map, RIGHT_positional_args_to_named_param_map, STRIP_positional_args_to_named_param_map, REPLACE_positional_args_to_named_param_map, INDEX_positional_args_to_named_param_map, LENGTH_positional_args_to_named_param_map, POS_positional_args_to_named_param_map, ABBREV_positional_args_to_named_param_map, TRIM_START_positional_args_to_named_param_map, TRIM_END_positional_args_to_named_param_map, REVERSE_positional_args_to_named_param_map, SPACE_positional_args_to_named_param_map, WORD_positional_args_to_named_param_map, WORDS_positional_args_to_named_param_map, WORDPOS_positional_args_to_named_param_map, DELWORD_positional_args_to_named_param_map, SUBWORD_positional_args_to_named_param_map, INDEXOF_positional_args_to_named_param_map, INCLUDES_positional_args_to_named_param_map, STARTS_WITH_positional_args_to_named_param_map, ENDS_WITH_positional_args_to_named_param_map, REPEAT_positional_args_to_named_param_map, COPIES_positional_args_to_named_param_map, PAD_START_positional_args_to_named_param_map, PAD_END_positional_args_to_named_param_map, TRANSLATE_positional_args_to_named_param_map, VERIFY_positional_args_to_named_param_map, SUBSTRING_positional_args_to_named_param_map, CENTER_positional_args_to_named_param_map, SLUG_positional_args_to_named_param_map, WORD_FREQUENCY_positional_args_to_named_param_map, SENTIMENT_ANALYSIS_positional_args_to_named_param_map, EXTRACT_KEYWORDS_positional_args_to_named_param_map, SUBSTR_positional_args_to_named_param_map } = require('./string-functions');
+      const { mathFunctions, ABS_positional_args_to_named_param_map, MAX_positional_args_to_named_param_map, MIN_positional_args_to_named_param_map, MATH_CEIL_positional_args_to_named_param_map, MATH_FLOOR_positional_args_to_named_param_map, MATH_ROUND_positional_args_to_named_param_map, MATH_SQRT_positional_args_to_named_param_map, MATH_AVERAGE_positional_args_to_named_param_map, MATH_SUM_positional_args_to_named_param_map, MATH_POWER_positional_args_to_named_param_map, MATH_ABS_positional_args_to_named_param_map, INT_positional_args_to_named_param_map, MATH_MAX_positional_args_to_named_param_map, MATH_MIN_positional_args_to_named_param_map, MATH_ADD_positional_args_to_named_param_map, MATH_MULTIPLY_positional_args_to_named_param_map, MATH_LOG_positional_args_to_named_param_map, MATH_SIN_positional_args_to_named_param_map, MATH_COS_positional_args_to_named_param_map, MATH_TAN_positional_args_to_named_param_map, MATH_RANDOM_positional_args_to_named_param_map, MATH_RANDOM_INT_positional_args_to_named_param_map, MATH_CLAMP_positional_args_to_named_param_map, MATH_PERCENTAGE_positional_args_to_named_param_map, MATH_FACTORIAL_positional_args_to_named_param_map, MATH_GCD_positional_args_to_named_param_map, MATH_LCM_positional_args_to_named_param_map, MATH_DISTANCE_2D_positional_args_to_named_param_map, MATH_ANGLE_2D_positional_args_to_named_param_map } = require('./math-functions');
       const { jsonFunctions } = require('./json-functions');
-      const { arrayFunctions } = require('./array-functions');
+      const { arrayFunctions, ARRAY_GET_positional_args_to_named_param_map, ARRAY_SET_positional_args_to_named_param_map, ARRAY_LENGTH_positional_args_to_named_param_map, ARRAY_FILTER_positional_args_to_named_param_map, ARRAY_SORT_positional_args_to_named_param_map, ARRAY_FIND_positional_args_to_named_param_map, ARRAY_MAP_positional_args_to_named_param_map, ARRAY_JOIN_positional_args_to_named_param_map, ARRAY_CONCAT_positional_args_to_named_param_map, SPLIT_positional_args_to_named_param_map, JOIN_positional_args_to_named_param_map, ARRAY_SLICE_positional_args_to_named_param_map, ARRAY_PUSH_positional_args_to_named_param_map, ARRAY_POP_positional_args_to_named_param_map, ARRAY_SHIFT_positional_args_to_named_param_map, ARRAY_UNSHIFT_positional_args_to_named_param_map, ARRAY_REVERSE_positional_args_to_named_param_map, ARRAY_INCLUDES_positional_args_to_named_param_map, ARRAY_INDEXOF_positional_args_to_named_param_map, ARRAY_MIN_positional_args_to_named_param_map, ARRAY_MAX_positional_args_to_named_param_map, ARRAY_SUM_positional_args_to_named_param_map, ARRAY_AVERAGE_positional_args_to_named_param_map, ARRAY_UNIQUE_positional_args_to_named_param_map, ARRAY_FLATTEN_positional_args_to_named_param_map, SELECT_positional_args_to_named_param_map, GROUP_BY_positional_args_to_named_param_map, DISTINCT_positional_args_to_named_param_map, ARRAY_REDUCE_positional_args_to_named_param_map, SUMMARY_positional_args_to_named_param_map, REGRESSION_positional_args_to_named_param_map, FORECAST_positional_args_to_named_param_map, CORRELATION_MATRIX_positional_args_to_named_param_map, MAP_positional_args_to_named_param_map, FILTER_positional_args_to_named_param_map, REDUCE_positional_args_to_named_param_map } = require('./array-functions');
       const { dateTimeFunctions } = require('./date-time-functions');
       const { urlFunctions } = require('./url-functions');
       const { randomFunctions } = require('./random-functions');
@@ -63,10 +197,13 @@ function initializeBuiltInFunctions() {
       const { statisticsFunctions } = require('./statistics-functions');
       const { logicFunctions } = require('./logic-functions');
       const { cryptoFunctions } = require('./cryptography-functions');
-      const { domFunctions, functions: domFunctionsOnly, operations: domOperations } = require('./dom-functions');
-      const { dataFunctions } = require('./data-functions');
+      const { domFunctions, functions: domFunctionsOnly, operations: domOperations, functionMetadata: domFunctionMetadata, ELEMENT_positional_args_to_named_param_map } = require('./dom-functions');
+      const { domPipelineFunctions, FILTER_BY_ATTR_positional_args_to_named_param_map, FILTER_BY_CLASS_positional_args_to_named_param_map, GET_VALUES_positional_args_to_named_param_map, GET_TEXT_positional_args_to_named_param_map, GET_ATTRS_positional_args_to_named_param_map } = require('./dom-pipeline-functions');
+      const { dataFunctions, CSV_TO_JSON_positional_args_to_named_param_map, JSON_TO_CSV_positional_args_to_named_param_map, XML_TO_JSON_positional_args_to_named_param_map, DATA_FILTER_positional_args_to_named_param_map, DATA_SORT_positional_args_to_named_param_map, DATA_GROUP_BY_positional_args_to_named_param_map, COPY_positional_args_to_named_param_map } = require('./data-functions');
       const { probabilityFunctions } = require('./probability-functions');
-      const shellFunctions = require('./shell-functions');
+      const shellFunctionsModule = require('./shell-functions');
+      const { PASTE_positional_args_to_named_param_map, PATH_JOIN_positional_args_to_named_param_map, SHUF_positional_args_to_named_param_map, CUT_positional_args_to_named_param_map } = shellFunctionsModule;
+      const shellFunctions = shellFunctionsModule;
       const interpolationFunctions = require('./interpolation-functions');
 
       // R functions, DIFF, SED are now available via REQUIRE statements in user scripts
@@ -88,6 +225,7 @@ function initializeBuiltInFunctions() {
       importedCryptoFunctions = cryptoFunctions;
       importedDomFunctions = domFunctionsOnly || domFunctions;  // Prefer split version, fall back to combined
       importedDomOperations = domOperations || {};
+      importedDomPipelineFunctions = domPipelineFunctions;
       importedDataFunctions = dataFunctions;
       importedProbabilityFunctions = probabilityFunctions;
       importedShellFunctions = shellFunctions;
@@ -112,8 +250,96 @@ function initializeBuiltInFunctions() {
       importedCryptoFunctions = window.cryptoFunctions || {};
       importedDomFunctions = window.domFunctionsOnly || window.domFunctions || {};
       importedDomOperations = window.domOperations || {};
+      importedDomPipelineFunctions = window.domPipelineFunctions || {};
       importedDataFunctions = window.dataFunctions || {};
       importedProbabilityFunctions = window.probabilityFunctions || {};
+      // Sibling parameter converter functions
+      UPPER_positional_args_to_named_param_map = window.UPPER_positional_args_to_named_param_map || null;
+      LOWER_positional_args_to_named_param_map = window.LOWER_positional_args_to_named_param_map || null;
+      TRIM_positional_args_to_named_param_map = window.TRIM_positional_args_to_named_param_map || null;
+      LEFT_positional_args_to_named_param_map = window.LEFT_positional_args_to_named_param_map || null;
+      RIGHT_positional_args_to_named_param_map = window.RIGHT_positional_args_to_named_param_map || null;
+      STRIP_positional_args_to_named_param_map = window.STRIP_positional_args_to_named_param_map || null;
+      REPLACE_positional_args_to_named_param_map = window.REPLACE_positional_args_to_named_param_map || null;
+      INDEX_positional_args_to_named_param_map = window.INDEX_positional_args_to_named_param_map || null;
+      SUBSTR_positional_args_to_named_param_map = window.SUBSTR_positional_args_to_named_param_map || null;
+      PASTE_positional_args_to_named_param_map = window.PASTE_positional_args_to_named_param_map || null;
+      ELEMENT_positional_args_to_named_param_map = window.ELEMENT_positional_args_to_named_param_map || null;
+      FILTER_BY_ATTR_positional_args_to_named_param_map = window.FILTER_BY_ATTR_positional_args_to_named_param_map || null;
+      FILTER_BY_CLASS_positional_args_to_named_param_map = window.FILTER_BY_CLASS_positional_args_to_named_param_map || null;
+      GET_VALUES_positional_args_to_named_param_map = window.GET_VALUES_positional_args_to_named_param_map || null;
+      GET_TEXT_positional_args_to_named_param_map = window.GET_TEXT_positional_args_to_named_param_map || null;
+      GET_ATTRS_positional_args_to_named_param_map = window.GET_ATTRS_positional_args_to_named_param_map || null;
+      PATH_JOIN_positional_args_to_named_param_map = window.PATH_JOIN_positional_args_to_named_param_map || null;
+      SHUF_positional_args_to_named_param_map = window.SHUF_positional_args_to_named_param_map || null;
+      CUT_positional_args_to_named_param_map = window.CUT_positional_args_to_named_param_map || null;
+      ABS_positional_args_to_named_param_map = window.ABS_positional_args_to_named_param_map || null;
+      MAX_positional_args_to_named_param_map = window.MAX_positional_args_to_named_param_map || null;
+      MIN_positional_args_to_named_param_map = window.MIN_positional_args_to_named_param_map || null;
+      MATH_CEIL_positional_args_to_named_param_map = window.MATH_CEIL_positional_args_to_named_param_map || null;
+      MATH_FLOOR_positional_args_to_named_param_map = window.MATH_FLOOR_positional_args_to_named_param_map || null;
+      MATH_ROUND_positional_args_to_named_param_map = window.MATH_ROUND_positional_args_to_named_param_map || null;
+      MATH_SQRT_positional_args_to_named_param_map = window.MATH_SQRT_positional_args_to_named_param_map || null;
+      MATH_AVERAGE_positional_args_to_named_param_map = window.MATH_AVERAGE_positional_args_to_named_param_map || null;
+      MATH_SUM_positional_args_to_named_param_map = window.MATH_SUM_positional_args_to_named_param_map || null;
+      MATH_POWER_positional_args_to_named_param_map = window.MATH_POWER_positional_args_to_named_param_map || null;
+      ARRAY_GET_positional_args_to_named_param_map = window.ARRAY_GET_positional_args_to_named_param_map || null;
+      ARRAY_SET_positional_args_to_named_param_map = window.ARRAY_SET_positional_args_to_named_param_map || null;
+      ARRAY_LENGTH_positional_args_to_named_param_map = window.ARRAY_LENGTH_positional_args_to_named_param_map || null;
+      ARRAY_FILTER_positional_args_to_named_param_map = window.ARRAY_FILTER_positional_args_to_named_param_map || null;
+      ARRAY_SORT_positional_args_to_named_param_map = window.ARRAY_SORT_positional_args_to_named_param_map || null;
+      ARRAY_FIND_positional_args_to_named_param_map = window.ARRAY_FIND_positional_args_to_named_param_map || null;
+      ARRAY_MAP_positional_args_to_named_param_map = window.ARRAY_MAP_positional_args_to_named_param_map || null;
+      ARRAY_JOIN_positional_args_to_named_param_map = window.ARRAY_JOIN_positional_args_to_named_param_map || null;
+      ARRAY_CONCAT_positional_args_to_named_param_map = window.ARRAY_CONCAT_positional_args_to_named_param_map || null;
+      SPLIT_positional_args_to_named_param_map = window.SPLIT_positional_args_to_named_param_map || null;
+      JOIN_positional_args_to_named_param_map = window.JOIN_positional_args_to_named_param_map || null;
+      ARRAY_SLICE_positional_args_to_named_param_map = window.ARRAY_SLICE_positional_args_to_named_param_map || null;
+      // New math function converters
+      MATH_ABS_positional_args_to_named_param_map = window.MATH_ABS_positional_args_to_named_param_map || null;
+      INT_positional_args_to_named_param_map = window.INT_positional_args_to_named_param_map || null;
+      MATH_MAX_positional_args_to_named_param_map = window.MATH_MAX_positional_args_to_named_param_map || null;
+      MATH_MIN_positional_args_to_named_param_map = window.MATH_MIN_positional_args_to_named_param_map || null;
+      MATH_ADD_positional_args_to_named_param_map = window.MATH_ADD_positional_args_to_named_param_map || null;
+      MATH_MULTIPLY_positional_args_to_named_param_map = window.MATH_MULTIPLY_positional_args_to_named_param_map || null;
+      MATH_LOG_positional_args_to_named_param_map = window.MATH_LOG_positional_args_to_named_param_map || null;
+      MATH_SIN_positional_args_to_named_param_map = window.MATH_SIN_positional_args_to_named_param_map || null;
+      MATH_COS_positional_args_to_named_param_map = window.MATH_COS_positional_args_to_named_param_map || null;
+      MATH_TAN_positional_args_to_named_param_map = window.MATH_TAN_positional_args_to_named_param_map || null;
+      MATH_RANDOM_positional_args_to_named_param_map = window.MATH_RANDOM_positional_args_to_named_param_map || null;
+      MATH_RANDOM_INT_positional_args_to_named_param_map = window.MATH_RANDOM_INT_positional_args_to_named_param_map || null;
+      MATH_CLAMP_positional_args_to_named_param_map = window.MATH_CLAMP_positional_args_to_named_param_map || null;
+      MATH_PERCENTAGE_positional_args_to_named_param_map = window.MATH_PERCENTAGE_positional_args_to_named_param_map || null;
+      MATH_FACTORIAL_positional_args_to_named_param_map = window.MATH_FACTORIAL_positional_args_to_named_param_map || null;
+      MATH_GCD_positional_args_to_named_param_map = window.MATH_GCD_positional_args_to_named_param_map || null;
+      MATH_LCM_positional_args_to_named_param_map = window.MATH_LCM_positional_args_to_named_param_map || null;
+      MATH_DISTANCE_2D_positional_args_to_named_param_map = window.MATH_DISTANCE_2D_positional_args_to_named_param_map || null;
+      MATH_ANGLE_2D_positional_args_to_named_param_map = window.MATH_ANGLE_2D_positional_args_to_named_param_map || null;
+      // New array function converters
+      ARRAY_PUSH_positional_args_to_named_param_map = window.ARRAY_PUSH_positional_args_to_named_param_map || null;
+      ARRAY_POP_positional_args_to_named_param_map = window.ARRAY_POP_positional_args_to_named_param_map || null;
+      ARRAY_SHIFT_positional_args_to_named_param_map = window.ARRAY_SHIFT_positional_args_to_named_param_map || null;
+      ARRAY_UNSHIFT_positional_args_to_named_param_map = window.ARRAY_UNSHIFT_positional_args_to_named_param_map || null;
+      ARRAY_REVERSE_positional_args_to_named_param_map = window.ARRAY_REVERSE_positional_args_to_named_param_map || null;
+      ARRAY_INCLUDES_positional_args_to_named_param_map = window.ARRAY_INCLUDES_positional_args_to_named_param_map || null;
+      ARRAY_INDEXOF_positional_args_to_named_param_map = window.ARRAY_INDEXOF_positional_args_to_named_param_map || null;
+      ARRAY_MIN_positional_args_to_named_param_map = window.ARRAY_MIN_positional_args_to_named_param_map || null;
+      ARRAY_MAX_positional_args_to_named_param_map = window.ARRAY_MAX_positional_args_to_named_param_map || null;
+      ARRAY_SUM_positional_args_to_named_param_map = window.ARRAY_SUM_positional_args_to_named_param_map || null;
+      ARRAY_AVERAGE_positional_args_to_named_param_map = window.ARRAY_AVERAGE_positional_args_to_named_param_map || null;
+      ARRAY_UNIQUE_positional_args_to_named_param_map = window.ARRAY_UNIQUE_positional_args_to_named_param_map || null;
+      ARRAY_FLATTEN_positional_args_to_named_param_map = window.ARRAY_FLATTEN_positional_args_to_named_param_map || null;
+      SELECT_positional_args_to_named_param_map = window.SELECT_positional_args_to_named_param_map || null;
+      GROUP_BY_positional_args_to_named_param_map = window.GROUP_BY_positional_args_to_named_param_map || null;
+      DISTINCT_positional_args_to_named_param_map = window.DISTINCT_positional_args_to_named_param_map || null;
+      ARRAY_REDUCE_positional_args_to_named_param_map = window.ARRAY_REDUCE_positional_args_to_named_param_map || null;
+      SUMMARY_positional_args_to_named_param_map = window.SUMMARY_positional_args_to_named_param_map || null;
+      REGRESSION_positional_args_to_named_param_map = window.REGRESSION_positional_args_to_named_param_map || null;
+      FORECAST_positional_args_to_named_param_map = window.FORECAST_positional_args_to_named_param_map || null;
+      CORRELATION_MATRIX_positional_args_to_named_param_map = window.CORRELATION_MATRIX_positional_args_to_named_param_map || null;
+      MAP_positional_args_to_named_param_map = window.MAP_positional_args_to_named_param_map || null;
+      FILTER_positional_args_to_named_param_map = window.FILTER_positional_args_to_named_param_map || null;
+      REDUCE_positional_args_to_named_param_map = window.REDUCE_positional_args_to_named_param_map || null;
       // R functions removed - use REQUIRE statements to load them
     }
   } catch (e) {
@@ -180,16 +406,139 @@ function initializeBuiltInFunctions() {
     }
   }
 
-  // Note: DOM functions/operations are NOT added to built-in registries
-  // They route through ADDRESS/RPC system for proper environment handling:
-  // - Node.js tests: Mock RPC intercepts
-  // - Browser: Real DOM manager
-  // - Node.js production: "Not supported" stub
-  // The split into importedDomFunctions/importedDomOperations is kept for semantic clarity
+  // Create interpreter-aware DOM functions that bind interpreter context
+  const interpreterAwareDomFunctions = {};
+  for (const funcName of Object.keys(importedDomFunctions)) {
+    if (typeof importedDomFunctions[funcName] === 'function') {
+      interpreterAwareDomFunctions[funcName] = importedDomFunctions[funcName].bind(interpreter);
+    }
+  }
 
   const builtIns = {
     // Import external functions
     ...importedStringFunctions,
+    // Sibling parameter converter functions for unified parameter model
+    UPPER_positional_args_to_named_param_map,
+    LOWER_positional_args_to_named_param_map,
+    TRIM_positional_args_to_named_param_map,
+    LEFT_positional_args_to_named_param_map,
+    RIGHT_positional_args_to_named_param_map,
+    STRIP_positional_args_to_named_param_map,
+    REPLACE_positional_args_to_named_param_map,
+    INDEX_positional_args_to_named_param_map,
+    SUBSTR_positional_args_to_named_param_map,
+    PASTE_positional_args_to_named_param_map,
+    ELEMENT_positional_args_to_named_param_map,
+    FILTER_BY_ATTR_positional_args_to_named_param_map,
+    FILTER_BY_CLASS_positional_args_to_named_param_map,
+    GET_VALUES_positional_args_to_named_param_map,
+    GET_TEXT_positional_args_to_named_param_map,
+    GET_ATTRS_positional_args_to_named_param_map,
+    PATH_JOIN_positional_args_to_named_param_map,
+    SHUF_positional_args_to_named_param_map,
+    CUT_positional_args_to_named_param_map,
+    ABS_positional_args_to_named_param_map,
+    MAX_positional_args_to_named_param_map,
+    MIN_positional_args_to_named_param_map,
+    MATH_CEIL_positional_args_to_named_param_map,
+    MATH_FLOOR_positional_args_to_named_param_map,
+    MATH_ROUND_positional_args_to_named_param_map,
+    MATH_SQRT_positional_args_to_named_param_map,
+    MATH_AVERAGE_positional_args_to_named_param_map,
+    MATH_SUM_positional_args_to_named_param_map,
+    MATH_POWER_positional_args_to_named_param_map,
+    ARRAY_GET_positional_args_to_named_param_map,
+    ARRAY_SET_positional_args_to_named_param_map,
+    ARRAY_LENGTH_positional_args_to_named_param_map,
+    ARRAY_FILTER_positional_args_to_named_param_map,
+    ARRAY_SORT_positional_args_to_named_param_map,
+    ARRAY_FIND_positional_args_to_named_param_map,
+    ARRAY_MAP_positional_args_to_named_param_map,
+    ARRAY_JOIN_positional_args_to_named_param_map,
+    ARRAY_CONCAT_positional_args_to_named_param_map,
+    SPLIT_positional_args_to_named_param_map,
+    JOIN_positional_args_to_named_param_map,
+    ARRAY_SLICE_positional_args_to_named_param_map,
+    CSV_TO_JSON_positional_args_to_named_param_map,
+    JSON_TO_CSV_positional_args_to_named_param_map,
+    XML_TO_JSON_positional_args_to_named_param_map,
+    DATA_FILTER_positional_args_to_named_param_map,
+    DATA_SORT_positional_args_to_named_param_map,
+    DATA_GROUP_BY_positional_args_to_named_param_map,
+    COPY_positional_args_to_named_param_map,
+    // New math function converters
+    MATH_ABS_positional_args_to_named_param_map,
+    INT_positional_args_to_named_param_map,
+    MATH_MAX_positional_args_to_named_param_map,
+    MATH_MIN_positional_args_to_named_param_map,
+    MATH_ADD_positional_args_to_named_param_map,
+    MATH_MULTIPLY_positional_args_to_named_param_map,
+    MATH_LOG_positional_args_to_named_param_map,
+    MATH_SIN_positional_args_to_named_param_map,
+    MATH_COS_positional_args_to_named_param_map,
+    MATH_TAN_positional_args_to_named_param_map,
+    MATH_RANDOM_positional_args_to_named_param_map,
+    MATH_RANDOM_INT_positional_args_to_named_param_map,
+    MATH_CLAMP_positional_args_to_named_param_map,
+    MATH_PERCENTAGE_positional_args_to_named_param_map,
+    MATH_FACTORIAL_positional_args_to_named_param_map,
+    MATH_GCD_positional_args_to_named_param_map,
+    MATH_LCM_positional_args_to_named_param_map,
+    MATH_DISTANCE_2D_positional_args_to_named_param_map,
+    MATH_ANGLE_2D_positional_args_to_named_param_map,
+    // New array function converters
+    ARRAY_PUSH_positional_args_to_named_param_map,
+    ARRAY_POP_positional_args_to_named_param_map,
+    ARRAY_SHIFT_positional_args_to_named_param_map,
+    ARRAY_UNSHIFT_positional_args_to_named_param_map,
+    ARRAY_REVERSE_positional_args_to_named_param_map,
+    ARRAY_INCLUDES_positional_args_to_named_param_map,
+    ARRAY_INDEXOF_positional_args_to_named_param_map,
+    ARRAY_MIN_positional_args_to_named_param_map,
+    ARRAY_MAX_positional_args_to_named_param_map,
+    ARRAY_SUM_positional_args_to_named_param_map,
+    ARRAY_AVERAGE_positional_args_to_named_param_map,
+    ARRAY_UNIQUE_positional_args_to_named_param_map,
+    ARRAY_FLATTEN_positional_args_to_named_param_map,
+    SELECT_positional_args_to_named_param_map,
+    GROUP_BY_positional_args_to_named_param_map,
+    DISTINCT_positional_args_to_named_param_map,
+    ARRAY_REDUCE_positional_args_to_named_param_map,
+    SUMMARY_positional_args_to_named_param_map,
+    REGRESSION_positional_args_to_named_param_map,
+    FORECAST_positional_args_to_named_param_map,
+    CORRELATION_MATRIX_positional_args_to_named_param_map,
+    MAP_positional_args_to_named_param_map,
+    FILTER_positional_args_to_named_param_map,
+    REDUCE_positional_args_to_named_param_map,
+    LENGTH_positional_args_to_named_param_map,
+    POS_positional_args_to_named_param_map,
+    ABBREV_positional_args_to_named_param_map,
+    TRIM_START_positional_args_to_named_param_map,
+    TRIM_END_positional_args_to_named_param_map,
+    REVERSE_positional_args_to_named_param_map,
+    SPACE_positional_args_to_named_param_map,
+    WORD_positional_args_to_named_param_map,
+    WORDS_positional_args_to_named_param_map,
+    WORDPOS_positional_args_to_named_param_map,
+    DELWORD_positional_args_to_named_param_map,
+    SUBWORD_positional_args_to_named_param_map,
+    INDEXOF_positional_args_to_named_param_map,
+    INCLUDES_positional_args_to_named_param_map,
+    STARTS_WITH_positional_args_to_named_param_map,
+    ENDS_WITH_positional_args_to_named_param_map,
+    REPEAT_positional_args_to_named_param_map,
+    COPIES_positional_args_to_named_param_map,
+    PAD_START_positional_args_to_named_param_map,
+    PAD_END_positional_args_to_named_param_map,
+    TRANSLATE_positional_args_to_named_param_map,
+    VERIFY_positional_args_to_named_param_map,
+    SUBSTRING_positional_args_to_named_param_map,
+    CENTER_positional_args_to_named_param_map,
+    SLUG_positional_args_to_named_param_map,
+    WORD_FREQUENCY_positional_args_to_named_param_map,
+    SENTIMENT_ANALYSIS_positional_args_to_named_param_map,
+    EXTRACT_KEYWORDS_positional_args_to_named_param_map,
     ...importedMathFunctions,
     ...importedJsonFunctions,
     ...interpreterAwareArrayFunctions,
@@ -204,7 +553,8 @@ function initializeBuiltInFunctions() {
     ...importedStatisticsFunctions,
     ...importedLogicFunctions,
     ...importedCryptoFunctions,
-    // DOM functions/operations intentionally NOT included - they route through ADDRESS/RPC
+    ...interpreterAwareDomFunctions,  // DOM functions now part of main function set
+    ...importedDomPipelineFunctions,  // DOM pipeline functions for filtering and extraction
     ...importedDataFunctions,
     ...importedProbabilityFunctions,
     ...importedShellFunctions,  // Shell functions last, includes Node.js FILE_EXISTS override
@@ -746,6 +1096,115 @@ function initializeBuiltInFunctions() {
       } else {
         throw new Error(`ARG: Invalid option '${option}' (must be 'E' or 'O')`);
       }
+    },
+
+    // SYMBOL function - Check variable definition status
+    // Usage:
+    //   SYMBOL('varName') - Returns 'VAR' if defined, 'LIT' if not defined, 'BAD' if invalid name
+    'SYMBOL': (varName) => {
+      if (typeof varName !== 'string') {
+        return 'BAD';
+      }
+
+      // Strip surrounding quotes if present
+      let cleanVarName = varName.replace(/^['"]|['"]$/g, '');
+
+      // Check if it's a valid REXX variable name
+      // Valid names start with letter or underscore, contain letters, digits, underscores, and periods
+      if (!/^[A-Za-z_][A-Za-z0-9_.]*$/.test(cleanVarName)) {
+        return 'BAD';
+      }
+
+      // Check if variable is defined in the interpreter's variable map
+      if (interpreter.variables.has(cleanVarName)) {
+        return 'VAR';  // Variable is defined
+      } else {
+        return 'LIT';  // Variable is not defined (treat as literal)
+      }
+    },
+
+    INFO: (functionName) => {
+      const info = getFunctionInfo(functionName);
+      if (!info) {
+        return {
+          error: `Function '${functionName}' not found in metadata registry`,
+          hint: `Use FUNCTIONS() to list all available functions`
+        };
+      }
+
+      // Return formatted metadata as a REXX stem array
+      return {
+        0: 6, // Number of properties
+        1: info.module,
+        2: info.category,
+        3: info.description,
+        4: JSON.stringify(info.parameters),
+        5: info.returns,
+        6: JSON.stringify(info.examples || [])
+      };
+    },
+
+    FUNCTIONS: (...args) => {
+      const arg = args[0];
+
+      if (!arg) {
+        // No arguments: list all functions grouped by module
+        const byModule = getFunctionsByModule();
+        const modules = getAllModules();
+
+        let result = { 0: modules.length };
+        modules.forEach((mod, index) => {
+          result[index + 1] = `${mod}: ${byModule[mod].join(', ')}`;
+        });
+        return result;
+      }
+
+      const query = String(arg).trim();
+      const queryUpper = query.toUpperCase();
+      const queryLower = query.toLowerCase();
+
+      // Check if it's a specific function name (case-insensitive)
+      const info = getFunctionInfo(query);
+      if (info) {
+        // Return metadata for specific function
+        return {
+          0: 1,
+          1: `${info.module} - ${info.category}: ${info.description}`
+        };
+      }
+
+      // Try as category (case-insensitive lookup)
+      const allCategories = getAllCategories();
+      const matchingCategory = allCategories.find(cat => cat.toUpperCase() === queryUpper);
+      if (matchingCategory) {
+        const byCategory = getFunctionsByCategory(matchingCategory);
+        const functions = byCategory[matchingCategory];
+        const result = { 0: functions.length };
+        functions.forEach((func, index) => {
+          result[index + 1] = func;
+        });
+        return result;
+      }
+
+      // Try as module (case-insensitive lookup)
+      const allModules = getAllModules();
+      const matchingModule = allModules.find(mod => mod.toLowerCase() === queryLower);
+      if (matchingModule) {
+        const byModule = getFunctionsByModule(matchingModule);
+        const functions = byModule[matchingModule];
+        const result = { 0: functions.length };
+        functions.forEach((func, index) => {
+          result[index + 1] = func;
+        });
+        return result;
+      }
+
+      // Not found
+      return {
+        0: 0,
+        error: `No functions found matching '${query}'`,
+        hint: `Try: FUNCTIONS() to list all, or FUNCTIONS("CATEGORY") or FUNCTIONS("MODULE")`
+      };
     },
 
   };

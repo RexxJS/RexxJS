@@ -115,6 +115,36 @@ cd extras/addresses/gcp-address && npx webpack --config webpack.bundle.config.js
 rm -f ../dist/addresses/node_modules_*.gcp-address.bundle.js
 print_success "Built gcp-address.bundle.js"
 
+# firecracker-address
+cd extras/addresses/firecracker-address && npx webpack --config webpack.bundle.config.js && cd ../../..
+print_success "Built firecracker-address.bundle.js"
+cp extras/addresses/firecracker-address/firecracker-address.js ../dist/addresses/firecracker-address.js
+print_success "Copied firecracker-address.js (unbundled)"
+
+# lxd-address
+cd extras/addresses/lxd-address && npx webpack --config webpack.bundle.config.js && cd ../../..
+print_success "Built lxd-address.bundle.js"
+cp extras/addresses/lxd-address/lxd-address.js ../dist/addresses/lxd-address.js
+print_success "Copied lxd-address.js (unbundled)"
+
+# proxmox-address
+cd extras/addresses/proxmox-address && npx webpack --config webpack.bundle.config.js && cd ../../..
+print_success "Built proxmox-address.bundle.js"
+cp extras/addresses/proxmox-address/proxmox-address.js ../dist/addresses/proxmox-address.js
+print_success "Copied proxmox-address.js (unbundled)"
+
+# lambda-address (native - no build needed, just copy)
+cp extras/addresses/lambda-address/lambda-address.js ../dist/addresses/lambda-address.js
+print_success "Copied lambda-address.js (native, unbundled)"
+
+# openfaas-address (native - no build needed, just copy)
+cp extras/addresses/openfaas-address/openfaas-address.js ../dist/addresses/openfaas-address.js
+print_success "Copied openfaas-address.js (native, unbundled)"
+
+# remote-docker-address (native - no build needed, just copy)
+cp extras/addresses/remote-docker-address/remote-docker-address.js ../dist/addresses/remote-docker-address.js
+print_success "Copied remote-docker-address.js (native, unbundled)"
+
 # Function libraries
 print_info "Building function libraries..."
 
@@ -201,6 +231,18 @@ print_success "Copied diff-functions.js (native, unbundled)"
 # sed-functions (native - no build needed, just copy)
 cp extras/functions/sed/src/sed-functions.js ../dist/functions/sed-functions.js
 print_success "Copied sed-functions.js (native, unbundled)"
+
+# jq-functions (native - no build needed, just copy)
+cp extras/functions/jq-functions/src/jq-functions.js ../dist/functions/jq-functions.js
+print_success "Copied jq-functions.js (native, unbundled)"
+
+# matlab-inspired-functions (native - no build needed, just copy)
+cp extras/functions/matlab-inspired/src/matlab-inspired-functions.js ../dist/functions/matlab-inspired-functions.js
+print_success "Copied matlab-inspired-functions.js (native, unbundled)"
+
+# minimatch-functions (native - no build needed, just copy)
+cp extras/functions/minimatch/minimatch-functions.js ../dist/functions/minimatch-functions.js
+print_success "Copied minimatch-functions.js (native, unbundled)"
 
 # Strip dependencies from all bundles
 print_info "Stripping dependencies from bundles..."

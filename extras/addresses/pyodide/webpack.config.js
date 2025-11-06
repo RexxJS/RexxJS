@@ -52,13 +52,13 @@ module.exports = {
       new TerserPlugin({
         terserOptions: {
           // Preserve function names for RexxJS detection
-          keep_fnames: /.*_MAIN$/,
+          keep_fnames: /.*_META$/,
           mangle: {
             // Don't mangle critical property names
             reserved: [
               'dependencies', 'peerDependencies', 'optionalDependencies',
               'type', 'module', 'name', 'version', 'loaded', 'functions',
-              'pyodide-address', 'PYODIDE_ADDRESS_MAIN', 'ADDRESS_PYODIDE_HANDLER', 'ADDRESS_PYODIDE_METHODS'
+              'pyodide-address', 'PYODIDE_ADDRESS_META', 'ADDRESS_PYODIDE_HANDLER', 'ADDRESS_PYODIDE_METHODS'
             ]
           },
           compress: {
