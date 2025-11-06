@@ -6,7 +6,7 @@ const { defineConfig, devices } = require('@playwright/test');
  */
 module.exports = defineConfig({
   testDir: './tests/web',
-  testMatch: ['**/multi-instance-scripting.spec.js', '**/dom-*.spec.js', '**/stale-element.spec.js', '**/streaming-control.spec.js', '**/checkpoint-simple.spec.js'],
+  testMatch: ['**/multi-instance-scripting.spec.js', '**/dom-*.spec.js', '**/stale-element.spec.js', '**/streaming-control.spec.js', '**/checkpoint-simple.spec.js', '**/rexx-a-sketch.spec.js'],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */

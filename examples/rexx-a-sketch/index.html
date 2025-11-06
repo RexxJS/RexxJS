@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rexx-A-Sketch - Powered by RexxJS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            width: 100%;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .etch-a-sketch {
+            background: linear-gradient(145deg, #e63946, #c1121f);
+            border-radius: 30px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+            position: relative;
+        }
+
+        .screen-bezel {
+            background: linear-gradient(145deg, #2c2c2c, #1a1a1a);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: inset 0 5px 15px rgba(0,0,0,0.5);
+        }
+
+        #canvas {
+            display: block;
+            background: #f0f0f0;
+            cursor: crosshair;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 30px;
+            padding: 0 20px;
+        }
+
+        .dial-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dial-label {
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .dial {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(145deg, #f8f8f8, #c0c0c0);
+            border-radius: 50%;
+            position: relative;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+
+        .dial:active {
+            transform: scale(0.95);
+        }
+
+        .dial::after {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 35%;
+            background: #e63946;
+            border-radius: 2px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .center-area {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .shake-button {
+            background: linear-gradient(145deg, #ffd60a, #faa307);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #001d3d;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .shake-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0,0,0,0.4);
+        }
+
+        .shake-button:active {
+            transform: translateY(0);
+        }
+
+        .auto-draw-button {
+            background: linear-gradient(145deg, #06ffa5, #00cc88);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #001d3d;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .auto-draw-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(0,0,0,0.4);
+        }
+
+        .auto-draw-button:active {
+            transform: translateY(0);
+        }
+
+        .brand {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-family: 'Courier New', monospace;
+        }
+
+        .control-panel {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            min-width: 350px;
+            max-width: 450px;
+        }
+
+        .control-panel h2 {
+            margin-bottom: 20px;
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .script-section {
+            margin-bottom: 20px;
+        }
+
+        .script-section h3 {
+            margin-bottom: 10px;
+            color: #555;
+            font-size: 16px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 12px;
+            resize: vertical;
+            background: #f8f9fa;
+        }
+
+        .execute-button {
+            width: 100%;
+            background: linear-gradient(145deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 15px;
+        }
+
+        .execute-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .log {
+            background: #2c2c2c;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 15px;
+            border-radius: 8px;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .example-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .example-button {
+            flex: 1;
+            min-width: 100px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .example-button:hover {
+            background: #e0e0e0;
+            border-color: #667eea;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+
+        .shaking {
+            animation: shake 0.5s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="etch-a-sketch" id="etch-a-sketch">
+            <div class="brand">REXX-A-SKETCH</div>
+            <div class="screen-bezel">
+                <canvas id="canvas" width="600" height="450"></canvas>
+            </div>
+            <div class="controls">
+                <div class="dial-container">
+                    <div class="dial-label">Horizontal</div>
+                    <div class="dial" id="left-dial"></div>
+                </div>
+                <div class="center-area">
+                    <button class="auto-draw-button" id="auto-draw">
+                        ⚡ Draw Pencil!
+                    </button>
+                    <button class="shake-button" id="shake">
+                        🔄 Shake to Clear
+                    </button>
+                </div>
+                <div class="dial-container">
+                    <div class="dial-label">Vertical</div>
+                    <div class="dial" id="right-dial"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <h2>Rexx Control Script</h2>
+            <div class="example-buttons">
+                <button class="example-button" onclick="loadExample('pencil')">Pencil</button>
+                <button class="example-button" onclick="loadExample('square')">Square</button>
+                <button class="example-button" onclick="loadExample('spiral')">Spiral</button>
+            </div>
+            <div class="script-section">
+                <h3>Rexx Script</h3>
+                <textarea id="script" placeholder="-- Write Rexx commands to control the Etch-A-Sketch
+-- Available commands:
+-- MOVE_TO x=100 y=100
+-- MOVE_BY dx=10 dy=0
+-- CLEAR
+-- GET_POSITION()"></textarea>
+            </div>
+            <button class="execute-button" onclick="executeScript()">Execute Script</button>
+            <div class="script-section">
+                <h3>Execution Log</h3>
+                <div id="log" class="log">Ready to execute Rexx scripts...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include RexxJS interpreter -->
+    <script src="/core/src/parser.js"></script>
+    <script src="/core/tests/web/security-utils-stub.js"></script>
+    <script src="/core/src/interpreter.js"></script>
+
+    <script>
+        // Canvas and drawing setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let currentX = canvas.width / 2;
+        let currentY = canvas.height / 2;
+        let isDrawing = true;
+
+        // Initialize canvas
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Move to starting position
+        ctx.moveTo(currentX, currentY);
+
+        // Logging utility
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Drawing functions
+        function moveTo(x, y) {
+            if (isDrawing) {
+                ctx.beginPath();
+                ctx.moveTo(currentX, currentY);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+            currentX = x;
+            currentY = y;
+            log(`Moved to (${Math.round(x)}, ${Math.round(y)})`);
+        }
+
+        function moveBy(dx, dy) {
+            moveTo(currentX + dx, currentY + dy);
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            currentX = canvas.width / 2;
+            currentY = canvas.height / 2;
+            ctx.moveTo(currentX, currentY);
+            log('Canvas cleared!');
+        }
+
+        function getPosition() {
+            return { x: Math.round(currentX), y: Math.round(currentY) };
+        }
+
+        function penUp() {
+            isDrawing = false;
+            log('Pen up');
+        }
+
+        function penDown() {
+            isDrawing = true;
+            log('Pen down');
+        }
+
+        // Rexx RPC Client Mock
+        class EtchASketchRpcClient {
+            async call(method, params) {
+                log(`RPC Call: ${method}(${JSON.stringify(params)})`);
+
+                switch(method) {
+                    case 'MOVE_TO':
+                        moveTo(params.x, params.y);
+                        return { x: currentX, y: currentY };
+
+                    case 'MOVE_BY':
+                        moveBy(params.dx, params.dy);
+                        return { x: currentX, y: currentY };
+
+                    case 'CLEAR':
+                        clearCanvas();
+                        return true;
+
+                    case 'GET_POSITION':
+                        return getPosition();
+
+                    case 'PEN_UP':
+                        penUp();
+                        return true;
+
+                    case 'PEN_DOWN':
+                        penDown();
+                        return true;
+
+                    default:
+                        throw new Error(`Unknown method: ${method}`);
+                }
+            }
+        }
+
+        // Initialize Rexx interpreter
+        const rpcClient = new EtchASketchRpcClient();
+        const interpreter = new RexxInterpreter(rpcClient);
+
+        // Execute Rexx script
+        async function executeScript() {
+            const scriptText = document.getElementById('script').value;
+            log('=== Executing Script ===');
+            try {
+                await interpreter.run(scriptText);
+                log('=== Script Complete ===');
+            } catch (error) {
+                log(`ERROR: ${error.message}`);
+                console.error(error);
+            }
+        }
+
+        // Dial controls
+        let leftDialAngle = 0;
+        let rightDialAngle = 0;
+
+        function updateDialRotation(dial, angle) {
+            dial.style.transform = `rotate(${angle}deg)`;
+        }
+
+        document.getElementById('left-dial').addEventListener('mousedown', function(e) {
+            const moveSpeed = 10;
+            let lastY = e.clientY;
+
+            function onMouseMove(e) {
+                const deltaY = lastY - e.clientY;
+                moveBy(deltaY > 0 ? moveSpeed : -moveSpeed, 0);
+                leftDialAngle += deltaY * 2;
+                updateDialRotation(this, leftDialAngle);
+                lastY = e.clientY;
+            }
+
+            function onMouseUp() {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+
+            document.addEventListener('mousemove', onMouseMove.bind(this));
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        document.getElementById('right-dial').addEventListener('mousedown', function(e) {
+            const moveSpeed = 10;
+            let lastY = e.clientY;
+
+            function onMouseMove(e) {
+                const deltaY = lastY - e.clientY;
+                moveBy(0, deltaY > 0 ? -moveSpeed : moveSpeed);
+                rightDialAngle += deltaY * 2;
+                updateDialRotation(this, rightDialAngle);
+                lastY = e.clientY;
+            }
+
+            function onMouseUp() {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+
+            document.addEventListener('mousemove', onMouseMove.bind(this));
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        // Shake button
+        document.getElementById('shake').addEventListener('click', function() {
+            const etchASketch = document.getElementById('etch-a-sketch');
+            etchASketch.classList.add('shaking');
+            setTimeout(() => {
+                clearCanvas();
+                etchASketch.classList.remove('shaking');
+            }, 500);
+        });
+
+        // Auto-draw pencil button (the Toy Story moment!)
+        document.getElementById('auto-draw').addEventListener('click', async function() {
+            log('=== Drawing Hexagonal Pencil ===');
+            log('"Hey, Etch. Draw!" - Woody');
+
+            // Load and execute the pencil script
+            const pencilScript = `-- Draw a hexagonal pencil with tip
+-- "Fastest knobs in the west!" - Woody
+
+-- Clear and center
+CLEAR
+
+-- Move to starting position (left side of canvas)
+MOVE_TO x=150 y=225
+
+-- Draw the hexagonal barrel of the pencil
+-- First, draw the main body (hexagon)
+LET side_length = 80
+LET angle_step = 60
+
+-- Draw hexagon body
+MOVE_BY dx=0 dy=-40
+MOVE_BY dx=side_length dy=0
+MOVE_BY dx=40 dy=40
+MOVE_BY dx=0 dy=80
+MOVE_BY dx=-40 dy=40
+MOVE_BY dx=-side_length dy=0
+MOVE_BY dx=-40 dy=-40
+MOVE_BY dx=0 dy=-80
+MOVE_BY dx=40 dy=-40
+
+-- Move to draw the tip
+MOVE_TO x=150 y=225
+MOVE_BY dx=-60 dy=0
+
+-- Draw pointed tip
+MOVE_BY dx=-30 dy=-15
+MOVE_BY dx=-30 dy=15
+MOVE_BY dx=30 dy=15
+MOVE_BY dx=30 dy=-15
+
+-- Draw the eraser end
+MOVE_TO x=270 y=225
+MOVE_BY dx=20 dy=-20
+MOVE_BY dx=30 dy=0
+MOVE_BY dx=20 dy=20
+MOVE_BY dx=0 dy=40
+MOVE_BY dx=-20 dy=20
+MOVE_BY dx=-30 dy=0
+MOVE_BY dx=-20 dy=-20
+MOVE_BY dx=0 dy=-40
+
+-- Add some detail lines
+MOVE_TO x=260 y=185
+MOVE_BY dx=0 dy=80
+
+SAY "Hexagonal pencil drawn!"`;
+
+            document.getElementById('script').value = pencilScript;
+            await executeScript();
+            log('"Got me again. Etch, you\'ve been working on that draw."');
+            log('"Fastest knobs in the west!" - Woody');
+        });
+
+        // Example scripts
+        function loadExample(type) {
+            const examples = {
+                pencil: `-- Draw a hexagonal pencil with tip
+-- "Fastest knobs in the west!" - Woody
+
+CLEAR
+MOVE_TO x=150 y=225
+
+-- Draw hexagon body
+MOVE_BY dx=0 dy=-40
+MOVE_BY dx=80 dy=0
+MOVE_BY dx=40 dy=40
+MOVE_BY dx=0 dy=80
+MOVE_BY dx=-40 dy=40
+MOVE_BY dx=-80 dy=0
+MOVE_BY dx=-40 dy=-40
+MOVE_BY dx=0 dy=-80
+MOVE_BY dx=40 dy=-40
+
+-- Draw pointed tip
+MOVE_TO x=150 y=225
+MOVE_BY dx=-60 dy=0
+MOVE_BY dx=-30 dy=-15
+MOVE_BY dx=-30 dy=15
+MOVE_BY dx=30 dy=15
+MOVE_BY dx=30 dy=-15
+
+-- Draw eraser end
+MOVE_TO x=270 y=225
+MOVE_BY dx=20 dy=-20
+MOVE_BY dx=30 dy=0
+MOVE_BY dx=20 dy=20
+MOVE_BY dx=0 dy=40
+MOVE_BY dx=-20 dy=20
+MOVE_BY dx=-30 dy=0
+MOVE_BY dx=-20 dy=-20
+MOVE_BY dx=0 dy=-40
+
+SAY "Pencil complete!"`,
+
+                square: `-- Draw a simple square
+CLEAR
+MOVE_TO x=250 y=175
+
+-- Draw square
+MOVE_BY dx=100 dy=0
+MOVE_BY dx=0 dy=100
+MOVE_BY dx=-100 dy=0
+MOVE_BY dx=0 dy=-100
+
+SAY "Square complete!"`,
+
+                spiral: `-- Draw a spiral pattern
+CLEAR
+MOVE_TO x=300 y=225
+
+LET radius = 5
+LET angle = 0
+LET max_radius = 150
+
+DO WHILE radius < max_radius
+    LET x_offset = radius * COS(angle * 0.0174533)
+    LET y_offset = radius * SIN(angle * 0.0174533)
+    MOVE_TO x=(300 + x_offset) y=(225 + y_offset)
+
+    LET angle = angle + 15
+    LET radius = radius + 2
+END
+
+SAY "Spiral complete!"`
+            };
+
+            if (examples[type]) {
+                document.getElementById('script').value = examples[type];
+                log(`Loaded ${type} example`);
+            }
+        }
+
+        // Load pencil example by default
+        window.addEventListener('load', () => {
+            loadExample('pencil');
+            log('Rexx-A-Sketch ready!');
+            log('Click "Draw Pencil!" for the Toy Story moment!');
+        });
+    </script>
+</body>
+</html>
