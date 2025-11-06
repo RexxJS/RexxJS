@@ -19,15 +19,17 @@
             align-items: center;
             min-height: 100vh;
             padding: 20px;
+            overflow: auto;
         }
 
         .container {
-            max-width: 1400px;
             width: 100%;
+            max-width: 1600px;
             display: flex;
             gap: 30px;
             flex-wrap: wrap;
             justify-content: center;
+            align-items: flex-start;
         }
 
         .etch-a-sketch {
@@ -36,6 +38,9 @@
             padding: 30px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.4);
             position: relative;
+            flex: 1;
+            min-width: 300px;
+            max-width: 900px;
         }
 
         .screen-bezel {
@@ -47,6 +52,8 @@
 
         #canvas {
             display: block;
+            width: 100%;
+            height: auto;
             background: #f0f0f0;
             cursor: crosshair;
             box-shadow: 0 0 20px rgba(0,0,0,0.3);
@@ -58,6 +65,8 @@
             align-items: center;
             margin-top: 30px;
             padding: 0 20px;
+            gap: 20px;
+            flex-wrap: wrap;
         }
 
         .dial-container {
@@ -84,6 +93,7 @@
             cursor: pointer;
             box-shadow: 0 5px 15px rgba(0,0,0,0.3);
             transition: transform 0.1s;
+            touch-action: none; /* Better touch support */
         }
 
         .dial:active {
@@ -108,53 +118,39 @@
             flex-direction: column;
             gap: 15px;
             align-items: center;
+            flex: 1;
+        }
+
+        .shake-button, .auto-draw-button {
+            border: none;
+            padding: 15px 30px;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #001d3d;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 100%;
+            max-width: 250px;
         }
 
         .shake-button {
             background: linear-gradient(145deg, #ffd60a, #faa307);
-            border: none;
-            padding: 15px 30px;
-            border-radius: 15px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #001d3d;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            transition: all 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .shake-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 7px 20px rgba(0,0,0,0.4);
-        }
-
-        .shake-button:active {
-            transform: translateY(0);
         }
 
         .auto-draw-button {
             background: linear-gradient(145deg, #06ffa5, #00cc88);
-            border: none;
-            padding: 15px 30px;
-            border-radius: 15px;
-            font-size: 16px;
-            font-weight: bold;
-            color: #001d3d;
-            cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            transition: all 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
-        .auto-draw-button:hover {
+        .shake-button:hover, .auto-draw-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 7px 20px rgba(0,0,0,0.4);
         }
 
-        .auto-draw-button:active {
+        .shake-button:active, .auto-draw-button:active {
             transform: translateY(0);
         }
 
@@ -164,10 +160,11 @@
             left: 50%;
             transform: translateX(-50%);
             color: white;
-            font-size: 24px;
+            font-size: clamp(18px, 3vw, 24px);
             font-weight: bold;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
             font-family: 'Courier New', monospace;
+            white-space: nowrap;
         }
 
         .control-panel {
@@ -175,8 +172,9 @@
             border-radius: 20px;
             padding: 25px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            min-width: 350px;
-            max-width: 450px;
+            flex: 0 1 450px;
+            min-width: 300px;
+            max-width: 500px;
         }
 
         .control-panel h2 {
@@ -184,6 +182,7 @@
             color: #333;
             border-bottom: 3px solid #667eea;
             padding-bottom: 10px;
+            font-size: clamp(18px, 3vw, 24px);
         }
 
         .script-section {
@@ -249,7 +248,7 @@
 
         .example-button {
             flex: 1;
-            min-width: 100px;
+            min-width: 90px;
             background: #f0f0f0;
             border: 2px solid #ddd;
             padding: 8px 12px;
@@ -273,6 +272,78 @@
         .shaking {
             animation: shake 0.5s;
         }
+
+        /* Mobile responsive layout */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                gap: 20px;
+            }
+
+            .etch-a-sketch {
+                padding: 20px;
+                border-radius: 20px;
+            }
+
+            .screen-bezel {
+                padding: 15px;
+            }
+
+            .controls {
+                padding: 0 10px;
+                margin-top: 20px;
+                gap: 15px;
+            }
+
+            .dial {
+                width: 60px;
+                height: 60px;
+            }
+
+            .dial-label {
+                font-size: 12px;
+            }
+
+            .shake-button, .auto-draw-button {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+
+            .control-panel {
+                padding: 20px;
+                min-width: 280px;
+            }
+
+            textarea {
+                height: 150px;
+                font-size: 12px;
+            }
+
+            .log {
+                height: 150px;
+                font-size: 11px;
+            }
+        }
+
+        /* Very small screens */
+        @media (max-width: 480px) {
+            .controls {
+                flex-direction: column;
+            }
+
+            .center-area {
+                order: -1;
+                width: 100%;
+            }
+
+            .dial-container {
+                flex-direction: row;
+                gap: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -280,7 +351,7 @@
         <div class="etch-a-sketch" id="etch-a-sketch">
             <div class="brand">REXX-A-SKETCH</div>
             <div class="screen-bezel">
-                <canvas id="canvas" width="600" height="450"></canvas>
+                <canvas id="canvas"></canvas>
             </div>
             <div class="controls">
                 <div class="dial-container">
@@ -332,21 +403,97 @@
     <script src="/core/src/interpreter.js"></script>
 
     <script>
-        // Canvas and drawing setup
+        // Canvas and drawing setup with dynamic sizing
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        let currentX = canvas.width / 2;
-        let currentY = canvas.height / 2;
+        let currentX = 0;
+        let currentY = 0;
         let isDrawing = true;
+        let drawingHistory = []; // Store drawing commands for redraw on resize
 
-        // Initialize canvas
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+        // Calculate optimal canvas size based on available space
+        function calculateCanvasSize() {
+            const container = document.querySelector('.screen-bezel');
+            const containerWidth = container.clientWidth - 50; // Account for padding
+            const containerHeight = window.innerHeight - 300; // Leave room for controls and margins
 
-        // Move to starting position
-        ctx.moveTo(currentX, currentY);
+            // Maintain 4:3 aspect ratio
+            const aspectRatio = 4 / 3;
+            let width = Math.min(containerWidth, 900); // Max width 900px
+            let height = width / aspectRatio;
+
+            // If height is too tall, constrain by height instead
+            if (height > containerHeight) {
+                height = Math.min(containerHeight, 675); // Max height 675px
+                width = height * aspectRatio;
+            }
+
+            // Minimum sizes
+            width = Math.max(width, 300);
+            height = Math.max(height, 225);
+
+            return { width: Math.floor(width), height: Math.floor(height) };
+        }
+
+        // Initialize or resize canvas
+        function initializeCanvas() {
+            const size = calculateCanvasSize();
+            const oldWidth = canvas.width;
+            const oldHeight = canvas.height;
+
+            // Save current drawing to an image
+            const imageData = oldWidth > 0 ? ctx.getImageData(0, 0, oldWidth, oldHeight) : null;
+
+            // Set new canvas size
+            canvas.width = size.width;
+            canvas.height = size.height;
+
+            // Reset drawing context
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // If resizing, scale and redraw the image
+            if (imageData && oldWidth > 0) {
+                const scaleX = size.width / oldWidth;
+                const scaleY = size.height / oldHeight;
+
+                // Create temporary canvas for scaling
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = oldWidth;
+                tempCanvas.height = oldHeight;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.putImageData(imageData, 0, 0);
+
+                // Draw scaled image
+                ctx.drawImage(tempCanvas, 0, 0, oldWidth, oldHeight, 0, 0, size.width, size.height);
+
+                // Scale current position
+                currentX = currentX * scaleX;
+                currentY = currentY * scaleY;
+            } else {
+                // Initial setup - center position
+                currentX = canvas.width / 2;
+                currentY = canvas.height / 2;
+            }
+
+            ctx.moveTo(currentX, currentY);
+
+            log(`Canvas resized to ${size.width}x${size.height}`);
+        }
+
+        // Handle window resize (works in both browser and Tauri)
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                initializeCanvas();
+            }, 250); // Debounce resize events
+        });
+
+        // Initialize on load
+        initializeCanvas();
 
         // Logging utility
         function log(message) {
@@ -378,6 +525,7 @@
             currentX = canvas.width / 2;
             currentY = canvas.height / 2;
             ctx.moveTo(currentX, currentY);
+            drawingHistory = [];
             log('Canvas cleared!');
         }
 
@@ -447,7 +595,7 @@
             }
         }
 
-        // Dial controls
+        // Dial controls with touch support
         let leftDialAngle = 0;
         let rightDialAngle = 0;
 
@@ -455,47 +603,69 @@
             dial.style.transform = `rotate(${angle}deg)`;
         }
 
-        document.getElementById('left-dial').addEventListener('mousedown', function(e) {
+        function setupDialControl(dialElement, isHorizontal) {
             const moveSpeed = 10;
-            let lastY = e.clientY;
 
-            function onMouseMove(e) {
-                const deltaY = lastY - e.clientY;
-                moveBy(deltaY > 0 ? moveSpeed : -moveSpeed, 0);
-                leftDialAngle += deltaY * 2;
-                updateDialRotation(this, leftDialAngle);
-                lastY = e.clientY;
-            }
+            // Mouse events
+            dialElement.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                let lastY = e.clientY;
 
-            function onMouseUp() {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            }
+                function onMouseMove(e) {
+                    const deltaY = lastY - e.clientY;
+                    if (isHorizontal) {
+                        moveBy(deltaY > 0 ? moveSpeed : -moveSpeed, 0);
+                        leftDialAngle += deltaY * 2;
+                        updateDialRotation(dialElement, leftDialAngle);
+                    } else {
+                        moveBy(0, deltaY > 0 ? -moveSpeed : moveSpeed);
+                        rightDialAngle += deltaY * 2;
+                        updateDialRotation(dialElement, rightDialAngle);
+                    }
+                    lastY = e.clientY;
+                }
 
-            document.addEventListener('mousemove', onMouseMove.bind(this));
-            document.addEventListener('mouseup', onMouseUp);
-        });
+                function onMouseUp() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
 
-        document.getElementById('right-dial').addEventListener('mousedown', function(e) {
-            const moveSpeed = 10;
-            let lastY = e.clientY;
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
 
-            function onMouseMove(e) {
-                const deltaY = lastY - e.clientY;
-                moveBy(0, deltaY > 0 ? -moveSpeed : moveSpeed);
-                rightDialAngle += deltaY * 2;
-                updateDialRotation(this, rightDialAngle);
-                lastY = e.clientY;
-            }
+            // Touch events for mobile
+            dialElement.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                let lastY = e.touches[0].clientY;
 
-            function onMouseUp() {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-            }
+                function onTouchMove(e) {
+                    e.preventDefault();
+                    const deltaY = lastY - e.touches[0].clientY;
+                    if (isHorizontal) {
+                        moveBy(deltaY > 0 ? moveSpeed : -moveSpeed, 0);
+                        leftDialAngle += deltaY * 2;
+                        updateDialRotation(dialElement, leftDialAngle);
+                    } else {
+                        moveBy(0, deltaY > 0 ? -moveSpeed : moveSpeed);
+                        rightDialAngle += deltaY * 2;
+                        updateDialRotation(dialElement, rightDialAngle);
+                    }
+                    lastY = e.touches[0].clientY;
+                }
 
-            document.addEventListener('mousemove', onMouseMove.bind(this));
-            document.addEventListener('mouseup', onMouseUp);
-        });
+                function onTouchEnd() {
+                    document.removeEventListener('touchmove', onTouchMove);
+                    document.removeEventListener('touchend', onTouchEnd);
+                }
+
+                document.addEventListener('touchmove', onTouchMove, { passive: false });
+                document.addEventListener('touchend', onTouchEnd);
+            });
+        }
+
+        setupDialControl(document.getElementById('left-dial'), true);
+        setupDialControl(document.getElementById('right-dial'), false);
 
         // Shake button
         document.getElementById('shake').addEventListener('click', function() {
@@ -512,7 +682,13 @@
             log('=== Drawing Hexagonal Pencil ===');
             log('"Hey, Etch. Draw!" - Woody');
 
-            // Load and execute the pencil script
+            // Calculate center positions based on current canvas size
+            const centerX = Math.floor(canvas.width / 2);
+            const centerY = Math.floor(canvas.height / 2);
+            const startX = Math.floor(canvas.width * 0.25);
+            const endX = Math.floor(canvas.width * 0.45);
+
+            // Load and execute the pencil script with dynamic coordinates
             const pencilScript = `-- Draw a hexagonal pencil with tip
 -- "Fastest knobs in the west!" - Woody
 
@@ -520,14 +696,10 @@
 CLEAR
 
 -- Move to starting position (left side of canvas)
-MOVE_TO x=150 y=225
+MOVE_TO x=${startX} y=${centerY}
 
 -- Draw the hexagonal barrel of the pencil
--- First, draw the main body (hexagon)
 LET side_length = 80
-LET angle_step = 60
-
--- Draw hexagon body
 MOVE_BY dx=0 dy=-40
 MOVE_BY dx=side_length dy=0
 MOVE_BY dx=40 dy=40
@@ -539,7 +711,7 @@ MOVE_BY dx=0 dy=-80
 MOVE_BY dx=40 dy=-40
 
 -- Move to draw the tip
-MOVE_TO x=150 y=225
+MOVE_TO x=${startX} y=${centerY}
 MOVE_BY dx=-60 dy=0
 
 -- Draw pointed tip
@@ -549,7 +721,7 @@ MOVE_BY dx=30 dy=15
 MOVE_BY dx=30 dy=-15
 
 -- Draw the eraser end
-MOVE_TO x=270 y=225
+MOVE_TO x=${endX} y=${centerY}
 MOVE_BY dx=20 dy=-20
 MOVE_BY dx=30 dy=0
 MOVE_BY dx=20 dy=20
@@ -560,7 +732,7 @@ MOVE_BY dx=-20 dy=-20
 MOVE_BY dx=0 dy=-40
 
 -- Add some detail lines
-MOVE_TO x=260 y=185
+MOVE_TO x=${endX - 10} y=${centerY - 40}
 MOVE_BY dx=0 dy=80
 
 SAY "Hexagonal pencil drawn!"`;
@@ -571,14 +743,21 @@ SAY "Hexagonal pencil drawn!"`;
             log('"Fastest knobs in the west!" - Woody');
         });
 
-        // Example scripts
+        // Example scripts with dynamic sizing
         function loadExample(type) {
+            const centerX = Math.floor(canvas.width / 2);
+            const centerY = Math.floor(canvas.height / 2);
+            const startX = Math.floor(canvas.width * 0.25);
+            const endX = Math.floor(canvas.width * 0.45);
+            const squareX = Math.floor(canvas.width * 0.4);
+            const squareY = Math.floor(canvas.height * 0.35);
+
             const examples = {
                 pencil: `-- Draw a hexagonal pencil with tip
 -- "Fastest knobs in the west!" - Woody
 
 CLEAR
-MOVE_TO x=150 y=225
+MOVE_TO x=${startX} y=${centerY}
 
 -- Draw hexagon body
 MOVE_BY dx=0 dy=-40
@@ -592,7 +771,7 @@ MOVE_BY dx=0 dy=-80
 MOVE_BY dx=40 dy=-40
 
 -- Draw pointed tip
-MOVE_TO x=150 y=225
+MOVE_TO x=${startX} y=${centerY}
 MOVE_BY dx=-60 dy=0
 MOVE_BY dx=-30 dy=-15
 MOVE_BY dx=-30 dy=15
@@ -600,7 +779,7 @@ MOVE_BY dx=30 dy=15
 MOVE_BY dx=30 dy=-15
 
 -- Draw eraser end
-MOVE_TO x=270 y=225
+MOVE_TO x=${endX} y=${centerY}
 MOVE_BY dx=20 dy=-20
 MOVE_BY dx=30 dy=0
 MOVE_BY dx=20 dy=20
@@ -614,7 +793,7 @@ SAY "Pencil complete!"`,
 
                 square: `-- Draw a simple square
 CLEAR
-MOVE_TO x=250 y=175
+MOVE_TO x=${squareX} y=${squareY}
 
 -- Draw square
 MOVE_BY dx=100 dy=0
@@ -626,16 +805,16 @@ SAY "Square complete!"`,
 
                 spiral: `-- Draw a spiral pattern
 CLEAR
-MOVE_TO x=300 y=225
+MOVE_TO x=${centerX} y=${centerY}
 
 LET radius = 5
 LET angle = 0
-LET max_radius = 150
+LET max_radius = ${Math.floor(Math.min(canvas.width, canvas.height) * 0.3)}
 
 DO WHILE radius < max_radius
     LET x_offset = radius * COS(angle * 0.0174533)
     LET y_offset = radius * SIN(angle * 0.0174533)
-    MOVE_TO x=(300 + x_offset) y=(225 + y_offset)
+    MOVE_TO x=(${centerX} + x_offset) y=(${centerY} + y_offset)
 
     LET angle = angle + 15
     LET radius = radius + 2
@@ -655,6 +834,7 @@ SAY "Spiral complete!"`
             loadExample('pencil');
             log('Rexx-A-Sketch ready!');
             log('Click "Draw Pencil!" for the Toy Story moment!');
+            log(`Canvas size: ${canvas.width}x${canvas.height}`);
         });
     </script>
 </body>
