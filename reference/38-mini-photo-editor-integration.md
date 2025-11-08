@@ -1,38 +1,35 @@
-# RexxJS Integration Plan for Mini Photo Editor
+# Case Study: Integrating RexxJS into a WebGL2 Photo Editor
 
-**Original Project**: https://github.com/xdadda/mini-photo-editor
+**Original Project**: [Mini Photo Editor](https://github.com/xdadda/mini-photo-editor) by xdadda
 **License**: MIT (Copyright 2025 xdadda)
-**Integration Status**: Planning Phase
+**Scope**: Complete integration with Tauri backend for scriptable batch processing
 
-## Overview
+## Executive Summary
 
-This document outlines how the Mini Photo Editor would be integrated with Tauri and RexxJS following the patterns established in the spreadsheet-poc example.
+This case study demonstrates how to integrate RexxJS into an existing desktop application—specifically a WebGL2-based photo editor. The integration enables batch processing, CI/CD automation, and ARexx-style inter-process communication while preserving the interactive UI.
 
-## Current Architecture
+**Key Challenge**: Extracting scriptable state management from a reactive framework without breaking the existing UI.
 
-The Mini Photo Editor is a WebGL2-based photo editor built with:
+**Solution**: Three-layer architecture (Pure Model → RexxJS Adapter → Control Bus) that keeps state management independent of presentation logic.
 
-- **Framework**: Custom `@xdadda/mini` reactive framework
-- **Rendering**: `@xdadda/mini-gl` WebGL2 library
-- **EXIF**: `@xdadda/mini-exif` for metadata parsing
-- **Build**: Vite
-- **Type**: ES6 modules
+For general app integration patterns applicable to any application, see [App Integration Patterns](./37-app-integration-patterns.md).
 
-### Key Files
+## The Application: Mini Photo Editor
 
-- `src/main.js` - Entry point, renders Editor component
-- `src/app.js` - Main Editor component with reactive state
-- `src/js/tools.js` - Utility functions (readImage, downloadFile, etc.)
-- `src/js/zoom_pan.js` - Canvas interaction
-- `src/components/` - UI components (cropper, histogram, etc.)
-- `src/_*.js` - Photo editing modules (adjustments, filters, blur, etc.)
+The original Mini Photo Editor is a professional WebGL2-based photo editor with these characteristics:
 
-### State Management
+**Technical Stack**:
+- Custom `@xdadda/mini` reactive framework
+- `@xdadda/mini-gl` for WebGL2 rendering
+- `@xdadda/mini-exif` for metadata parsing
+- Vite build system
+- ES6 modules
 
-The Editor component maintains state in a `params` object:
+**State Structure**:
+The editor maintains a complex `params` object with 13 parameter categories:
 
 ```javascript
-let params={
+let params = {
     trs: { translateX, translateY, angle, scale, flipv, fliph },
     crop: { currentcrop, glcrop, canvas_angle, ar, arindex },
     lights: { brightness, exposure, gamma, contrast, shadows, highlights, bloom },
@@ -48,13 +45,28 @@ let params={
 }
 ```
 
-## Integration Strategy
+**UI Architecture**: The application uses a custom reactive framework that automatically synchronizes state changes with the WebGL canvas rendering.
 
-### Phase 1: Extract Pure Model
+## The Challenge
 
-Create a `PhotoEditorModel` class that encapsulates all editing state and operations:
+The existing UI is tightly coupled to state management through reactive bindings. To add RexxJS scripting support, we need to:
 
-**File: `src/photo-editor-model.js`**
+1. **Extract state from UI** - Make state management independent of the reactive framework
+2. **Enable remote control** - Allow external RexxJS scripts to modify state
+3. **Preserve interactivity** - Keep the UI responsive during scripted operations
+4. **Support batch operations** - Enable command-line and CI/CD automation
+
+## The Solution: Three-Layer Architecture
+
+The integration follows the [App Integration Patterns](./37-app-integration-patterns.md) with three key layers:
+
+1. **Pure Model** - State management independent of UI
+2. **RexxJS Adapter** - Bridge between model and REXX interpreter
+3. **Control Bus** - Remote command dispatcher
+
+### Layer 1: Extract Pure Model (`src/photo-editor-model.js`)
+
+Create a `PhotoEditorModel` class that encapsulates all editing state and operations, completely independent of the reactive framework:
 
 ```javascript
 class PhotoEditorModel {
@@ -130,9 +142,20 @@ class PhotoEditorModel {
 export default PhotoEditorModel;
 ```
 
-### Phase 2: Create RexxJS Adapter
+**Key Design Decisions**:
+- No UI framework dependencies (no imports from `@xdadda/mini`)
+- All parameters stored in plain JavaScript objects
+- Synchronous getter/setter methods for parameter access
+- Promise-based async operations (loadImage, exportImage)
+- Encapsulates complex state management logic
 
-**File: `src/photo-editor-rexx-adapter.js`**
+**Benefits**: The model can be unit tested independently, reused in CLI tools, or embedded in other applications.
+
+---
+
+### Layer 2: Create RexxJS Adapter (`src/photo-editor-rexx-adapter.js`)
+
+Connect the model to the REXX interpreter with a variable resolver and custom functions:
 
 ```javascript
 class PhotoEditorRexxAdapter {
@@ -232,9 +255,19 @@ class PhotoEditorRexxAdapter {
 export default PhotoEditorRexxAdapter;
 ```
 
-### Phase 3: Create Control Bus
+**Key Features**:
+- Variable resolver converts REXX names like `LIGHTS_BRIGHTNESS` to parameter access
+- Custom functions wrap model operations (SET_BRIGHTNESS, APPLY_FILTER, etc.)
+- Expression evaluation for complex calculations
+- Maintains interpreter instance for state across multiple commands
 
-**File: `src/photo-editor-controlbus.js`**
+**How It Works**: When a REXX script accesses a variable like `LIGHTS_BRIGHTNESS`, the resolver intercepts it and calls `model.getParameter('lights', 'brightness')` on demand, without caching.
+
+---
+
+### Layer 3: Create Control Bus (`src/photo-editor-controlbus.js`)
+
+Implement a command dispatcher that handles remote requests from external scripts:
 
 ```javascript
 class PhotoEditorControlBus {
@@ -452,13 +485,22 @@ class PhotoEditorControlBus {
 export default PhotoEditorControlBus;
 ```
 
-### Phase 4: Example Control Script
+**Command Architecture**:
+- Command dispatcher pattern with named handlers
+- postMessage-based communication for browser contexts
+- Async/await for all command execution
+- Automatic UI updates via `triggerUIUpdate()`
+- Proper error handling with descriptive messages
 
-**File: `test-photo-editor.rexx`**
+**Communication Flow**: External script → HTTP/postMessage → Control Bus → Model → UI Update
+
+---
+
+## Real-World Usage: Scripting Examples
+
+### Example 1: Simple Interactive Script
 
 ```rexx
-/* Test photo editor control via RexxJS */
-
 /* Connect to photo editor */
 ADDRESS "http://localhost:8083/api/photoeditor" AUTH "dev-token-12345" AS PHOTO
 
@@ -508,9 +550,9 @@ SAY "Reset to defaults"
 SAY "Photo editing complete!"
 ```
 
-### Phase 5: Batch Processing Example
+### Example 2: Batch Processing
 
-**File: `batch-edit.rexx`**
+This demonstrates the real power of RexxJS integration—automated workflows that would be tedious in the UI:
 
 ```rexx
 /* Batch photo editing script */
@@ -548,7 +590,11 @@ END
 SAY "Batch processing complete! Processed " || ARRAY_LENGTH(array=images) || " images"
 ```
 
-## Implementation Checklist
+**Why This Matters**: What would take hours of manual clicking in the UI can now be done in minutes with a script. Perfect for product photography, batch resizing, or applying consistent filters across a photo library.
+
+---
+
+## Implementation Roadmap
 
 - [ ] Extract pure model from Editor component
 - [ ] Create PhotoEditorModel class
@@ -567,36 +613,54 @@ SAY "Batch processing complete! Processed " || ARRAY_LENGTH(array=images) || " i
 - [ ] Document API and available commands
 - [ ] Build distributable binaries
 
-## Challenges
+## Technical Challenges & Solutions
 
-1. **External Dependencies**: The original project depends on `@xdadda/mini` and `@xdadda/mini-gl` which reference local directories. Need to either:
-   - Use the published npm packages if available
-   - Bundle these dependencies
-   - Replace with standard React/Vue
+### 1. Reactive Framework Coupling
+**Problem**: The original code uses `@xdadda/mini` reactive framework where state changes automatically trigger UI updates. This tight coupling makes it hard to extract pure state management.
 
-2. **WebGL Context**: The minigl library manages WebGL contexts. Need to ensure proper initialization and cleanup in the model layer.
+**Solution**: Create a `PhotoEditorModel` class that holds state independently. The UI layer can subscribe to model changes without the model knowing about UI framework specifics.
 
-3. **State Management**: The original uses a custom reactive framework. Need to extract state management into the model layer.
+### 2. WebGL Context Management
+**Problem**: The `@xdadda/mini-gl` library manages WebGL contexts and rendering pipelines. Scripts need to trigger rendering without direct access to canvas contexts.
 
-4. **Canvas Rendering**: The GL pipeline needs to be triggered on parameter changes. The control bus must ensure proper rendering updates.
+**Solution**: The model doesn't manage WebGL directly. It only stores parameters. The UI layer (or a separate render layer) observes model changes and updates the WebGL canvas. Scripts communicate through the control bus, which notifies the UI to re-render.
 
-## Benefits of Integration
+### 3. Parameter Validation & Type Conversion
+**Problem**: REXX strings need to be converted to appropriate numeric types for photo parameters. Invalid values could corrupt the rendering state.
 
-Once integrated, the Mini Photo Editor will support:
+**Solution**: The model's `setParameter()` method validates types and ranges before accepting changes. The REXX adapter handles string-to-number conversion with error handling.
 
-1. **Command-line Batch Processing**: Process hundreds of photos with a single script
+### 4. Batching & Performance
+**Problem**: Processing hundreds of images via HTTP requests could be slow if each operation requires a separate round-trip.
+
+**Solution**: The REXX adapter maintains a persistent interpreter instance, allowing multiple commands to execute in sequence with minimal overhead. Batch operations group related changes together.
+
+## Benefits of This Integration
+
+Once fully implemented, the Mini Photo Editor will support:
+
+1. **Command-line Batch Processing**: Process thousands of photos with consistent adjustments
+   - Example: Apply vintage filter to product photography library in one script
+
 2. **CI/CD Integration**: Automated image processing in build pipelines
+   - Example: Generate thumbnails and preview images as part of release process
+
 3. **Workflow Automation**: Chain photo editing with other tools
+   - Example: Download images, edit, upload to cloud storage, all in one script
+
 4. **Programmatic Control**: Full API access for custom applications
-5. **ARexx-style IPC**: Classic Amiga-inspired inter-process communication
+   - Example: Build a mobile app that controls the editor programmatically
+
+5. **ARexx-style IPC**: Classic inter-process communication patterns
+   - Example: Control photo editor from another application via HTTP
 
 ## References
 
-- **Integration Guide**: `/Rexxjs_App_Integration.md`
+- **General Integration Patterns**: [App Integration Patterns](./37-app-integration-patterns.md)
 - **Spreadsheet POC**: `/examples/spreadsheet-poc/`
 - **Original Project**: https://github.com/xdadda/mini-photo-editor
 - **Tauri Docs**: https://tauri.app/
-- **RexxJS Docs**: `/LLM.md`
+- **RexxJS Docs**: [LLM.md](../LLM.md)
 
 ---
 

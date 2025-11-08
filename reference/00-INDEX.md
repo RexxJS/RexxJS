@@ -263,6 +263,25 @@ Execution in Node.js environments (desktop, server, docker-style container or VM
 - Pattern lifecycle management and validation
 - Integration with ADDRESS HEREDOC blocks
 
+## Integration & Deployment
+
+### 🚀 [App Integration Patterns](37-app-integration-patterns.md)
+- Layered architecture for RexxJS-enabled applications
+- Pure model extraction and adapter patterns
+- Control bus implementation for remote scripting
+- HTTP backend setup (Tauri, Node.js)
+- Security considerations and best practices
+- ARexx-style inter-process communication
+- Real-world examples and use cases
+
+### 📸 [Mini Photo Editor Integration Example](38-mini-photo-editor-integration.md)
+- Real-world WebGL2 application integration
+- Extracting model from reactive framework
+- RexxJS adapter with variable resolver
+- Tauri HTTP backend implementation
+- Batch photo editing workflows
+- Complete implementation checklist
+
 ## Reference Materials
 
 ### 📚 [Function Reference](35-function-reference.md)
