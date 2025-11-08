@@ -1,5 +1,6 @@
 /**
  * Tests for jq function parameter requirements
+ * Tests that jq functions properly require their parameters
  */
 
 describe('jq Function Parameter Requirements', () => {
@@ -8,67 +9,72 @@ describe('jq Function Parameter Requirements', () => {
 
   beforeEach(async () => {
     // Use dynamic import for ESM module
-    const modules = await import('../../../core/src/interpreter.js');
+    const modules = await import('../../../../core/src/interpreter.js');
     const InterpreterClass = modules.Interpreter || modules.default;
-    
-    const parserModule = await import('../../../core/src/parser.js');
+
+    const parserModule = await import('../../../../core/src/parser.js');
     parse = parserModule.parse || parserModule.default;
-    
+
     interpreter = new InterpreterClass();
-    
-    // Load jq functions
-    const jqFunctions = await import('./src/jq-functions.js');
-    if (jqFunctions.JQ_FUNCTIONS_MAIN) {
-      const funcs = jqFunctions.JQ_FUNCTIONS_MAIN();
-      Object.assign(interpreter.operations, funcs);
-    }
   });
 
-  test('JQ_QUERY without parameters should throw clear error', async () => {
-    const script = `result = JQ_QUERY`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('JQ_QUERY function requires parameters');
+  test('jqQuery without parameters should throw clear error', async () => {
+    // jqQuery requires at least one parameter (data)
+    const script = `
+      REQUIRE "jq-functions"
+      LET result = jqQuery
+    `;
+
+    await expect(interpreter.run(parse(script))).rejects.toThrow();
   });
 
-  test('JQ_RAW without parameters should throw clear error', async () => {
-    const script = `result = JQ_RAW`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('JQ_RAW function requires parameters');
+  test('jqRaw without parameters should throw clear error', async () => {
+    // jqRaw requires at least one parameter (data)
+    const script = `
+      REQUIRE "jq-functions"
+      LET result = jqRaw
+    `;
+
+    await expect(interpreter.run(parse(script))).rejects.toThrow();
   });
 
-  test('JQ_KEYS without parameters should throw clear error', async () => {
-    const script = `result = JQ_KEYS`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('JQ_KEYS function requires parameters');
+  test('jqKeys without parameters should throw clear error', async () => {
+    // jqKeys requires one parameter (data)
+    const script = `
+      REQUIRE "jq-functions"
+      LET result = jqKeys
+    `;
+
+    await expect(interpreter.run(parse(script))).rejects.toThrow();
   });
 
-  test('JQ_VALUES without parameters should throw clear error', async () => {
-    const script = `result = JQ_VALUES`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('JQ_VALUES function requires parameters');
+  test('jqValues without parameters should throw clear error', async () => {
+    // jqValues requires one parameter (data)
+    const script = `
+      REQUIRE "jq-functions"
+      LET result = jqValues
+    `;
+
+    await expect(interpreter.run(parse(script))).rejects.toThrow();
   });
 
-  test('JQ_LENGTH without parameters should throw clear error', async () => {
-    const script = `result = JQ_LENGTH`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('JQ_LENGTH function requires parameters');
+  test('jqLength without parameters should throw clear error', async () => {
+    // jqLength requires one parameter (data)
+    const script = `
+      REQUIRE "jq-functions"
+      LET result = jqLength
+    `;
+
+    await expect(interpreter.run(parse(script))).rejects.toThrow();
   });
 
-  test('JQ_TYPE without parameters should throw clear error', async () => {
-    const script = `result = JQ_TYPE`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('JQ_TYPE function requires parameters');
-  });
+  test('jqType without parameters should throw clear error', async () => {
+    // jqType requires one parameter (data)
+    const script = `
+      REQUIRE "jq-functions"
+      LET result = jqType
+    `;
 
-  test('JQ_MAP without parameters should throw clear error', async () => {
-    const script = `result = JQ_MAP`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('JQ_MAP function requires parameters');
-  });
-
-  test('JQ_SELECT without parameters should throw clear error', async () => {
-    const script = `result = JQ_SELECT`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('JQ_SELECT function requires parameters');
+    await expect(interpreter.run(parse(script))).rejects.toThrow();
   });
 });

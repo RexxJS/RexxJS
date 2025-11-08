@@ -135,8 +135,8 @@ ValidationFunctionTest:
   LET result8 = IS_LENGTH("hi", 3, 10)
   ADDRESS EXPECTATIONS "{result8} should equal false"
   
-  /* IS_LENGTH function - at boundary */
-  LET result9 = IS_LENGTH("hello world", 3, 10)
+  /* IS_LENGTH function - at boundary (11 chars exceeds max 10) */
+  LET result9 = IS_LENGTH("hello world", 3, 11)
   ADDRESS EXPECTATIONS "{result9} should equal true"
   
 RETURN

@@ -167,10 +167,21 @@ async function jqType(data) {
   return await jqQuery(data, 'type');
 }
 
+// Detection function for REQUIRE system
+function JQ_WASM_FUNCTIONS_MAIN() {
+  return {
+    type: 'library_info',
+    name: 'jq-wasm Functions',
+    version: '1.0.0',
+    loaded: true
+  };
+}
+
 // Export functions to global scope
 if (typeof window !== 'undefined') {
   // Browser environment
   window.JQ_WASM_FUNCTIONS_META = JQ_WASM_FUNCTIONS_META;
+  window.JQ_WASM_FUNCTIONS_MAIN = JQ_WASM_FUNCTIONS_MAIN;
   window.jqQuery = jqQuery;
   window.jqRaw = jqRaw;
   window.jqKeys = jqKeys;
@@ -180,6 +191,7 @@ if (typeof window !== 'undefined') {
 } else if (typeof global !== 'undefined') {
   // Node.js environment
   global.JQ_WASM_FUNCTIONS_META = JQ_WASM_FUNCTIONS_META;
+  global.JQ_WASM_FUNCTIONS_MAIN = JQ_WASM_FUNCTIONS_MAIN;
   global.jqQuery = jqQuery;
   global.jqRaw = jqRaw;
   global.jqKeys = jqKeys;
@@ -192,6 +204,7 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     JQ_WASM_FUNCTIONS_META,
+    JQ_WASM_FUNCTIONS_MAIN,
     jqQuery,
     jqRaw,
     jqKeys,

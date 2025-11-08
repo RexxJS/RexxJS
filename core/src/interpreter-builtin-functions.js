@@ -1031,6 +1031,12 @@ function initializeBuiltInFunctions() {
           .map(name => name.trim().toUpperCase())
           .filter(name => {
             if (name.length === 0) return false;
+
+            // Filter out skipped tests if running in test mode
+            if (interpreter.skippedTests && interpreter.honorSkip && interpreter.skippedTests.has(name)) {
+              return false;
+            }
+
             if (patternStr === null || patternStr === '') return true;
 
             // Check if pattern contains regex metacharacters
