@@ -15,7 +15,7 @@ SAY "==============================================="
 SAY ""
 
 /* Register and target the spreadsheet port */
-ADDRESS "http://localhost:8083/api/spreadsheet" AUTH "dev-token-12345" AS SPREADSHEET
+ADDRESS "http://localhost:2410/api/spreadsheet" AUTH "dev-token-12345" AS SPREADSHEET
 
 /* Check spreadsheet version */
 SAY "Checking spreadsheet version..."
