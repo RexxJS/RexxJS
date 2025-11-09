@@ -143,11 +143,11 @@ async function resolveValue(value, variableGetFn, variableHasFn, evaluateExpress
   // Check for simple variable references (no dots)
   // Always call variableGetFn for variable-like strings to support variableResolver callback
   if (typeof value === 'string' && value.match(/^[a-zA-Z_][a-zA-Z0-9_]*$/)) {
-    const resolved = variableGetFn(value);
-    if (resolved !== undefined) {
-      return resolved;
+    // Check if variable exists first (to distinguish undefined value from non-existent variable)
+    if (variableHasFn(value)) {
+      return variableGetFn(value); // Return actual value, even if it's undefined
     }
-    // Variable not found and not resolved - fall through to return as literal
+    // Variable doesn't exist - fall through to return as literal string
   }
 
   // Check if the value looks like a function call

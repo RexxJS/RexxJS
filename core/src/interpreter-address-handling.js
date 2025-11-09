@@ -40,10 +40,22 @@ async function executeRemoteCommand(interpreter, commandString, remote, command)
     throw new Error('Remote ADDRESS requires fetch API or node-fetch module');
   }
 
-  // Send command as-is (already valid REXX syntax like: SETCELL("A1", "100"))
+  // Parse command string into command and params
+  // Format: "command arg1 arg2 arg3" -> {command: "command", params: {ref: "arg1", content: "arg2 arg3"}}
+  const trimmed = commandString.trim();
+  const parts = trimmed.split(/\s+/);
+
   const requestBody = {
-    command: commandString.trim()
+    command: parts[0]
   };
+
+  // If there are arguments, parse them as params
+  if (parts.length > 1) {
+    requestBody.params = {
+      ref: parts[1],
+      content: parts.slice(2).join(' ')
+    };
+  }
 
   try {
     const headers = {
@@ -69,16 +81,21 @@ async function executeRemoteCommand(interpreter, commandString, remote, command)
 
     const result = await response.json();
 
-    // Extract value/error from consistent result structure
-    const resultData = result.result || {};
-    const hasError = !result.success || resultData.error;
+    // Extract result value and check for errors
+    const hasError = result.success === false;
 
     // Set REXX variables
     interpreter.variables.set('RC', hasError ? 1 : 0);
-    interpreter.variables.set('RESULT', resultData.value !== undefined ? resultData.value : result);
+
+    // Set RESULT variable - use result.result if it exists, otherwise the whole result
+    if (result.result !== undefined) {
+      interpreter.variables.set('RESULT', result.result);
+    } else {
+      interpreter.variables.set('RESULT', result);
+    }
 
     if (hasError) {
-      const errorMsg = result.error || resultData.error || 'Unknown error';
+      const errorMsg = result.error || 'Unknown error';
       interpreter.variables.set('ERRORTEXT', errorMsg);
     }
 
