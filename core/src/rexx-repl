@@ -1,0 +1,190 @@
+#!/bin/bash
+
+# rexx-repl - Universal REXX REPL launcher for RexxJS
+# Works both in-repo (development) and as installed tool (production)
+# Usage: rexx-repl [options]
+
+set -e  # Exit on error
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Function to show help
+show_help() {
+    echo "RexxJS Terminal REPL"
+    echo "Usage: $0 [options]"
+    echo ""
+    echo "Interactive REPL for executing REXX commands in a terminal."
+    echo ""
+    echo "Options:"
+    echo "  --help, -h        Show this help message"
+    echo "  --verbose, -v     Show verbose output"
+    echo "  --node-args ARGS  Pass additional arguments to Node.js"
+    echo ""
+    echo "Examples:"
+    echo "  $0                Start interactive REPL"
+    echo "  $0 --verbose      Start with verbose mode"
+    echo "  $0 --node-args '--max-old-space-size=4096'"
+    echo ""
+}
+
+# Detect execution mode and find REPL script
+detect_rexxjs_installation() {
+    local SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+    local SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+
+    # Mode 1: In-repo development mode
+    # Look for src/repl-node.js relative to this script
+    if [ -f "$SCRIPT_DIR/repl-node.js" ]; then
+        # We're in src/ directory
+        REXXJS_REPL="$SCRIPT_DIR/repl-node.js"
+        REXXJS_MODE="development (in src/)"
+        return 0
+    elif [ -f "$SCRIPT_DIR/../src/repl-node.js" ]; then
+        # We're in repo root, src/ is one level down
+        REXXJS_REPL="$SCRIPT_DIR/../src/repl-node.js"
+        REXXJS_MODE="development (repo root)"
+        return 0
+    elif [ -f "$SCRIPT_DIR/src/repl-node.js" ]; then
+        # We're in repo root, src/ is subdirectory
+        REXXJS_REPL="$SCRIPT_DIR/src/repl-node.js"
+        REXXJS_MODE="development (repo root)"
+        return 0
+    fi
+
+    # Mode 2: Installed tool mode
+    # Look for bundled REPL in standard locations
+    local INSTALL_LOCATIONS=(
+        "/usr/local/lib/rexxjs/repl-node.js"
+        "/usr/lib/rexxjs/repl-node.js"
+        "$HOME/.local/lib/rexxjs/repl-node.js"
+        "/opt/rexxjs/repl-node.js"
+    )
+
+    for location in "${INSTALL_LOCATIONS[@]}"; do
+        if [ -f "$location" ]; then
+            REXXJS_REPL="$location"
+            REXXJS_MODE="installed ($location)"
+            return 0
+        fi
+    done
+
+    # Mode 3: Node.js global package mode
+    # Try to find via npm global packages
+    if command -v npm &> /dev/null; then
+        local NPM_GLOBAL_DIR="$(npm root -g 2>/dev/null || echo "")"
+        if [ -n "$NPM_GLOBAL_DIR" ] && [ -f "$NPM_GLOBAL_DIR/rexxjs/src/repl-node.js" ]; then
+            REXXJS_REPL="$NPM_GLOBAL_DIR/rexxjs/src/repl-node.js"
+            REXXJS_MODE="npm global"
+            return 0
+        fi
+    fi
+
+    # Mode 4: Try same directory as this script (bundled deployment)
+    if [ -f "$SCRIPT_DIR/rexxjs-repl.js" ]; then
+        REXXJS_REPL="$SCRIPT_DIR/rexxjs-repl.js"
+        REXXJS_MODE="bundled"
+        return 0
+    fi
+
+    return 1
+}
+
+# Check for help flag
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    show_help
+    exit 0
+fi
+
+# Parse arguments
+NODE_ARGS=""
+REPL_ARGS=""
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --node-args)
+            NODE_ARGS="$2"
+            shift 2
+            ;;
+        --verbose|-v)
+            REPL_ARGS="$REPL_ARGS $1"
+            shift
+            ;;
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        -*)
+            print_error "Unknown option: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+        *)
+            print_error "Unexpected argument: $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Check if Node.js is available
+if ! command -v node &> /dev/null; then
+    print_error "Node.js is not installed or not in PATH"
+    echo "Please install Node.js to run the REXX REPL"
+    exit 1
+fi
+
+# Detect RexxJS installation
+if ! detect_rexxjs_installation; then
+    print_error "RexxJS installation not found"
+    echo ""
+    echo "Searched for RexxJS in:"
+    echo "  - Current directory (development mode)"
+    echo "  - /usr/local/lib/rexxjs/"
+    echo "  - /usr/lib/rexxjs/"
+    echo "  - ~/.local/lib/rexxjs/"
+    echo "  - /opt/rexxjs/"
+    echo "  - npm global packages"
+    echo ""
+    echo "Please install RexxJS or run from the RexxJS repository directory."
+    exit 1
+fi
+
+# Print startup info
+print_info "RexxJS Terminal REPL ($REXXJS_MODE)"
+if [ -n "$NODE_ARGS" ]; then
+    print_info "Node.js args: $NODE_ARGS"
+fi
+if [ -n "$REPL_ARGS" ]; then
+    print_info "REPL args: $REPL_ARGS"
+fi
+
+echo ""
+
+# Execute the REPL
+if [ -n "$NODE_ARGS" ]; then
+    exec node $NODE_ARGS "$REXXJS_REPL" $REPL_ARGS
+else
+    exec node "$REXXJS_REPL" $REPL_ARGS
+fi

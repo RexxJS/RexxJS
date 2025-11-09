@@ -1455,7 +1455,31 @@ class RexxInterpreter {
             }
             
             const variableName = await this.interpolateString(command.variable);
-            this.variables.set(variableName, result);
+
+            // Handle compound variable assignment (e.g., RESULT.message = value)
+            if (variableName.includes('.')) {
+              const parts = variableName.split('.');
+              const rootVarName = parts[0];
+
+              // Get or create root object
+              let rootObject = this.variables.get(rootVarName);
+              if (!rootObject || typeof rootObject !== 'object' || Array.isArray(rootObject)) {
+                rootObject = {};
+                this.variables.set(rootVarName, rootObject);
+              }
+
+              // Navigate to the parent object and set the final property
+              let current = rootObject;
+              for (let i = 1; i < parts.length - 1; i++) {
+                if (!current[parts[i]] || typeof current[parts[i]] !== 'object' || Array.isArray(current[parts[i]])) {
+                  current[parts[i]] = {};
+                }
+                current = current[parts[i]];
+              }
+              current[parts[parts.length - 1]] = result;
+            } else {
+              this.variables.set(variableName, result);
+            }
             // Trace already shown at executeCommand level with full source line
           } else if (command.value !== undefined) {
             // Simple value assignment: LET var = value (resolve value in case it's a variable reference)
@@ -1525,7 +1549,31 @@ class RexxInterpreter {
             }
             
             const variableName = await this.interpolateString(command.variable);
-            this.variables.set(variableName, resolvedValue);
+
+            // Handle compound variable assignment (e.g., RESULT.message = value)
+            if (variableName.includes('.')) {
+              const parts = variableName.split('.');
+              const rootVarName = parts[0];
+
+              // Get or create root object
+              let rootObject = this.variables.get(rootVarName);
+              if (!rootObject || typeof rootObject !== 'object' || Array.isArray(rootObject)) {
+                rootObject = {};
+                this.variables.set(rootVarName, rootObject);
+              }
+
+              // Navigate to the parent object and set the final property
+              let current = rootObject;
+              for (let i = 1; i < parts.length - 1; i++) {
+                if (!current[parts[i]] || typeof current[parts[i]] !== 'object' || Array.isArray(current[parts[i]])) {
+                  current[parts[i]] = {};
+                }
+                current = current[parts[i]];
+              }
+              current[parts[parts.length - 1]] = resolvedValue;
+            } else {
+              this.variables.set(variableName, resolvedValue);
+            }
             // Trace already shown at executeCommand level with full source line
           }
           break;

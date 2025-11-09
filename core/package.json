@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "description": "A lightweight, embeddable JavaScript interpreter for the Rexx programming language with unified file system and application addressing capabilities.",
   "bin": {
-    "rexx": "./src/rexx"
+    "rexx": "./src/rexx",
+    "rexx-repl": "./src/rexx-repl"
   },
   "scripts": {
     "test": "jest && ./rexxt tests/dogfood/*",
