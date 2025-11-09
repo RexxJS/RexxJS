@@ -252,10 +252,11 @@ Execution in Node.js environments (desktop, server, docker-style container or VM
 - Library development and publishing guidelines
 
 ### 💻 [REPL Guide](34-repl-guide.md)
-- Interactive RexxJS development environment
-- REPL-specific features and commands
-- Debugging and exploration techniques
-- Development workflow integration
+- **Terminal REPL** - Command-line interface for Node.js environments
+- **Web REPL** - Browser-based interface with graphics support
+- Interactive development and testing workflows
+- Special commands, command history, and debugging
+- REQUIRE support and library loading in both environments
 
 ### 🔤 [Interpolation Patterns](36-interpolation-patterns.md)
 - Complete INTERPOLATION PATTERN statement reference
