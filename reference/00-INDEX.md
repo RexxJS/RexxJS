@@ -116,6 +116,12 @@ Execution in Node.js environments (desktop, server, docker-style container or VM
 - Date operations (TODAY, YEAR, MONTH, DAY)
 - Financial calculations (PMT, FV, PV, NPV, IRR)
 
+### 🌐 [HTTP Functions](15a-http-functions.md)
+- HTTP GET, POST, PUT, DELETE, PATCH requests
+- Request headers and authentication
+- Response handling and error detection
+- API integration and web service access
+
 ## Advanced Functions
 
 ### 📊 [R-Language Functions](15-r-functions.md)
