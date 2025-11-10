@@ -1,0 +1,73 @@
+#!/bin/bash
+# Development launcher for Mini Photo Editor with control bus
+# Usage:
+#   ./photoeditor-dev                    # Start app
+#   ./photoeditor-dev --control-bus      # Start with HTTP control bus
+#   ./photoeditor-dev image.jpg          # Load specific image
+#   ./photoeditor-dev --help             # Show help
+
+set -e
+
+# Show help if requested
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo "Mini Photo Editor - Development Launcher"
+    echo ""
+    echo "Usage:"
+    echo "  ./photoeditor-dev                    Start photo editor"
+    echo "  ./photoeditor-dev --control-bus      Start with HTTP control bus enabled"
+    echo "  ./photoeditor-dev image.jpg          Load specific image on startup"
+    echo "  ./photoeditor-dev --help             Show this help"
+    echo ""
+    echo "Control Bus:"
+    echo "  When enabled with --control-bus, the editor can be controlled via RexxJS:"
+    echo "    - HTTP API: http://localhost:8083/api/photoeditor"
+    echo "    - Auth token: dev-token-12345"
+    echo ""
+    echo "  Example:"
+    echo "    # Terminal 1: Start editor with control bus"
+    echo "    ./photoeditor-dev --control-bus"
+    echo ""
+    echo "    # Terminal 2: Control it with Rexx"
+    echo "    cd ../../core"
+    echo "    ./rexx ../examples/mini-photo-editor/tests/test-moon-filter.rexx"
+    echo ""
+    exit 0
+fi
+
+# Check if RexxJS bundle is built
+REXX_BUNDLE="../../core/src/repl/dist/rexxjs.bundle.js"
+if [ ! -f "$REXX_BUNDLE" ]; then
+    echo "⚠️  RexxJS bundle not found at: $REXX_BUNDLE"
+    echo ""
+    echo "Building RexxJS bundle..."
+    (cd ../../core/src/repl && npm install && npm run build)
+    echo "✓ RexxJS bundle built"
+    echo ""
+fi
+
+# Check if dependencies are installed
+if [ ! -d "node_modules" ]; then
+    echo "Installing dependencies..."
+    npm install
+    echo "✓ Dependencies installed"
+    echo ""
+fi
+
+# Enable control bus if requested
+if [ "$1" = "--control-bus" ] || [ "$2" = "--control-bus" ]; then
+    export ENABLE_CONTROL_BUS=1
+    echo "✓ Control bus enabled on http://localhost:8083/api/photoeditor"
+    echo "  Auth token: dev-token-12345"
+    echo ""
+fi
+
+# Start Tauri dev mode
+echo "Starting Mini Photo Editor..."
+echo ""
+
+# Pass arguments to Tauri (except --control-bus which is handled via env var)
+if [ "$1" != "--control-bus" ] && [ -n "$1" ]; then
+    npm run tauri:dev -- -- "$1"
+else
+    npm run tauri:dev
+fi

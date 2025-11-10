@@ -1,0 +1,356 @@
+.minieditor .banner {
+    margin: 5px;
+    display: flex;
+    align-items: center;
+    width: 180px;
+    justify-content: space-between;
+}
+
+
+.minieditor .container {
+  flex:1;
+  height:100%;
+  width:100%;
+  overflow: hidden;
+
+  display:flex;
+  flex-direction: row;
+  font-size:15px;
+
+  .editor {
+    flex: 1;
+    margin: 5px;
+    border-radius: 15px;
+    overflow: hidden;
+
+    display: flex;
+    flex-direction: column;
+
+
+    #canvas {
+        cursor: move;
+      }
+  }
+
+
+  .sidebar {
+    width:360px;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    overflow-y: auto;
+    position: relative;
+      background-color: light-dark(#ffffff,#191919);
+
+    .menusections {
+      margin-top: 25px;
+    }
+  } 
+
+}
+
+
+    #zoomable{
+        width: 100%;
+        height: 99%; /*100% created some artifacts on Safari?!?*/
+        /*overflow: hidden;*/
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    #pannable{
+        max-width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+
+
+.minieditor .section {
+  background-color:light-dark(#e0e0e0,#222222);
+  border-radius: 15px;
+  padding: 10px;
+  margin: 2px 0;
+  font-size:14px;
+  height: 23px;
+  transition: height .3s;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  cursor: pointer;
+
+    &:hover {
+      background-color: light-dark( #ededed, #292929);
+    }
+    &[skipped] {
+      opacity: 0.5;
+    }
+    &[selected] {
+      background-color: light-dark( #d4d4d4, #292929);
+    }
+    &[selected] .section_header .section_label{
+      color:darkorange;
+    }
+
+    .section_header {
+      display:flex;
+      justify-content: space-between;
+      cursor:pointer;
+
+      .section_skip {
+        width: 20px;
+        color:darkorange;
+        cursor:cell;
+
+        &:hover {
+          filter: brightness(1.2);
+        }
+      }
+
+      .section_label {
+        flex: 1;
+        text-align: left;
+        color:gray;
+      }
+
+      .reset_btn{
+        font-weight: bold;
+        &[disabled]{
+          font-weight: normal;
+        }
+      }
+
+    }
+
+    .section_content {
+      flex:1;
+
+      .section_scroll {
+        height: 100%;
+      }
+      .done_btn, .close_btn {
+        position: absolute;top: 7px;right: 25px;height: 20px;width: 100px;padding: 0;background: darkorange;
+      }
+      .close_btn {
+        width: 40px;
+        display: none;
+      }
+      &.skip {
+        opacity: 0.2;
+        pointer-events: none;
+      }
+    }
+}
+
+
+
+
+.minieditor .sidebar .cc_container {
+      display: flex; 
+      flex-direction: column;
+    }
+
+.minieditor .sidebar .rangelabel {
+      width:100px;
+      text-align:left;
+      color:gray;
+    }
+
+
+.minieditor .sidebar input[type='range'] {
+  appearance: none;
+  cursor: pointer;
+  border: 0;
+  height: 4px;
+  padding: 0;
+  flex: 1;
+  background-color: light-dark(#bbbbbb, #303030);
+
+  
+  &#lights_brightness {
+      background: linear-gradient(90deg, #242424, #CCCCCC);
+  }
+  &#lights_exposure {
+      background: linear-gradient(90deg, #242424, #CCCCCC);
+  }
+  &#lights_gamma {
+      background: linear-gradient(90deg, #242424, #CCCCCC);
+  }
+  &#lights_contrast {
+      background: linear-gradient(270deg, #242424, #CCCCCC);
+  }
+  &#lights_shadows {
+      background: linear-gradient(270deg, #242424, #CCCCCC);
+  }
+  &#lights_highlights {
+      background: linear-gradient(90deg, #242424, #CCCCCC);
+  }
+  &#lights_bloom {
+      background: linear-gradient(90deg, #242424, #CCCCCC);
+  }
+
+  &#colors_temperature {
+      background: linear-gradient(90deg, #2c75d3, #ddbc57);
+  }
+  &#colors_tint {
+      background: linear-gradient(to left, rgb(58, 224, 0), rgb(150, 0, 229)); /*linear-gradient(90deg, #d32cca, #57dd67);*/
+  }
+  &#colors_vibrance {
+      background: linear-gradient(90deg, #7f7f7f, #827f7c, #818078, #798378, #6f867f, #69878b, #628a98, #48949b, #2d9d93, #27a57e, #43aa60, #74ac3e, #a8a823, #e0792a, #f8396b, #9900cd);
+  }
+  &#colors_saturation {
+      background: linear-gradient(90deg, #7f7f7f, #827f7c, #818078, #798378, #6f867f, #69878b, #628a98, #48949b, #2d9d93, #27a57e, #43aa60, #74ac3e, #a8a823, #e0792a, #f8396b, #9900cd);
+  }
+  &#colors_sepia {
+      background: linear-gradient(90deg, #242424, #ddbc57);
+  }
+
+  &#effects_vignette {
+      background: linear-gradient(270deg, #242424, #CCCCCC);
+  }
+
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: gray;
+  }
+  &::-moz-range-thumb {
+    background-color: gray;
+  }
+} 
+
+.minieditor .sidebar input[type=number].rangenumb {
+  padding:0px;
+  text-align: right;
+  width:50px;
+  color:gray;
+
+  /* hide step buttons on Chrome/Safari*/
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+      opacity: 0;
+  }
+  &:focus::-webkit-inner-spin-button,
+  &:focus::-webkit-outer-spin-button,
+  &:hover::-webkit-inner-spin-button,
+  &:hover::-webkit-outer-spin-button {
+      opacity: 1;
+  }
+
+}
+
+
+
+@media (orientation: portrait) {
+  .alert-message .msg {
+    max-width: 90vw !important;
+  }
+  .minieditor .container {
+    flex-direction: column;
+
+    .sidebar {
+      width:95%;
+      height: 210px;
+      margin: 5px auto 5px auto;
+      justify-content: end;
+
+      .menusections{
+        display: flex;
+        flex-direction: row;
+        overflow: auto hidden;
+        -ms-overflow-style: none; /* for Internet Explorer, Edge */
+        scrollbar-width: none; /* for Firefox */
+        align-items: flex-end;
+        height: 90px !important;
+
+      }
+    }
+
+  }
+
+  .minieditor .section {
+    overflow: hidden;
+    transition: unset;
+    flex-direction: column-reverse;
+    margin: 0 2px;
+    position: unset;
+
+    .section_skip {
+      display: none;
+    }
+    .reset_btn{
+      margin-left:5px !important;
+    }
+  }
+
+  .minieditor .section_content{
+    position: absolute;
+    left: 0;
+    bottom: 48px;
+    right: 0;
+    height: 120px;
+    background-color: inherit;
+    overflow: auto;
+    padding: 30px 10px 10px 10px;
+    border-radius: 15px;
+
+    .section_scroll{
+      height:100%;
+      overflow: hidden auto;
+      -ms-overflow-style: none; /* for Internet Explorer, Edge */
+      scrollbar-width: none; /* for Firefox */
+    }
+    .done_btn {
+      top: 0px !important;
+      right: 5px !important;
+      margin: 0px;
+    }
+    .close_btn {
+      top: 0px !important;
+      right: 5px !important;
+      margin: 0px;
+      display: unset !important;
+    }
+    &::before{
+      content: ' .';
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      width: 100%;
+      color: transparent;
+      background-color: light-dark(#c2c2c2, #242424);;
+    }
+    hr:first-child{
+      display: none;
+    }
+  }
+
+  #curve_content{
+    padding:10px;
+    height: 140px;
+    .section_scroll {
+        overflow: hidden;
+      }
+  }
+  
+
+  .minieditor .sidebar input[type=number].rangenumb {
+    pointer-events:none;
+  }
+  .minieditor .sidebar .cc_container {
+    margin-top: 4px;
+  }
+
+}
+
+
+
+

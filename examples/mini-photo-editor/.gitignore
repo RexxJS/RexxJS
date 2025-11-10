@@ -1,0 +1,10 @@
+.DS_Store
+*.lock
+node_modules
+dist
+lib
+dist-ssr
+*.local
+.env*
+package-lock.json
+TODO.txt
