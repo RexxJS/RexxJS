@@ -340,10 +340,28 @@ END
 ## Platform Support
 
 ### Windows
+
+#### Supported Versions
+- **Windows 10** (version 21H2 and later) - Full support ✅
+- **Windows 11** (all versions) - Full support ✅
+- **Windows Server 2016** and later - Full support ✅
+- **Windows 8.1** - Partial support (PowerShell, registry, processes; window automation limited)
+- **Windows 7** - Legacy support (PowerShell 5.1 required; not officially tested)
+
+#### Requirements
+- **PowerShell 5.0 or later** (Windows PowerShell 5.1 on Windows 10; PowerShell 7+ recommended)
+- **Administrator privileges** for:
+  - Registry modifications (write/delete operations)
+  - Process termination (kill_process)
+  - Window manipulation (some operations may require elevated privileges)
+  - System information on restricted systems
+
+#### Native Features
 - Full native support for all operations
-- Direct PowerShell integration
-- Registry access
+- Direct PowerShell integration via `powershell` command
+- Complete Windows Registry access (HKLM, HKCU, HKCR, HKU, HKCC)
 - Window automation via Windows API
+- Process management via Windows APIs and tasklist utility
 
 ### Mac/Linux
 - **Mocked mode** for testing: Returns simulated results for unit tests
