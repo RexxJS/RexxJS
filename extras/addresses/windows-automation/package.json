@@ -1,0 +1,30 @@
+{
+  "name": "@rexxjs/windows-automation-address",
+  "version": "1.0.0",
+  "description": "Windows Automation ADDRESS handler for RexxJS - PowerShell, Registry, Process and Window automation",
+  "main": "src/windows-automation-address.js",
+  "scripts": {
+    "test": "jest",
+    "bundle": "webpack --config webpack.bundle.config.js"
+  },
+  "keywords": [
+    "rexx",
+    "address",
+    "windows",
+    "automation",
+    "powershell",
+    "registry",
+    "processes",
+    "windows-automation"
+  ],
+  "author": "RexxJS Project",
+  "license": "MIT",
+  "peerDependencies": {
+    "rexxjs": ">=1.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.0"
+  }
+}
