@@ -15,7 +15,7 @@ Without `ADDRESS WINCALC`, we must resort to:
 ### How Sikuli-X Works
 Sikuli automates based on **visual recognition** - it takes screenshots of UI elements and matches them when interacting.
 
-### REXX Implementation Concept
+### Variant A: Pre-stored Image Files (Basic)
 
 ```rexx
 ADDRESS WINDOWS
@@ -54,6 +54,86 @@ ELSE
   SAY "FAILED"
 ENDIF
 ```
+
+### Variant B: Character/Visual Pattern Recognition (Advanced)
+
+This approach uses **character recognition** rather than pre-stored images - Sikuli recognizes the visual pattern of the character itself:
+
+```rexx
+ADDRESS WINDOWS
+REQUIRE "sikuli-address"
+
+LAUNCH "calc.exe"
+WAIT 2000
+
+-- Click on button "7" by recognizing the character appearance
+-- Search for white text "7" on dark blue background
+LET button_7 = CLICK FIND_CHARACTER("7", color="white", bg_color="dark-blue", confidence=0.85)
+WAIT 300
+
+-- Click multiply by recognizing the × character
+CLICK FIND_CHARACTER("*", color="white", bg_color="dark-blue", confidence=0.85)
+WAIT 300
+
+-- Click button "6"
+CLICK FIND_CHARACTER("6", color="white", bg_color="dark-blue", confidence=0.85)
+WAIT 300
+
+-- Click equals (recognizing = symbol)
+CLICK FIND_CHARACTER("=", color="white", bg_color="dark-blue", confidence=0.85)
+WAIT 1000
+
+-- Verify result
+LET display = FIND_REGION("calc_display.png")
+LET result = OCR_TEXT(display)
+SAY "Result: " || result
+```
+
+### Even More Sophisticated: Visual Property Matching
+
+Using Sikuli's image matching with visual properties:
+
+```rexx
+ADDRESS WINDOWS
+REQUIRE "sikuli-address"
+
+LAUNCH "calc.exe"
+WAIT 2000
+
+-- Define button appearance pattern using character picture
+-- charpic(char, text_color, bg_color) creates a visual pattern matcher
+LET pattern_7 = CHARPIC("7", "white", "dark-blue")
+LET pattern_mult = CHARPIC("*", "white", "dark-blue")
+LET pattern_6 = CHARPIC("6", "white", "dark-blue")
+LET pattern_eq = CHARPIC("=", "white", "dark-blue")
+
+-- Click using the pattern (with confidence threshold)
+CLICK FIND_IMAGE(pattern_7, confidence=0.80)
+WAIT 300
+CLICK FIND_IMAGE(pattern_mult, confidence=0.80)
+WAIT 300
+CLICK FIND_IMAGE(pattern_6, confidence=0.80)
+WAIT 300
+CLICK FIND_IMAGE(pattern_eq, confidence=0.80)
+WAIT 1000
+
+-- Verify
+LET display = FIND_REGION("display_box.png")
+LET result = OCR_TEXT(display)
+ASSERT result = "42"
+```
+
+### Comparison of Sikuli Variants
+
+| Variant | Flexibility | Maintenance | Speed | Robustness |
+|---------|------------|-------------|-------|-----------|
+| Pre-stored Images | Low | High | Slow | Low (DPI sensitive) |
+| Character Recognition | Medium | Low | Slow | Medium (fonts matter) |
+| Visual Properties | High | Low | Slow | Medium-High |
+
+**Pre-stored images:** Requires screenshot library, breaks with DPI/theme changes
+**Character recognition:** Dynamically finds characters on screen, survives theme changes, still font-dependent
+**Visual properties:** Explicit color/appearance matching, most adaptable but requires Sikuli's pattern matching API
 
 ### Challenges with Sikuli-X Approach
 
