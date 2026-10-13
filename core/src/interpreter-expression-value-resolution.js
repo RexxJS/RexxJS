@@ -190,6 +190,14 @@ async function resolveValue(value, variableGetFn, variableHasFn, evaluateExpress
   return value;
 }
 
+// Rexx's comparison, as IF uses it (interpreter-evaluation-utilities).
+function compareValues(left, right) {
+  const utils = (typeof require !== 'undefined' && typeof module !== 'undefined')
+    ? require('./interpreter-evaluation-utilities.js')
+    : window.rexxModuleRegistry.get('evaluationUtils');
+  return utils.compareValues(left, right);
+}
+
 /**
  * Evaluate expression objects (LITERAL, VARIABLE, BINARY_OP, etc.)
  * @param {Object} expr - Expression object with type and relevant properties
@@ -423,6 +431,27 @@ async function evaluateExpression(expr, resolveValueFn, variableGetFn, variableH
             typeof leftValue === 'number' ? leftValue : parseFloat(leftValue),
             typeof rightValue === 'number' ? rightValue : parseFloat(rightValue)
           );
+        case '=':
+          return compareValues(leftValue, rightValue) === 0 ? 1 : 0;
+        case '\\=':
+        case '¬=':
+        case '!=':
+        case '<>':
+        case '><':
+          return compareValues(leftValue, rightValue) !== 0 ? 1 : 0;
+        case '>':
+          return compareValues(leftValue, rightValue) > 0 ? 1 : 0;
+        case '<':
+          return compareValues(leftValue, rightValue) < 0 ? 1 : 0;
+        case '>=':
+          return compareValues(leftValue, rightValue) >= 0 ? 1 : 0;
+        case '<=':
+          return compareValues(leftValue, rightValue) <= 0 ? 1 : 0;
+        // Strict: the strings exactly, no numeric reading ("5" \== "5.0").
+        case '==':
+          return String(leftValue) === String(rightValue) ? 1 : 0;
+        case '\\==':
+          return String(leftValue) !== String(rightValue) ? 1 : 0;
         default:
           throw new Error(`Unknown operator: ${expr.operator}`);
       }
