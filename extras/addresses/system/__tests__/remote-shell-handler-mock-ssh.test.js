@@ -1,28 +1,67 @@
 /**
  * Remote Shell Handler Mock Tests - SSH/SCP Integration
  * Tests remote shell operations with mocked SSH and SCP processes
- * 
+ *
  * Copyright (c) 2025 Paul Hammant
  * Licensed under the MIT License
  */
 
 const { spawn } = require('child_process');
 const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const RemoteShellHandler = require('../src/remote-shell-handler');
 
 // Mock child_process and fs
 jest.mock('child_process');
 jest.mock('fs');
 
+// Options every ssh/scp invocation made by the handler starts with
+const SSH_OPTS = ['-o', 'ConnectTimeout=10', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=accept-new'];
+
 describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
   let remoteHandler;
   let mockContext;
   let mockProcess;
 
+  // Make mockProcess behave like a finished ssh/scp: emit the given
+  // stdout/stderr, then close with the given exit code
+  const scriptProcess = ({ stdout = '', stderr = '', code = 0 } = {}) => {
+    mockProcess.stdout.on.mockImplementation((event, cb) => {
+      if (event === 'data' && stdout) setImmediate(() => cb(Buffer.from(stdout)));
+    });
+    mockProcess.stderr.on.mockImplementation((event, cb) => {
+      if (event === 'data' && stderr) setImmediate(() => cb(Buffer.from(stderr)));
+    });
+    mockProcess.on.mockImplementation((event, cb) => {
+      if (event === 'close') setImmediate(() => setImmediate(() => cb(code)));
+    });
+  };
+
+  // A process that never produces output or closes (a hung remote side)
+  const hangingProcess = () => ({
+    stdout: { on: jest.fn() },
+    stderr: { on: jest.fn() },
+    on: jest.fn(),
+    kill: jest.fn()
+  });
+
+  // The spawn calls that were not the connection probe
+  const nonProbeSpawns = () => spawn.mock.calls.filter(([, args]) => !args.includes('connection_test'));
+
   beforeEach(() => {
     // Reset all mocks
     jest.clearAllMocks();
-    
+
+    // The handler arms timeouts with setTimeout and (for the probe, upload
+    // and download) never clears them; fake timers keep those from running
+    // for real after a test ends. setImmediate stays real: the mock
+    // processes below use it to emit their output.
+    jest.useFakeTimers({ doNotFake: ['setImmediate', 'nextTick'] });
+
+    // The handler logs every operation through console.log
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+
     // Setup mock process
     mockProcess = {
       stdout: {
@@ -40,6 +79,7 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
       on: jest.fn(),
       kill: jest.fn()
     };
+    scriptProcess();
 
     // The handler checks a connection first (ssh ... echo connection_test):
     // that probe answers as a reachable host would; every other spawn is
@@ -60,24 +100,29 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
     fs.existsSync.mockReturnValue(true);
     fs.readFileSync.mockReturnValue('mock file content');
     fs.writeFileSync.mockImplementation(() => {});
-    fs.statSync.mockReturnValue({ 
+    fs.statSync.mockReturnValue({
       isFile: () => true,
-      size: 1024 
+      size: 1024
     });
 
     // Initialize remote shell handler
     remoteHandler = new RemoteShellHandler();
-    
-    // Mock context
+
+    // Mock context: interpolateMessage resolves {{name}} from the
+    // context's own properties
     mockContext = {
-      variables: new Map([
-        ['host_server', 'test.example.com'],
-        ['username', 'testuser'],
-        ['ssh_key', '~/.ssh/id_rsa'],
-        ['local_file', './test-file.txt'],
-        ['remote_file', '/tmp/test-file.txt']
-      ])
+      host_server: 'test.example.com',
+      username: 'testuser',
+      ssh_key: '~/.ssh/id_rsa',
+      local_file: './test-file.txt',
+      remote_file: '/tmp/test-file.txt'
     };
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+    console.log.mockRestore();
   });
 
   describe('Initialization and Security', () => {
@@ -102,6 +147,17 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
       expect(remoteHandler.securityMode).toBe('strict');
       expect(remoteHandler.allowedHosts).toContain('trusted1.com');
       expect(remoteHandler.allowedHosts).toContain('trusted2.com');
+      expect(remoteHandler.trustedKeyPaths).toContain('/home/user/.ssh/trusted_key');
+    });
+
+    it('should default to strict mode with an empty allowlist', async () => {
+      await remoteHandler.initialize();
+
+      expect(remoteHandler.securityMode).toBe('strict');
+      await expect(
+        remoteHandler.handleMessage('connect host="localhost" user="test"', mockContext)
+      ).rejects.toThrow('Host localhost not allowed by security policy');
+      expect(spawn).not.toHaveBeenCalled();
     });
 
     it('should validate host against security policy', async () => {
@@ -117,6 +173,7 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
           mockContext
         )
       ).rejects.toThrow('Host untrusted.com not allowed by security policy');
+      expect(spawn).not.toHaveBeenCalled();
     });
 
     it('should validate SSH key paths in strict mode', async () => {
@@ -126,95 +183,170 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
         trustedKeyPaths: ['/approved/key']
       });
 
-      fs.existsSync.mockReturnValue(false);
-
       await expect(
         remoteHandler.handleMessage(
           'connect host="trusted.com" user="test" key="/unapproved/key"',
           mockContext
         )
       ).rejects.toThrow('SSH key path /unapproved/key not trusted by security policy');
+      expect(spawn).not.toHaveBeenCalled();
+
+      const result = await remoteHandler.handleMessage(
+        'connect host="trusted.com" user="test" key="/approved/key"',
+        mockContext
+      );
+      expect(result.success).toBe(true);
+    });
+
+    it('should allow localhost and configured hosts in moderate mode', async () => {
+      await remoteHandler.initialize({
+        securityMode: 'moderate',
+        allowedHosts: ['build.example.com']
+      });
+
+      await expect(
+        remoteHandler.handleMessage('connect host="elsewhere.com" user="test"', mockContext)
+      ).rejects.toThrow('Host elsewhere.com not allowed by security policy');
+
+      expect((await remoteHandler.handleMessage('connect host="localhost" user="test"', mockContext)).success).toBe(true);
+      expect((await remoteHandler.handleMessage('connect host="127.0.0.1" user="test"', mockContext)).success).toBe(true);
+      expect((await remoteHandler.handleMessage('connect host="build.example.com" user="test"', mockContext)).success).toBe(true);
+    });
+
+    it('should only trust keys under ~/.ssh/ in moderate mode', async () => {
+      await remoteHandler.initialize({ securityMode: 'moderate' });
+      const homeKey = path.join(os.homedir(), '.ssh/id_ed25519');
+
+      await expect(
+        remoteHandler.handleMessage('connect host="localhost" user="test" key="/tmp/stolen_key"', mockContext)
+      ).rejects.toThrow('SSH key path /tmp/stolen_key not trusted by security policy');
+
+      const result = await remoteHandler.handleMessage(
+        `connect host="localhost" user="test" key="${homeKey}"`,
+        mockContext
+      );
+      expect(result.success).toBe(true);
+      expect(spawn).toHaveBeenCalledWith('ssh', expect.arrayContaining(['-i', homeKey]), expect.any(Object));
     });
   });
 
   describe('SSH Connection Management', () => {
     beforeEach(async () => {
       // Setup permissive mode for easier testing
-      await remoteHandler.initialize({ 
+      await remoteHandler.initialize({
         securityMode: 'permissive',
-        maxConnections: 10 
-      });
-
-      // Mock successful SSH connection
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(0), 10); // Success exit code
-        }
-      });
-
-      mockProcess.stdout.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('SSH connection test successful'), 10);
-        }
+        maxConnections: 10
       });
     });
 
-    it('should establish SSH connection with username/password', async () => {
+    it('should establish SSH connection without a key', async () => {
       const result = await remoteHandler.handleMessage(
         'connect host="test.example.com" user="testuser" alias="main"',
         mockContext
       );
 
-      expect(result.success).toBe(true);
-      expect(result.connectionId).toBe('main');
-      expect(result.host).toBe('test.example.com');
-      expect(result.user).toBe('testuser');
-      
+      expect(result).toEqual({
+        success: true,
+        connectionId: 'main',
+        message: 'Connected to testuser@test.example.com:22',
+        host: 'test.example.com',
+        user: 'testuser',
+        port: 22
+      });
+
+      expect(spawn).toHaveBeenCalledWith('ssh', [
+        ...SSH_OPTS, '-p', '22', 'testuser@test.example.com', 'echo', 'connection_test'
+      ], { stdio: ['ignore', 'pipe', 'pipe'] });
+
       expect(remoteHandler.activeConnections.has('main')).toBe(true);
       const connection = remoteHandler.activeConnections.get('main');
       expect(connection.host).toBe('test.example.com');
       expect(connection.user).toBe('testuser');
+      expect(connection.keyPath).toBeNull();
     });
 
-    it('should establish SSH connection with key-based authentication', async () => {
+    it('should establish SSH connection with key-based authentication and custom port', async () => {
       const result = await remoteHandler.handleMessage(
-        'connect host="test.example.com" user="testuser" key="~/.ssh/id_rsa" alias="keyauth"',
+        'connect host="test.example.com" user="testuser" key="~/.ssh/id_rsa" port=2222 alias="keyauth"',
         mockContext
       );
 
       expect(result.success).toBe(true);
       expect(result.connectionId).toBe('keyauth');
-      expect(result.authMethod).toBe('key');
-      
+      expect(result.port).toBe(2222);
+
+      expect(spawn).toHaveBeenCalledWith('ssh', [
+        ...SSH_OPTS, '-p', '2222', '-i', '~/.ssh/id_rsa', 'testuser@test.example.com', 'echo', 'connection_test'
+      ], expect.any(Object));
+
       const connection = remoteHandler.activeConnections.get('keyauth');
       expect(connection.keyPath).toBe('~/.ssh/id_rsa');
+      expect(connection.port).toBe(2222);
+    });
+
+    it('should number connections without an alias', async () => {
+      const first = await remoteHandler.handleMessage('connect host="h1.com" user="u"', mockContext);
+      const second = await remoteHandler.handleMessage('connect host="h2.com" user="u"', mockContext);
+
+      expect(first.connectionId).toBe('conn_1');
+      expect(second.connectionId).toBe('conn_2');
+    });
+
+    it('should require host and user', async () => {
+      await expect(
+        remoteHandler.handleMessage('connect host="test.example.com"', mockContext)
+      ).rejects.toThrow('connect requires host and user parameters');
     });
 
     it('should handle SSH connection failures', async () => {
-      // Mock SSH connection failure
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(255), 10); // SSH failure exit code
-        }
+      // The probe fails the way ssh does for an unreachable host
+      const failingProbe = hangingProcess();
+      failingProbe.stderr.on.mockImplementation((event, cb) => {
+        if (event === 'data') setImmediate(() => cb(Buffer.from('ssh: connect to host unreachable.com port 22: Connection refused')));
       });
-
-      mockProcess.stderr.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('ssh: connect to host failed: Connection refused'), 10);
-        }
+      failingProbe.on.mockImplementation((event, cb) => {
+        if (event === 'close') setImmediate(() => setImmediate(() => cb(255)));
       });
+      spawn.mockImplementationOnce(() => failingProbe);
 
       await expect(
         remoteHandler.handleMessage(
-          'connect host="unreachable.com" user="testuser"',
+          'connect host="unreachable.com" user="testuser" alias="down"',
           mockContext
         )
-      ).rejects.toThrow('SSH connection failed');
+      ).rejects.toThrow('Connection failed: SSH connection test failed: ssh: connect to host unreachable.com port 22: Connection refused');
+      expect(remoteHandler.activeConnections.has('down')).toBe(false);
+    });
+
+    it('should reject a probe that exits 0 without echoing connection_test', async () => {
+      const silentProbe = hangingProcess();
+      silentProbe.on.mockImplementation((event, cb) => {
+        if (event === 'close') setImmediate(() => cb(0));
+      });
+      spawn.mockImplementationOnce(() => silentProbe);
+
+      await expect(
+        remoteHandler.handleMessage('connect host="odd.com" user="testuser"', mockContext)
+      ).rejects.toThrow('Connection failed: SSH connection test failed: Unknown error');
+      expect(remoteHandler.activeConnections.size).toBe(0);
+    });
+
+    it('should time out a probe that never answers', async () => {
+      const stuckProbe = hangingProcess();
+      spawn.mockImplementationOnce(() => stuckProbe);
+
+      const pending = remoteHandler.handleMessage('connect host="slow.com" user="testuser"', mockContext);
+      const assertion = expect(pending).rejects.toThrow('Connection failed: SSH connection test timeout');
+      await jest.advanceTimersByTimeAsync(10000);
+      await assertion;
+
+      expect(stuckProbe.kill).toHaveBeenCalled();
+      expect(remoteHandler.activeConnections.size).toBe(0);
     });
 
     it('should enforce connection limits', async () => {
       remoteHandler.maxConnections = 2;
-      
+
       // Fill up connection slots
       await remoteHandler.handleMessage(
         'connect host="host1.com" user="user1" alias="conn1"',
@@ -224,6 +356,7 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
         'connect host="host2.com" user="user2" alias="conn2"',
         mockContext
       );
+      spawn.mockClear();
 
       // Third connection should fail
       await expect(
@@ -232,122 +365,131 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
           mockContext
         )
       ).rejects.toThrow('Maximum connections (2) reached');
+      expect(spawn).not.toHaveBeenCalled();
     });
 
-    it('should reuse existing connections', async () => {
-      // First connection
-      await remoteHandler.handleMessage(
-        'connect host="test.example.com" user="testuser" alias="reused"',
-        mockContext
-      );
+    it('should list active connections', async () => {
+      await remoteHandler.handleMessage('connect host="host1.com" user="user1" alias="conn1"', mockContext);
+      await remoteHandler.handleMessage('connect host="host2.com" user="user2" port=2200 alias="conn2"', mockContext);
 
-      const firstConnection = remoteHandler.activeConnections.get('reused');
-      
-      // Second connection with same parameters should reuse
-      const result = await remoteHandler.handleMessage(
-        'connect host="test.example.com" user="testuser" alias="reused"',
-        mockContext
-      );
+      const result = await remoteHandler.handleMessage('list_connections', mockContext);
 
       expect(result.success).toBe(true);
-      expect(result.connectionId).toBe('reused');
-      expect(result.reused).toBe(true);
-      
-      // Should be the same connection object
-      const secondConnection = remoteHandler.activeConnections.get('reused');
-      expect(secondConnection).toBe(firstConnection);
+      expect(result.count).toBe(2);
+      expect(result.connections).toEqual([
+        expect.objectContaining({ id: 'conn1', host: 'host1.com', user: 'user1', port: 22 }),
+        expect.objectContaining({ id: 'conn2', host: 'host2.com', user: 'user2', port: 2200 })
+      ]);
+      expect(typeof result.connections[0].createdAt).toBe('string');
+      expect(typeof result.connections[0].lastUsed).toBe('string');
+    });
+
+    it('should set default and per-connection timeouts', async () => {
+      await remoteHandler.handleMessage('connect host="host1.com" user="user1" alias="conn1"', mockContext);
+
+      let result = await remoteHandler.handleMessage('set_timeout value=60000', mockContext);
+      expect(result).toEqual({ success: true, message: 'Default timeout set to 60000ms' });
+      expect(remoteHandler.defaultTimeout).toBe(60000);
+
+      result = await remoteHandler.handleMessage('set_timeout value=5000 connection="conn1"', mockContext);
+      expect(result).toEqual({ success: true, message: 'Timeout set to 5000ms for conn1' });
+      expect(remoteHandler.activeConnections.get('conn1').timeout).toBe(5000);
+
+      await expect(
+        remoteHandler.handleMessage('set_timeout', mockContext)
+      ).rejects.toThrow('set_timeout requires value parameter');
+    });
+
+    it('should reject unknown operations', async () => {
+      await expect(
+        remoteHandler.handleMessage('reboot host="test.example.com"', mockContext)
+      ).rejects.toThrow('Unknown remote shell operation: reboot');
     });
   });
 
   describe('Remote Command Execution', () => {
     beforeEach(async () => {
       await remoteHandler.initialize({ securityMode: 'permissive' });
-      
-      // Establish a connection first
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(0), 10);
-        }
-      });
 
+      // Establish a connection first
       await remoteHandler.handleMessage(
-        'connect host="test.example.com" user="testuser" alias="cmd_test"',
+        'connect host="test.example.com" user="testuser" key="~/.ssh/id_rsa" alias="cmd_test"',
         mockContext
       );
+      spawn.mockClear();
     });
 
     it('should execute remote commands successfully', async () => {
-      // Mock command execution
-      mockProcess.stdout.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('total 24\ndrwxr-xr-x 2 testuser testuser 4096 Jan 15 10:00 .'), 10);
-        }
-      });
+      scriptProcess({ stdout: 'total 24\ndrwxr-xr-x 2 testuser testuser 4096 Jan 15 10:00 .' });
 
       const result = await remoteHandler.handleMessage(
-        'execute command="ls -la /tmp" connection="cmd_test"',
+        'execute command="ls" connection="cmd_test"',
         mockContext
       );
 
       expect(result.success).toBe(true);
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('drwxr-xr-x');
-      expect(result.command).toBe('ls -la /tmp');
-      
-      expect(spawn).toHaveBeenCalledWith('ssh', expect.arrayContaining([
-        'testuser@test.example.com', 'ls -la /tmp'
-      ]), expect.any(Object));
+      expect(result.stderr).toBe('');
+      expect(result.command).toBe('ls');
+      expect(result.connectionId).toBe('cmd_test');
+      expect(typeof result.duration).toBe('number');
+
+      expect(spawn).toHaveBeenCalledWith('ssh', [
+        ...SSH_OPTS, '-p', '22', '-i', '~/.ssh/id_rsa', 'testuser@test.example.com', 'ls'
+      ], { stdio: ['ignore', 'pipe', 'pipe'] });
     });
 
-    it('should handle command execution with timeout', async () => {
-      // Mock long-running command
-      let timeoutId;
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          timeoutId = setTimeout(() => callback(0), 10000); // Long delay
-        }
-      });
+    it('should use the first connection when none is named', async () => {
+      const result = await remoteHandler.handleMessage('execute command="hostname"', mockContext);
 
-      const startTime = Date.now();
+      expect(result.connectionId).toBe('cmd_test');
+      expect(spawn).toHaveBeenCalledWith('ssh', expect.arrayContaining(['testuser@test.example.com', 'hostname']), expect.any(Object));
+    });
 
-      await expect(
-        remoteHandler.handleMessage(
-          'execute command="sleep 60" timeout=1000 connection="cmd_test"',
-          mockContext
-        )
-      ).rejects.toThrow('Command execution timed out after 1000ms');
+    it('should time out a command that does not finish', async () => {
+      scriptProcess({ code: null });
+      mockProcess.on.mockImplementation(() => {}); // never closes
 
-      const duration = Date.now() - startTime;
-      expect(duration).toBeLessThan(2000);
-      expect(mockProcess.kill).toHaveBeenCalledWith('SIGTERM');
-      
-      if (timeoutId) clearTimeout(timeoutId);
+      const pending = remoteHandler.handleMessage(
+        'execute command="sleep" timeout=1000 connection="cmd_test"',
+        mockContext
+      );
+      const assertion = expect(pending).rejects.toThrow('Command execution timeout after 1000ms');
+      await jest.advanceTimersByTimeAsync(1000);
+      await assertion;
+
+      expect(mockProcess.kill).toHaveBeenCalled();
+    });
+
+    it('should use the connection timeout when execute gives none', async () => {
+      await remoteHandler.handleMessage('set_timeout value=2000 connection="cmd_test"', mockContext);
+      mockProcess.on.mockImplementation(() => {}); // never closes
+
+      const pending = remoteHandler.handleMessage('execute command="sleep"', mockContext);
+      const assertion = expect(pending).rejects.toThrow('Command execution timeout after 2000ms');
+      await jest.advanceTimersByTimeAsync(1999);
+      expect(mockProcess.kill).not.toHaveBeenCalled();
+      await jest.advanceTimersByTimeAsync(1);
+      await assertion;
+
+      expect(mockProcess.kill).toHaveBeenCalled();
     });
 
     it('should execute commands with working directory', async () => {
-      const result = await remoteHandler.handleMessage(
+      await remoteHandler.handleMessage(
         'execute command="pwd" working_dir="/var/log" connection="cmd_test"',
         mockContext
       );
 
-      expect(spawn).toHaveBeenCalledWith('ssh', expect.arrayContaining([
-        'testuser@test.example.com', 'cd /var/log && pwd'
-      ]), expect.any(Object));
+      expect(spawn).toHaveBeenCalledWith('ssh', [
+        ...SSH_OPTS, '-p', '22', '-i', '~/.ssh/id_rsa', 'testuser@test.example.com', 'cd "/var/log" && pwd'
+      ], expect.any(Object));
     });
 
     it('should handle command execution errors', async () => {
       // Mock command failure
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(1), 10); // Non-zero exit code
-        }
-      });
-
-      mockProcess.stderr.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('bash: badcommand: command not found'), 10);
-        }
-      });
+      scriptProcess({ stderr: 'bash: badcommand: command not found', code: 127 });
 
       const result = await remoteHandler.handleMessage(
         'execute command="badcommand" connection="cmd_test"',
@@ -355,8 +497,24 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
       );
 
       expect(result.success).toBe(false);
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(127);
       expect(result.stderr).toContain('command not found');
+    });
+
+    it('should report ssh spawn errors', async () => {
+      mockProcess.on.mockImplementation((event, cb) => {
+        if (event === 'error') setImmediate(() => cb(new Error('spawn ssh ENOENT')));
+      });
+
+      await expect(
+        remoteHandler.handleMessage('execute command="ls" connection="cmd_test"', mockContext)
+      ).rejects.toThrow('SSH execution error: spawn ssh ENOENT');
+    });
+
+    it('should require a command parameter', async () => {
+      await expect(
+        remoteHandler.handleMessage('execute connection="cmd_test"', mockContext)
+      ).rejects.toThrow('execute requires command parameter');
     });
 
     it('should validate connection exists for command execution', async () => {
@@ -366,24 +524,40 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
           mockContext
         )
       ).rejects.toThrow('Connection nonexistent not found');
+      expect(spawn).not.toHaveBeenCalled();
+    });
+
+    it('should require a connection before executing', async () => {
+      await remoteHandler.handleMessage('disconnect', mockContext);
+
+      await expect(
+        remoteHandler.handleMessage('execute command="ls"', mockContext)
+      ).rejects.toThrow('No active connections. Use connect command first.');
+    });
+
+    // KNOWN BUG: parseCommand splits on whitespace before stripping quotes,
+    // so a quoted multi-word value is cut at its first space and keeps the
+    // opening quote (command becomes '"ls'). Remove .failing once fixed.
+    it('should keep a quoted multi-word command intact', async () => {
+      const result = await remoteHandler.handleMessage(
+        'execute command="ls -la /tmp" connection="cmd_test"',
+        mockContext
+      );
+
+      expect(result.command).toBe('ls -la /tmp');
     });
   });
 
   describe('File Transfer Operations', () => {
     beforeEach(async () => {
       await remoteHandler.initialize({ securityMode: 'permissive' });
-      
-      // Establish connection
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(0), 10);
-        }
-      });
 
+      // Establish connection
       await remoteHandler.handleMessage(
-        'connect host="test.example.com" user="testuser" alias="file_test"',
+        'connect host="test.example.com" user="testuser" port=2222 alias="file_test"',
         mockContext
       );
+      spawn.mockClear();
     });
 
     it('should upload files via SCP', async () => {
@@ -392,44 +566,52 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
         mockContext
       );
 
-      expect(result.success).toBe(true);
-      expect(result.operation).toBe('upload');
-      expect(result.local).toBe('./test-file.txt');
-      expect(result.remote).toBe('/tmp/test-file.txt');
-      
+      expect(result).toEqual({
+        success: true,
+        localPath: './test-file.txt',
+        remotePath: '/tmp/test-file.txt',
+        connectionId: 'file_test',
+        bytesTransferred: 1024,
+        duration: expect.any(Number)
+      });
+
       expect(spawn).toHaveBeenCalledWith('scp', [
-        './test-file.txt', 'testuser@test.example.com:/tmp/test-file.txt'
-      ], expect.any(Object));
-    });
-
-    it('should upload files with specific mode', async () => {
-      const result = await remoteHandler.handleMessage(
-        'upload local="./script.sh" remote="/tmp/script.sh" mode="755" connection="file_test"',
-        mockContext
-      );
-
-      expect(result.success).toBe(true);
-      
-      // Should call chmod after upload
-      expect(spawn).toHaveBeenCalledWith('ssh', [
-        'testuser@test.example.com', 'chmod 755 /tmp/script.sh'
-      ], expect.any(Object));
+        ...SSH_OPTS, '-P', '2222', './test-file.txt', 'testuser@test.example.com:/tmp/test-file.txt'
+      ], { stdio: ['ignore', 'pipe', 'pipe'] });
+      expect(fs.statSync).toHaveBeenCalledWith('./test-file.txt');
     });
 
     it('should download files via SCP', async () => {
+      fs.statSync.mockReturnValue({ isFile: () => true, size: 4096 });
+
       const result = await remoteHandler.handleMessage(
         'download remote="/tmp/remote-file.txt" local="./downloaded-file.txt" connection="file_test"',
         mockContext
       );
 
-      expect(result.success).toBe(true);
-      expect(result.operation).toBe('download');
-      expect(result.remote).toBe('/tmp/remote-file.txt');
-      expect(result.local).toBe('./downloaded-file.txt');
-      
+      expect(result).toEqual({
+        success: true,
+        remotePath: '/tmp/remote-file.txt',
+        localPath: './downloaded-file.txt',
+        connectionId: 'file_test',
+        bytesTransferred: 4096,
+        duration: expect.any(Number)
+      });
+
       expect(spawn).toHaveBeenCalledWith('scp', [
-        'testuser@test.example.com:/tmp/remote-file.txt', './downloaded-file.txt'
-      ], expect.any(Object));
+        ...SSH_OPTS, '-P', '2222', 'testuser@test.example.com:/tmp/remote-file.txt', './downloaded-file.txt'
+      ], { stdio: ['ignore', 'pipe', 'pipe'] });
+      expect(fs.statSync).toHaveBeenCalledWith('./downloaded-file.txt');
+    });
+
+    it('should require local and remote parameters', async () => {
+      await expect(
+        remoteHandler.handleMessage('upload local="./a.txt"', mockContext)
+      ).rejects.toThrow('upload requires local and remote parameters');
+      await expect(
+        remoteHandler.handleMessage('download remote="/tmp/a.txt"', mockContext)
+      ).rejects.toThrow('download requires remote and local parameters');
+      expect(spawn).not.toHaveBeenCalled();
     });
 
     it('should validate local file exists for upload', async () => {
@@ -440,61 +622,131 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
           'upload local="./nonexistent.txt" remote="/tmp/file.txt" connection="file_test"',
           mockContext
         )
-      ).rejects.toThrow('Local file ./nonexistent.txt not found');
+      ).rejects.toThrow('Upload failed: Local file not found: ./nonexistent.txt');
+      expect(spawn).not.toHaveBeenCalled();
     });
 
-    it('should handle SCP transfer failures', async () => {
-      // Mock SCP failure
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(1), 10); // SCP error
-        }
-      });
-
-      mockProcess.stderr.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('scp: /tmp/protected: Permission denied'), 10);
-        }
-      });
+    it('should handle SCP upload failures', async () => {
+      scriptProcess({ stderr: 'scp: /tmp/protected/test.txt: Permission denied', code: 1 });
 
       await expect(
         remoteHandler.handleMessage(
           'upload local="./test.txt" remote="/tmp/protected/test.txt" connection="file_test"',
           mockContext
         )
-      ).rejects.toThrow('File transfer failed');
+      ).rejects.toThrow('Upload failed: SCP upload failed: scp: /tmp/protected/test.txt: Permission denied');
     });
 
-    it('should validate file paths in strict security mode', async () => {
+    it('should handle SCP download failures', async () => {
+      scriptProcess({ stderr: 'scp: /tmp/missing.txt: No such file or directory', code: 1 });
+
+      await expect(
+        remoteHandler.handleMessage(
+          'download remote="/tmp/missing.txt" local="./missing.txt" connection="file_test"',
+          mockContext
+        )
+      ).rejects.toThrow('Download failed: SCP download failed: scp: /tmp/missing.txt: No such file or directory');
+      expect(fs.statSync).not.toHaveBeenCalled();
+    });
+
+    it('should time out a stalled transfer', async () => {
+      await remoteHandler.handleMessage('set_timeout value=3000 connection="file_test"', mockContext);
+      mockProcess.on.mockImplementation(() => {}); // never closes
+
+      const pending = remoteHandler.handleMessage(
+        'upload local="./big.iso" remote="/tmp/big.iso" connection="file_test"',
+        mockContext
+      );
+      const assertion = expect(pending).rejects.toThrow('Upload failed: SCP upload timeout');
+      await jest.advanceTimersByTimeAsync(3000);
+      await assertion;
+
+      expect(mockProcess.kill).toHaveBeenCalled();
+    });
+
+    it('should refuse local paths outside the working directory in strict mode', async () => {
       await remoteHandler.initialize({
         securityMode: 'strict',
-        allowedHosts: ['test.example.com'],
-        allowedPaths: ['/tmp/', '/home/testuser/']
+        allowedHosts: ['test.example.com']
       });
 
       await remoteHandler.handleMessage(
         'connect host="test.example.com" user="testuser" alias="strict_test"',
         mockContext
       );
+      spawn.mockClear();
 
       await expect(
         remoteHandler.handleMessage(
-          'upload local="./test.txt" remote="/etc/passwd" connection="strict_test"',
+          'upload local="/home/other/secret.txt" remote="/tmp/secret.txt" connection="strict_test"',
           mockContext
         )
-      ).rejects.toThrow('Remote path /etc/passwd not allowed by security policy');
+      ).rejects.toThrow('Local path /home/other/secret.txt not allowed by security policy');
+
+      // Relative paths are not resolved, so they do not count as under cwd
+      await expect(
+        remoteHandler.handleMessage(
+          'download remote="/tmp/x.txt" local="./x.txt" connection="strict_test"',
+          mockContext
+        )
+      ).rejects.toThrow('Local path ./x.txt not allowed by security policy');
+      expect(spawn).not.toHaveBeenCalled();
+
+      const localPath = path.join(process.cwd(), 'test.txt');
+      const result = await remoteHandler.handleMessage(
+        `upload local="${localPath}" remote="/tmp/test.txt" connection="strict_test"`,
+        mockContext
+      );
+      expect(result.success).toBe(true);
+      expect(result.localPath).toBe(localPath);
+    });
+
+    it('should refuse system directories as local paths in moderate mode', async () => {
+      await remoteHandler.initialize({ securityMode: 'moderate' });
+
+      await remoteHandler.handleMessage(
+        'connect host="localhost" user="testuser" alias="moderate_test"',
+        mockContext
+      );
+      spawn.mockClear();
+
+      for (const local of ['/etc/passwd', '/bin/sh', '/sbin/init', '/usr/bin/env', '/usr/sbin/sshd']) {
+        await expect(
+          remoteHandler.handleMessage(
+            `download remote="/tmp/payload" local="${local}" connection="moderate_test"`,
+            mockContext
+          )
+        ).rejects.toThrow(`Local path ${local} not allowed by security policy`);
+      }
+      expect(spawn).not.toHaveBeenCalled();
+
+      const result = await remoteHandler.handleMessage(
+        'download remote="/tmp/report.txt" local="/home/testuser/report.txt" connection="moderate_test"',
+        mockContext
+      );
+      expect(result.success).toBe(true);
+    });
+
+    // KNOWN BUG: validateLocalPath checks the raw string with startsWith, so
+    // '..' segments walk out of cwd (and past the system-directory blocklist).
+    // Remove .failing once the path is resolved before checking.
+    it('should refuse a strict-mode local path that climbs out of cwd', async () => {
+      await remoteHandler.initialize({ securityMode: 'strict', allowedHosts: ['test.example.com'] });
+      await remoteHandler.handleMessage('connect host="test.example.com" user="testuser" alias="strict_test"', mockContext);
+
+      const escaping = `${process.cwd()}/../../../../../../etc/passwd`;
+      await expect(
+        remoteHandler.handleMessage(
+          `download remote="/tmp/payload" local="${escaping}" connection="strict_test"`,
+          mockContext
+        )
+      ).rejects.toThrow('not allowed by security policy');
     });
   });
 
   describe('Connection Management and Cleanup', () => {
     beforeEach(async () => {
       await remoteHandler.initialize({ securityMode: 'permissive' });
-      
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(0), 10);
-        }
-      });
     });
 
     it('should disconnect specific connection', async () => {
@@ -511,9 +763,14 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
         mockContext
       );
 
-      expect(result.success).toBe(true);
-      expect(result.connectionId).toBe('to_disconnect');
+      expect(result).toEqual({ success: true, message: 'Disconnected from to_disconnect' });
       expect(remoteHandler.activeConnections.has('to_disconnect')).toBe(false);
+    });
+
+    it('should refuse to disconnect an unknown connection', async () => {
+      await expect(
+        remoteHandler.handleMessage('disconnect connection="ghost"', mockContext)
+      ).rejects.toThrow('Connection ghost not found');
     });
 
     it('should disconnect all connections', async () => {
@@ -529,61 +786,36 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
 
       expect(remoteHandler.activeConnections.size).toBe(2);
 
-      const result = await remoteHandler.handleMessage('disconnect_all', mockContext);
+      const result = await remoteHandler.handleMessage('disconnect', mockContext);
 
-      expect(result.success).toBe(true);
-      expect(result.disconnected).toBe(2);
+      expect(result).toEqual({ success: true, message: 'Disconnected from 2 connections' });
       expect(remoteHandler.activeConnections.size).toBe(0);
-    });
-
-    it('should clean up stale connections', async () => {
-      // Create connections with different last used times
-      const now = Date.now();
-      remoteHandler.activeConnections.set('fresh', {
-        id: 'fresh',
-        lastUsed: new Date(now - 1000) // 1 second ago
-      });
-      remoteHandler.activeConnections.set('stale', {
-        id: 'stale', 
-        lastUsed: new Date(now - 7200000) // 2 hours ago
-      });
-
-      const result = await remoteHandler.handleMessage(
-        'cleanup max_idle=3600000', // 1 hour max idle
-        mockContext
-      );
-
-      expect(result.success).toBe(true);
-      expect(result.cleanedUp).toBe(1); // Only stale connection
-      expect(remoteHandler.activeConnections.has('fresh')).toBe(true);
-      expect(remoteHandler.activeConnections.has('stale')).toBe(false);
     });
   });
 
   describe('Variable Interpolation', () => {
     beforeEach(async () => {
       await remoteHandler.initialize({ securityMode: 'permissive' });
-      
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(0), 10);
-        }
-      });
     });
 
-    it('should interpolate variables in host and user parameters', async () => {
+    it('should interpolate variables in host, user and key parameters', async () => {
       const result = await remoteHandler.handleMessage(
-        'connect host="{host_server}" user="{username}" alias="interpolated"',
+        'connect host="{{host_server}}" user="{{username}}" key="{{ssh_key}}" alias="interpolated"',
         mockContext
       );
 
       expect(result.success).toBe(true);
       expect(result.host).toBe('test.example.com');
       expect(result.user).toBe('testuser');
-      
+      expect(result.message).toBe('Connected to testuser@test.example.com:22');
+
       const connection = remoteHandler.activeConnections.get('interpolated');
       expect(connection.host).toBe('test.example.com');
       expect(connection.user).toBe('testuser');
+      expect(connection.keyPath).toBe('~/.ssh/id_rsa');
+      expect(spawn).toHaveBeenCalledWith('ssh', [
+        ...SSH_OPTS, '-p', '22', '-i', '~/.ssh/id_rsa', 'testuser@test.example.com', 'echo', 'connection_test'
+      ], expect.any(Object));
     });
 
     it('should interpolate variables in file paths', async () => {
@@ -592,32 +824,37 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
         mockContext
       );
 
-      await remoteHandler.handleMessage(
-        'upload local="{local_file}" remote="{remote_file}" connection="file_interp"',
+      const result = await remoteHandler.handleMessage(
+        'upload local="{{local_file}}" remote="{{remote_file}}" connection="file_interp"',
         mockContext
       );
 
+      expect(result.localPath).toBe('./test-file.txt');
+      expect(result.remotePath).toBe('/tmp/test-file.txt');
       expect(spawn).toHaveBeenCalledWith('scp', [
-        './test-file.txt', 'testuser@test.example.com:/tmp/test-file.txt'
+        ...SSH_OPTS, '-P', '22', './test-file.txt', 'testuser@test.example.com:/tmp/test-file.txt'
       ], expect.any(Object));
     });
 
-    it('should interpolate variables in commands', async () => {
-      mockContext.variables.set('target_dir', '/var/log');
-      
+    it('should interpolate variables in commands and working directories', async () => {
+      // Interpolation happens after parsing, so a variable can carry spaces
+      mockContext.list_cmd = 'ls -la';
+      mockContext.target_dir = '/var/log';
+
       await remoteHandler.handleMessage(
         'connect host="test.example.com" user="testuser" alias="cmd_interp"',
         mockContext
       );
 
-      await remoteHandler.handleMessage(
-        'execute command="ls -la {target_dir}" connection="cmd_interp"',
+      const result = await remoteHandler.handleMessage(
+        'execute command="{{list_cmd}}" working_dir="{{target_dir}}" connection="cmd_interp"',
         mockContext
       );
 
-      expect(spawn).toHaveBeenCalledWith('ssh', expect.arrayContaining([
-        'testuser@test.example.com', 'ls -la /var/log'
-      ]), expect.any(Object));
+      expect(result.command).toBe('ls -la');
+      expect(spawn).toHaveBeenCalledWith('ssh', [
+        ...SSH_OPTS, '-p', '22', 'testuser@test.example.com', 'cd "/var/log" && ls -la'
+      ], expect.any(Object));
     });
   });
 
@@ -652,29 +889,25 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
        * │                                             │
        * │ > workflow (test.example.com)               │
        * │   User: testuser                            │
-       * │   Auth: key-based                           │
-       * │   Status: connected                         │
-       * │   Last Used: 2025-01-15T10:00:00Z          │
+       * │   Key: ~/.ssh/id_rsa                        │
+       * │   Port: 22                                  │
        * └─────────────────────────────────────────────┘
        */
 
       expect(result.success).toBe(true);
       expect(remoteHandler.activeConnections.size).toBe(1);
-      
+
       const connection = remoteHandler.activeConnections.get('workflow');
       expect(connection.host).toBe('test.example.com');
       expect(connection.user).toBe('testuser');
-      expect(connection.authMethod).toBe('key');
+      expect(connection.keyPath).toBe('~/.ssh/id_rsa');
 
       // INTERACTION: Execute remote command
-      mockProcess.stdout.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('Linux test 5.4.0 #1 SMP x86_64 GNU/Linux'), 10);
-        }
-      });
+      mockContext.uname_cmd = 'uname -a';
+      scriptProcess({ stdout: 'Linux test 5.4.0 #1 SMP x86_64 GNU/Linux' });
 
       result = await remoteHandler.handleMessage(
-        'execute command="uname -a" connection="workflow"',
+        'execute command="{{uname_cmd}}" connection="workflow"',
         mockContext
       );
 
@@ -682,17 +915,19 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
       expect(result.stdout).toContain('Linux test');
 
       // INTERACTION: Upload file
+      scriptProcess();
       result = await remoteHandler.handleMessage(
-        'upload local="./test-script.rexx" remote="/tmp/script.rexx" mode="755" connection="workflow"',
+        'upload local="./test-script.rexx" remote="/tmp/script.rexx" connection="workflow"',
         mockContext
       );
 
       expect(result.success).toBe(true);
-      expect(result.operation).toBe('upload');
+      expect(result.remotePath).toBe('/tmp/script.rexx');
 
       // INTERACTION: Execute uploaded script
+      mockContext.run_cmd = '/usr/local/bin/rexx /tmp/script.rexx';
       result = await remoteHandler.handleMessage(
-        'execute command="/usr/local/bin/rexx /tmp/script.rexx" connection="workflow"',
+        'execute command="{{run_cmd}}" connection="workflow"',
         mockContext
       );
 
@@ -705,7 +940,14 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
       );
 
       expect(result.success).toBe(true);
-      expect(result.operation).toBe('download');
+      expect(result.localPath).toBe('./results.txt');
+
+      expect(nonProbeSpawns().map(([cmd, args]) => [cmd, args.slice(SSH_OPTS.length)])).toEqual([
+        ['ssh', ['-p', '22', '-i', '~/.ssh/id_rsa', 'testuser@test.example.com', 'uname -a']],
+        ['scp', ['-P', '22', '-i', '~/.ssh/id_rsa', './test-script.rexx', 'testuser@test.example.com:/tmp/script.rexx']],
+        ['ssh', ['-p', '22', '-i', '~/.ssh/id_rsa', 'testuser@test.example.com', '/usr/local/bin/rexx /tmp/script.rexx']],
+        ['scp', ['-P', '22', '-i', '~/.ssh/id_rsa', 'testuser@test.example.com:/tmp/results.txt', './results.txt']]
+      ]);
 
       // INTERACTION: Cleanup connection
       result = await remoteHandler.handleMessage(
@@ -714,10 +956,10 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
       );
 
       /*
-       * AFTER CLEANUP: Back to clean state  
+       * AFTER CLEANUP: Back to clean state
        * ┌─────────────────────────────────────────────┐
        * │ Remote Shell Handler                        │
-       * │ Security Mode: permissive                   │ 
+       * │ Security Mode: permissive                   │
        * │ Active Connections: 0                       │
        * │ Max Connections: 10                         │
        * └─────────────────────────────────────────────┘
@@ -734,7 +976,8 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
        * │ Remote Shell Handler                        │
        * │ Security Mode: strict                       │
        * │ Allowed Hosts: [trusted.com]               │
-       * │ Allowed Paths: [/tmp/, /home/user/]        │
+       * │ Trusted Keys: [/keys/deploy]               │
+       * │ Local Paths: under cwd, no system dirs     │
        * │ Active Connections: 0                       │
        * └─────────────────────────────────────────────┘
        */
@@ -742,7 +985,7 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
       await remoteHandler.initialize({
         securityMode: 'strict',
         allowedHosts: ['trusted.com'],
-        allowedPaths: ['/tmp/', '/home/user/']
+        trustedKeyPaths: ['/keys/deploy']
       });
 
       // INTERACTION: Try untrusted host (should fail)
@@ -753,9 +996,18 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
         )
       ).rejects.toThrow('Host malicious.com not allowed by security policy');
 
+      // INTERACTION: Try untrusted key on a trusted host (should fail)
+      await expect(
+        remoteHandler.handleMessage(
+          'connect host="trusted.com" user="authorized" key="/tmp/other_key"',
+          mockContext
+        )
+      ).rejects.toThrow('SSH key path /tmp/other_key not trusted by security policy');
+      expect(spawn).not.toHaveBeenCalled();
+
       // INTERACTION: Connect to trusted host (should succeed)
       const result = await remoteHandler.handleMessage(
-        'connect host="trusted.com" user="authorized" alias="secure"',
+        'connect host="trusted.com" user="authorized" key="/keys/deploy" alias="secure"',
         mockContext
       );
 
@@ -765,34 +1017,37 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
        * │ Remote Shell Handler                        │
        * │ Security Mode: strict                       │
        * │ Allowed Hosts: [trusted.com]               │
-       * │ Allowed Paths: [/tmp/, /home/user/]        │
        * │ Active Connections: 1                       │
        * │                                             │
        * │ > secure (trusted.com) ✓ verified          │
        * │   User: authorized                          │
-       * │   Status: connected                         │
+       * │   Key: /keys/deploy                         │
        * └─────────────────────────────────────────────┘
        */
 
       expect(result.success).toBe(true);
       expect(remoteHandler.activeConnections.size).toBe(1);
 
-      // INTERACTION: Try unauthorized path (should fail)
+      // INTERACTION: Try a system file as the local side (should fail)
       await expect(
         remoteHandler.handleMessage(
-          'upload local="./test.txt" remote="/etc/passwd" connection="secure"',
+          'upload local="/etc/passwd" remote="/tmp/passwd" connection="secure"',
           mockContext
         )
-      ).rejects.toThrow('Remote path /etc/passwd not allowed by security policy');
+      ).rejects.toThrow('Local path /etc/passwd not allowed by security policy');
 
-      // INTERACTION: Use authorized path (should succeed)
+      // INTERACTION: Use a local path under the working directory (should succeed)
+      const localPath = path.join(process.cwd(), 'test.txt');
       const uploadResult = await remoteHandler.handleMessage(
-        'upload local="./test.txt" remote="/tmp/safe-file.txt" connection="secure"',
+        `upload local="${localPath}" remote="/tmp/safe-file.txt" connection="secure"`,
         mockContext
       );
 
       expect(uploadResult.success).toBe(true);
-      expect(uploadResult.remote).toBe('/tmp/safe-file.txt');
+      expect(uploadResult.remotePath).toBe('/tmp/safe-file.txt');
+      expect(spawn).toHaveBeenLastCalledWith('scp', [
+        ...SSH_OPTS, '-P', '22', '-i', '/keys/deploy', localPath, 'authorized@trusted.com:/tmp/safe-file.txt'
+      ], expect.any(Object));
     });
   });
 });

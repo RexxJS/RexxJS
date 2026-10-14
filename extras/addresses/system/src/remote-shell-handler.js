@@ -95,16 +95,17 @@ class RemoteShellHandler {
    * Parse command into operation and parameters
    */
   parseCommand(command) {
-    const parts = command.split(/\s+/);
-    const operation = parts[0].toLowerCase();
+    const trimmed = command.trim();
+    const operation = trimmed.split(/\s+/)[0].toLowerCase();
     const args = { operation };
 
-    for (let i = 1; i < parts.length; i++) {
-      const part = parts[i];
-      if (part.includes('=')) {
-        const [key, ...valueParts] = part.split('=');
-        args[key] = valueParts.join('=').replace(/^"(.*)"$/, '$1'); // Remove quotes
-      }
+    // key=value, key="a quoted value with spaces" or key='...': a quoted
+    // value is taken whole (it used to be split at its spaces first)
+    const pairPattern = /(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g;
+    let match;
+    while ((match = pairPattern.exec(trimmed.slice(operation.length))) !== null) {
+      const [, key, doubleQuoted, singleQuoted, bare] = match;
+      args[key] = doubleQuoted !== undefined ? doubleQuoted : singleQuoted !== undefined ? singleQuoted : bare;
     }
 
     return args;
@@ -442,16 +443,22 @@ class RemoteShellHandler {
       return true;
     }
     
+    // Checked as the path it really names: `..` worked out, so
+    // "<cwd>/../../etc/passwd" is /etc/passwd
+    const resolved = path.resolve(localPath);
+
     // Block dangerous paths
     const dangerous = ['/etc/', '/bin/', '/sbin/', '/usr/bin/', '/usr/sbin/'];
-    if (dangerous.some(d => localPath.startsWith(d))) {
+    if (dangerous.some(d => resolved.startsWith(d))) {
       return false;
     }
     
     if (this.securityMode === 'strict') {
-      // Only allow current working directory and subdirectories
+      // Only allow absolute paths in the current working directory and its
+      // subdirectories ("<cwd>-evil/x" is not one)
+      if (!path.isAbsolute(localPath)) return false;
       const cwd = process.cwd();
-      return localPath.startsWith(cwd);
+      return resolved === cwd || resolved.startsWith(cwd + path.sep);
     }
     
     return true; // Moderate mode allows most paths except dangerous ones
