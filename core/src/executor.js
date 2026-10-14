@@ -36,7 +36,8 @@ const { RexxInterpreter } = require('./interpreter');
  * @param {Array<string>} args - Optional command line arguments for PARSE ARG
  * @param {string} scriptPath - Optional path to the script file (for path resolution)
  * @param {Object} outputHandler - Optional output handler for SAY statements
- * @returns {Promise<Interpreter>} The interpreter instance after execution
+ * @returns {Promise<Interpreter>} The interpreter instance after execution;
+ *   its exitCode is EXIT's code, or 0 when the script ran to its end
  */
 async function executeScript(scriptContent, rpcClient, args = [], scriptPath = null, outputHandler = null) {
   const commands = parse(scriptContent);
@@ -79,7 +80,10 @@ async function executeScript(scriptContent, rpcClient, args = [], scriptPath = n
   interpreter.argv = args;
 
   // Pass scriptPath to run() as sourceFilename for path resolution
-  await interpreter.run(commands, null, scriptPath);
+  const result = await interpreter.run(commands, null, scriptPath);
+  // EXIT's code (run() gives it when EXIT ended the script), else 0
+  interpreter.exitCode = result && result.terminated && Number.isFinite(Number(result.exitCode))
+    ? Number(result.exitCode) : 0;
   return interpreter;
 }
 

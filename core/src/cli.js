@@ -206,6 +206,9 @@ async function main() {
     }
 
     const interpreter = await executeScript(scriptContent, addressSender, positional, scriptPath, outputHandler);
+    // The script's EXIT code is the process's (set, not process.exit(), so
+    // pending output is written first)
+    process.exitCode = interpreter.exitCode;
 
     if (verbose) {
       console.log('');
