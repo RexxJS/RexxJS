@@ -24,6 +24,9 @@ describe('Claude ADDRESS Library - Basic Functionality', () => {
       send: jest.fn().mockResolvedValue('mock response')
     };
     interpreter = new Interpreter(mockRpcClient);
+    // The inline scripts' REQUIRE "./claude-address.js" resolves against a
+    // script beside the library, in src/
+    interpreter.scriptPath = require('path').join(__dirname, 'src', 'spec.rexx');
     
     // Mock fetch globally
     global.fetch = jest.fn().mockResolvedValue({

@@ -14,6 +14,9 @@ describe('Claude ADDRESS Library - CHECKPOINT Functionality', () => {
   
   beforeEach(() => {
     interpreter = new Interpreter();
+    // The inline scripts' REQUIRE "./claude-address.js" resolves against a
+    // script beside the library, in src/
+    interpreter.scriptPath = require('path').join(__dirname, 'src', 'spec.rexx');
     originalEnv = process.env.ANTHROPIC_API_KEY;
     process.env.ANTHROPIC_API_KEY = 'test-api-key-for-testing';
   });

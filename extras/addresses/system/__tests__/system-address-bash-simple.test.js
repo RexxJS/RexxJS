@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Load the system address handler
-const source = fs.readFileSync(path.join(__dirname, '../system-address.js'), 'utf8');
+const source = fs.readFileSync(path.join(__dirname, '../src/system-address.js'), 'utf8');
 eval(source);
 
 describe('System ADDRESS bash shell (debug)', () => {

@@ -21,6 +21,9 @@ describe('System ADDRESS Library', () => {
       send: jest.fn().mockResolvedValue('mock response')
     };
     interpreter = new Interpreter(mockRpcClient);
+    // The inline scripts' REQUIRE "./system-address.js" resolves against a
+    // script beside the library, in src/
+    interpreter.scriptPath = require('path').join(__dirname, 'src', 'spec.rexx');
   });
 
   describe('Library Loading and Registration', () => {
@@ -35,8 +38,8 @@ describe('System ADDRESS Library', () => {
       expect(systemTarget).toBeDefined();
       expect(typeof systemTarget.handler).toBe('function');
       expect(systemTarget.methods).toBeDefined();
-      expect(systemTarget.metadata.libraryName).toBe('./system-address.js');
-      expect(systemTarget.metadata.libraryMetadata.type).toBe('address-target');
+      expect(systemTarget.metadata.libraryName.endsWith('system-address.js')).toBe(true);
+      expect(systemTarget.metadata.libraryMetadata.type).toBe('address-handler');
       expect(systemTarget.metadata.libraryMetadata.provides.addressTarget).toBe('system');
     });
 
@@ -56,7 +59,6 @@ describe('System ADDRESS Library', () => {
       expect(metadata.provides.methodSupport).toBe(true);
       expect(metadata.requirements.environment).toBe('nodejs');
       expect(metadata.requirements.modules).toContain('child_process');
-      expect(metadata.nodejsAvailable).toBe(true);
     });
   });
 

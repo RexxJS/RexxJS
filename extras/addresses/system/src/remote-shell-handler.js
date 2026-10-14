@@ -14,7 +14,7 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const { interpolateMessage, logActivity } = require('../../../core/src/address-handler-utils');
+const { interpolateMessage, logActivity } = require('../../../../core/src/address-handler-utils');
 
 // Helper function for logging
 function log(operation, details) {

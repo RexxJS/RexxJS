@@ -18,7 +18,7 @@ jest.mock('../remote-shell-handler');
 jest.mock('../podman-handler');
 
 // Import after mocking
-const DeploymentOrchestrator = require('../deployment-orchestrator');
+const DeploymentOrchestrator = require('../src/deployment-orchestrator');
 
 describe('Deployment Orchestrator Remote REQUIRE', () => {
   let orchestrator;

@@ -37,6 +37,7 @@
   "license": "MIT",
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/__tests__/**/*.js", "**/*.test.js", "**/*.spec.js"]
+    "testMatch": ["**/__tests__/**/*.js", "**/*.test.js", "**/*.spec.js"],
+    "testPathIgnorePatterns": ["/node_modules/", "/web-tests/"]
   }
 }

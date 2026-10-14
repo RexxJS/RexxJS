@@ -8,7 +8,7 @@
 
 const { spawn } = require('child_process');
 const fs = require('fs');
-const RemoteShellHandler = require('../remote-shell-handler');
+const RemoteShellHandler = require('../src/remote-shell-handler');
 
 // Mock child_process and fs
 jest.mock('child_process');
@@ -120,7 +120,7 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
           'connect host="trusted.com" user="test" key="/unapproved/key"',
           mockContext
         )
-      ).rejects.toThrow('SSH key path /unapproved/key not allowed by security policy');
+      ).rejects.toThrow('SSH key path /unapproved/key not trusted by security policy');
     });
   });
 

@@ -1,4 +1,4 @@
-const NspawnPostConfigHandler = require('../nspawn-post-config');
+const NspawnPostConfigHandler = require('../src/nspawn-post-config');
 
 describe('systemd-nspawn Post-Configuration Handler - Simple Tests', () => {
   let nspawnPostConfig;
