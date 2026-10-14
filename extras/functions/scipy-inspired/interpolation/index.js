@@ -1,6 +1,6 @@
 /* Copyright (c) 2025 Paul Hammant ... Licensed under the MIT License */
 
-const spInterpolationFunctions = require('./sp-interpolation-functions');
+const spInterpolationFunctions = require('./src/sp-interpolation-functions');
 
 const interpolationFunctions = {
   ...spInterpolationFunctions.spInterpolationFunctions

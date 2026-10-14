@@ -1,4 +1,4 @@
-const excelFunctions = require('./excel-functions');
+const excelFunctions = require('../src/excel-functions');
 
 describe('Excel Functions', () => {
   const table = [['Name', 'Age', 'City'], ['John', 30, 'New York'], ['Jane', 25, 'London'], ['Bob', 40, 'Paris']];

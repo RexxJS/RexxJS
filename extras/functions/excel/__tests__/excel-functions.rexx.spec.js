@@ -1,11 +1,11 @@
 const path = require('path');
 
 // Import the Rexx interpreter from core
-const { RexxInterpreter } = require('../../../core/src/interpreter');
-const { parse } = require('../../../core/src/parser');
+const { RexxInterpreter } = require('../../../../core/src/interpreter');
+const { parse } = require('../../../../core/src/parser');
 
 // Import the function module for direct registration  
-const excelFunctions = require('./excel-functions');
+const excelFunctions = require('../src/excel-functions');
 
 describe('Excel Functions - Rexx Integration Tests', () => {
   let interpreter;

@@ -8,18 +8,19 @@ describe('Excel Function Parameter Requirements', () => {
 
   beforeEach(() => {
     // Use require for CommonJS module
-    const { Interpreter } = require('../../../core/src/interpreter.js');
-    const { parse: parseFunc } = require('../../../core/src/parser.js');
+    const { Interpreter } = require('../../../../core/src/interpreter.js');
+    const { parse: parseFunc } = require('../../../../core/src/parser.js');
     
     parse = parseFunc;
     interpreter = new Interpreter();
     
     // Load Excel functions
-    const excelFunctions = require('./src/excel-functions.js');
+    const excelFunctions = require('../src/excel-functions.js');
     // Remove metadata functions and only add actual Excel functions
     const actualFunctions = { ...excelFunctions };
     delete actualFunctions.EXCEL_FUNCTIONS_MAIN;
-    Object.assign(interpreter.operations, actualFunctions);
+    // As built-in functions: they take positional arguments
+    Object.assign(interpreter.builtInFunctions, actualFunctions);
   });
 
   test('VLOOKUP without parameters should throw clear error', async () => {
@@ -41,10 +42,9 @@ describe('Excel Function Parameter Requirements', () => {
     await expect(interpreter.run(parse(script))).rejects.toThrow('Function SUM is not available');
   });
 
-  test('IF function not available in Excel library', async () => {
-    const script = `result = IF`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('Function IF is not available');
+  test('IF, which the Excel library has too, works with it loaded', async () => {
+    await interpreter.run(parse('result = IF(1 > 0, "yes", "no")'));
+    expect(interpreter.getVariable('result')).toBe('yes');
   });
 
   test('TODAY without parameters should work (parameterless function)', async () => {

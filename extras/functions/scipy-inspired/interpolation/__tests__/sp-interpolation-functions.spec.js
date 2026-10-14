@@ -4,7 +4,7 @@
  * Test suite for SciPy-inspired Interpolation Functions
  */
 
-const { spInterpolationFunctions } = require('./sp-interpolation-functions');
+const { spInterpolationFunctions } = require('../src/sp-interpolation-functions');
 
 describe('SciPy Interpolation Functions', () => {
   
