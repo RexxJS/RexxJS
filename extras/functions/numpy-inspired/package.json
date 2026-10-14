@@ -4,7 +4,7 @@
   "description": "Tiny NumPy-inspired array creation and manipulation helpers (pure JS) for the rexxjs monorepo",
   "main": "index.js",
   "scripts": {
-    "test": "node --experimental-vm-modules ../../../node_modules/jest/bin/jest.js --runInBand"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand"
   },
   "keywords": [
     "numpy",
@@ -15,7 +15,7 @@
   "author": "paul-hammant",
   "license": "MIT",
   "dependencies": {
-    "canvas": "^2.11.2"
+    "canvas": "^3.2.0"
   },
   "devDependencies": {
     "jest": "^29.0.0"

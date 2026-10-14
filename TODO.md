@@ -41,3 +41,24 @@ DOWN: PROCEDURE
    for "no such variable" and falls back to the name.
 
 Seen in `core/src` at `d27c738`.
+
+## numpy-inspired functions called with no arguments give a value
+
+Found 2026-10-14, when `extras/functions/numpy-inspired/__tests__/
+parameter-requirement.spec.js` first loaded (its paths had been one level
+short). Registered as built-in functions and called with no arguments,
+they return something instead of NumPy's error for a missing argument:
+
+```rexx
+SAY ZEROS()     /* 0, where NumPy raises: missing 'shape' */
+SAY ONES()      /* 1 */
+SAY ARANGE()    /* 0,1,...,9: as if called with 10 */
+SAY SUM()       /* nothing */
+```
+
+`zeros()` itself, given `undefined`, returns `[]`, so something in calling
+a built-in with no parameters supplies an argument (`callConvertParamsToArgs`
+is the place to look). `MATMUL()` fails, but on reading an undefined's
+`length`. `ARRAY()` now throws "array() needs an object to make an array
+of", as NumPy's does; the spec's other eleven are skipped until each
+function checks its required argument.

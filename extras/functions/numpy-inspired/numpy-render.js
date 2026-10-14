@@ -697,7 +697,10 @@ function saveCanvas(canvas, output, defaultName) {
     if (typeof document === 'undefined' && output.includes('.')) {
         // Node.js file save
         const fs = require('fs');
+        const path = require('path');
         const buffer = canvas.toBuffer('image/png');
+        // The folder may not be there yet (./images, by default)
+        fs.mkdirSync(path.dirname(output), { recursive: true });
         fs.writeFileSync(output, buffer);
         return output;
     } else if (typeof document !== 'undefined') {

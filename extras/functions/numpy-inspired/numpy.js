@@ -52,6 +52,8 @@ function deepClone(a) {
 }
 
 function array(input) {
+  // As NumPy's array(), which needs the object to make an array of
+  if (input === undefined) throw new Error('array() needs an object to make an array of');
   return deepClone(input);
 }
 function asarray(input) { return array(input); }

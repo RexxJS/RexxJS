@@ -155,7 +155,7 @@ describe('NumPy-inspired Functions - Rexx Integration Tests', () => {
 
   test('should handle array operations through Rexx interpreter', async () => {
     const rexxCode = `
-      LET data = "[1, 2, 3, 4, 5]"
+      LET data = JSON_PARSE text="[1, 2, 3, 4, 5]"
       LET sumResult = SUM a=data
       LET prodResult = PROD a=data
       LET cumsumResult = CUMSUM a=data
