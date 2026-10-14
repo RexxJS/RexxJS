@@ -41,7 +41,20 @@ describe('Remote Shell Handler - Mock SSH/SCP Tests', () => {
       kill: jest.fn()
     };
 
-    spawn.mockReturnValue(mockProcess);
+    // The handler checks a connection first (ssh ... echo connection_test):
+    // that probe answers as a reachable host would; every other spawn is
+    // the test's mockProcess
+    spawn.mockImplementation((cmd, args = []) => {
+      if (cmd === 'ssh' && args.includes('connection_test')) {
+        return {
+          stdout: { on: (event, cb) => { if (event === 'data') setImmediate(() => cb(Buffer.from('connection_test\n'))); } },
+          stderr: { on: () => {} },
+          on: (event, cb) => { if (event === 'close') setImmediate(() => setImmediate(() => cb(0))); },
+          kill: () => {}
+        };
+      }
+      return mockProcess;
+    });
 
     // Setup fs mocks
     fs.existsSync.mockReturnValue(true);
