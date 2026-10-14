@@ -7,7 +7,7 @@ if (typeof window !== 'undefined' && !window.rexxModuleRegistry) {
 }
 
 // Conditional loading for Node.js/browser compatibility
-let parseQuotedParts, interpolateString, evaluateConcatenation;
+let parseQuotedParts, interpolateString, evaluateConcatenation, isSingleLiteral, unquoteLiteral;
 let compareValues, isTruthy, isLikelyFunctionName, isNumericString, basicBase64Encode, basicBase64Decode;
 let executionContextUtils;
 let variableStackUtils;
@@ -47,6 +47,8 @@ if (typeof require !== 'undefined') {
   parseQuotedParts = stringProcessing.parseQuotedParts;
   interpolateString = stringProcessing.interpolateString;
   evaluateConcatenation = stringProcessing.evaluateConcatenation;
+  isSingleLiteral = stringProcessing.isSingleLiteral;
+  unquoteLiteral = stringProcessing.unquoteLiteral;
   
   const evaluationUtils = require('./interpreter-evaluation-utilities.js');
   compareValues = evaluationUtils.compareValues;
@@ -99,6 +101,8 @@ if (typeof require !== 'undefined') {
     parseQuotedParts = stringProcessing.parseQuotedParts;
     interpolateString = stringProcessing.interpolateString;
     evaluateConcatenation = stringProcessing.evaluateConcatenation;
+    isSingleLiteral = stringProcessing.isSingleLiteral;
+    unquoteLiteral = stringProcessing.unquoteLiteral;
     
     // Set up window globals for backward compatibility
     window.parseQuotedParts = parseQuotedParts;
@@ -1970,9 +1974,9 @@ class RexxInterpreter {
     const parts = parseQuotedParts(expression);
     
     for (const part of parts) {
-      if (part.startsWith('"') && part.endsWith('"')) {
+      if (isSingleLiteral(part) && part[0] === '"') {
         // Handle quoted string with potential interpolation
-        let rawString = part.substring(1, part.length - 1);
+        let rawString = unquoteLiteral(part);
         // Check for interpolation using current pattern
         let pattern;
         try {
@@ -1993,9 +1997,9 @@ class RexxInterpreter {
           }
           outputParts.push(rawString);
         }
-      } else if (part.startsWith("'") && part.endsWith("'")) {
+      } else if (isSingleLiteral(part)) {
         // Single quoted string (no interpolation)
-        outputParts.push(part.substring(1, part.length - 1));
+        outputParts.push(unquoteLiteral(part));
       } else {
         // Variable reference or literal
         const resolved = await this.resolveValue(part);

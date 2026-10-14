@@ -3688,7 +3688,7 @@ describe('Rexx-lite Interpreter', () => {
 
       it('should handle array filter and map (simplified)', async () => {
         const script = `
-          LET mixed = "[1, null, 2, \"\", 3, 0, 4]"
+          LET mixed = '[1, null, 2, \"\", 3, 0, 4]'
           LET filtered = ARRAY_FILTER array=mixed
           LET mapped = ARRAY_MAP array=mixed
         `;

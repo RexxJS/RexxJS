@@ -30,7 +30,7 @@ describe('ARRAY_FILTER Enhancement', () => {
 
     test('should handle basic filtering (via Rexx interpreter)', async () => {
       const script = `
-        LET mixed = "[1, null, 2, \"\", 3, 0, 4]"
+        LET mixed = '[1, null, 2, \"\", 3, 0, 4]'
         LET filtered = ARRAY_FILTER array=mixed
       `;
       

@@ -26,6 +26,27 @@
  * SOFTWARE.
  */
 
+// True when `text` is exactly one quoted literal, '...' or "...", in which a
+// doubled quote of its own kind stands for one quote ('it''s').
+function isSingleLiteral(text) {
+  const q = text[0];
+  if ((q !== '"' && q !== "'") || text.length < 2 || text[text.length - 1] !== q) return false;
+  for (let i = 1; i < text.length - 1; i++) {
+    if (text[i] === q) {
+      if (text[i + 1] !== q || i + 1 === text.length - 1) return false;
+      i++;
+    }
+  }
+  return true;
+}
+
+// A quoted literal's text, as classic REXX reads it: the quotes removed, and
+// a doubled quote of the same kind made one ('it''s' is it's).
+function unquoteLiteral(literal) {
+  const q = literal[0];
+  return literal.substring(1, literal.length - 1).split(q + q).join(q);
+}
+
 // Helper function to remove comments while preserving strings
 function removeCommentsPreservingStrings(line) {
   let result = '';
@@ -974,7 +995,7 @@ function parseStatement(tokens, startIndex) {
     
     // Check if it's a quoted string that might need interpolation
     if ((expression.startsWith('"') && expression.endsWith('"')) || (expression.startsWith("'") && expression.endsWith("'"))) {
-      const rawString = expression.substring(1, expression.length - 1);
+      const rawString = isSingleLiteral(expression) ? unquoteLiteral(expression) : expression.substring(1, expression.length - 1);
       
       // Check for interpolation markers {variableName} or empty {} - must match variable pattern or be empty
       if (rawString.match(/\{[a-zA-Z_][a-zA-Z0-9_.]*\}/) || rawString.includes('{}')) {
@@ -1256,7 +1277,8 @@ function parseStatement(tokens, startIndex) {
     return {
       command: {
         type: 'QUOTED_STRING',
-        value: quotedStringMatch[2]  // String content without quotes
+        // String content without quotes (a doubled quote made one)
+        value: isSingleLiteral(line) ? unquoteLiteral(line) : quotedStringMatch[2]
       },
       nextIndex: startIndex + 1
     };
@@ -1270,7 +1292,7 @@ function parseStatement(tokens, startIndex) {
     
     // Check if it's a quoted string
     if (expression.match(/^(['"`]).*\1$/)) {
-      const rawString = expression.substring(1, expression.length - 1);
+      const rawString = isSingleLiteral(expression) ? unquoteLiteral(expression) : expression.substring(1, expression.length - 1);
       return {
         command: addLineNumber({
           type: 'ASSIGNMENT',
@@ -2426,14 +2448,19 @@ function parseFactor(expr) {
     const quoteChar = expr[0];
     let endIndex = 1;
 
-    // Find the closing quote
-    while (endIndex < expr.length && expr[endIndex] !== quoteChar) {
+    // Find the closing quote; a doubled quote is one quote of the string's
+    let stringValue = '';
+    while (endIndex < expr.length) {
+      if (expr[endIndex] === quoteChar) {
+        if (expr[endIndex + 1] !== quoteChar) break;
+        endIndex++;
+      }
+      stringValue += expr[endIndex];
       endIndex++;
     }
 
     if (endIndex < expr.length && expr[endIndex] === quoteChar) {
       // Found closing quote
-      const stringValue = expr.substring(1, endIndex);
       return {
         expr: {
           type: 'LITERAL',

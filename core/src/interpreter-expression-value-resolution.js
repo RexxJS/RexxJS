@@ -87,6 +87,14 @@ async function resolveValue(value, variableGetFn, variableHasFn, evaluateExpress
     if ((value.startsWith("'") && value.endsWith("'")) || 
         (value.startsWith('"') && value.endsWith('"'))) {
       let unquoted = value.substring(1, value.length - 1);
+      // A doubled quote of the literal's own kind is one quote ('a''b' is
+      // a'b), when the whole value is that one literal (as
+      // isSingleLiteral in interpreter-string-and-expression-processing.js;
+      // repeated here, as this module loads on its own in a browser)
+      const q = value[0];
+      if (!unquoted.split(q + q).join('').includes(q)) {
+        unquoted = unquoted.split(q + q).join(q);
+      }
       // Process escape sequences
       unquoted = unquoted.replace(/\\n/g, '\n');
       unquoted = unquoted.replace(/\\t/g, '\t');
