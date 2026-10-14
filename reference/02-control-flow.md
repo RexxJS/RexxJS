@@ -24,6 +24,34 @@ ELSE
 ENDIF
 ```
 
+### IF ... THEN ... ELSE, as standard Rexx writes it
+
+One instruction after THEN, and one after ELSE (on the next line, or after
+a `;`); DO ... END makes a block of either. ELSE IF chains.
+
+```rexx
+IF n < 2 THEN SAY "small"
+ELSE SAY "large"
+
+IF n < 2 THEN SAY "small"
+ELSE IF n < 10 THEN SAY "medium"
+ELSE DO
+  SAY "large"
+  LET big = 1
+END
+
+IF n < 2 THEN LET r = 1; ELSE LET r = n * 2
+```
+
+A bare `ELSE` on its own line belongs to the `IF ... THEN` / `ELSE` /
+`ENDIF` form above.
+
+### Clauses: `;`
+
+A `;` ends a clause, as a line end does, so several fit on one line:
+`LET a = 1; LET b = 2`. One inside quotes or brackets is not a separator,
+and a trailing `;` is allowed.
+
 ### Comparison Operators
 
 **All Supported Comparison Operators:**

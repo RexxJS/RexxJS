@@ -18,6 +18,11 @@ LET weather = IF condition=(temperature>80) trueValue="Hot" falseValue=IF(condit
 SAY "Weather assessment: " || weather
 ```
 
+`IF(condition, a, b)`, its arguments by position, works out only the value
+it gives, as a spreadsheet's IF does: the branch not taken is never worked
+out, so a function can call itself in one, `IF(n < 2, 1, n * FACT(n - 1))`.
+(With named parameters, all three are worked out.)
+
 ### AND Function - Multiple Conditions
 ```rexx
 -- Multiple condition AND logic

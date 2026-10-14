@@ -464,7 +464,14 @@ async function evaluateExpression(expr, resolveValueFn, variableGetFn, variableH
       const method = expr.command.toUpperCase();
       if (isBuiltinFunctionFn(method)) {
         const resolvedParams = {};
+        // IF(condition, a, b) works out only the value it gives (as in
+        // interpreter-function-execution): IF(n < 2, 1, n * FACT(n - 1)) stops.
+        const lazyIf = method === 'IF' && Object.keys(expr.params).every(key => key === 'value' || /^arg[23]$/.test(key));
         for (const [key, value] of Object.entries(expr.params)) {
+          if (lazyIf && key !== 'value' && key !== (resolvedParams.value ? 'arg2' : 'arg3')) {
+            resolvedParams[key] = '';
+            continue;
+          }
           resolvedParams[key] = await resolveValueFn(value);
         }
         const builtInFunc = getBuiltinFunctionFn(method);

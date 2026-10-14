@@ -86,7 +86,16 @@ async function executeFunctionCall(funcCall, context) {
       console.log(`Executing ${method} with params:`, funcCall.params);
     }
 
+    // IF(condition, a, b) works out only the value it gives, as a
+    // spreadsheet's IF does, so a function that calls itself can stop:
+    // IF(n < 2, 1, n * FACT(n - 1)). (Its arguments by position only.)
+    const lazyIf = method === 'IF' && funcCall.params
+      && Object.keys(funcCall.params).every(key => key === 'value' || /^arg[23]$/.test(key));
     for (const [key, value] of Object.entries(funcCall.params || {})) {
+      if (lazyIf && key !== 'value' && key !== (resolvedParams.value ? 'arg2' : 'arg3')) {
+        resolvedParams[key] = '';
+        continue;
+      }
       const resolved = await resolveValueFn(value);
       resolvedParams[key] = resolved;
       if (method.startsWith('DOM_')) {

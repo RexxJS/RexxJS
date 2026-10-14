@@ -235,15 +235,47 @@ function tokenize(lines) {
       
       i = j; // Skip to after the heredoc end delimiter
     } else {
-      tokens.push({
-        type: 'LINE',
-        content: line,
-        lineNumber: i + 1
-      });
+      // A ';' ends a clause, as a line end does (Rexx's clause separator):
+      // IF n < 2 THEN SAY 'small'; ELSE SAY 'large'
+      for (const clause of splitClauses(line)) {
+        tokens.push({
+          type: 'LINE',
+          content: clause,
+          lineNumber: i + 1
+        });
+      }
     }
   }
   
   return tokens;
+}
+
+// A line's clauses: split at each ';' outside quotes and brackets (a string,
+// a function's arguments, an array or a JavaScript block keeps its own), with
+// empty clauses dropped (a trailing ';').
+function splitClauses(line) {
+  // EXIT ... UNLESS cond; 'message' is a comma mistyped: left whole, for its
+  // own error to say so.
+  if (!line.includes(';') || /^EXIT\b.*\bUNLESS\b/i.test(line)) return [line];
+  const clauses = [];
+  let quote = '', depth = 0, from = 0;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote) {
+      if (c === quote) quote = '';
+    } else if (c === '"' || c === "'" || c === '`') {
+      quote = c;
+    } else if (c === '(' || c === '[' || c === '{') {
+      depth++;
+    } else if ((c === ')' || c === ']' || c === '}') && depth > 0) {
+      depth--;
+    } else if (c === ';' && depth === 0) {
+      clauses.push(line.slice(from, i).trim());
+      from = i + 1;
+    }
+  }
+  clauses.push(line.slice(from).trim());
+  return clauses.filter(clause => clause !== '');
 }
 
 function parseTokens(tokens) {
@@ -1301,16 +1333,51 @@ function parseSingleLineIfStatement(tokens, startIndex, match) {
   
   const thenResult = parseStatement(thenTokens, 0);
   const thenCommands = thenResult.command ? [thenResult.command] : [];
-  
+
+  // An ELSE clause after it (the next line, or after a ';').
+  const elseResult = isElseClause(tokens, startIndex + 1) ? parseElseClause(tokens, startIndex + 1) : { commands: [], nextIndex: startIndex + 1 };
+
   return {
     command: addLineNumber({
       type: 'IF',
       condition: condition,
       thenCommands: thenCommands,
-      elseCommands: []
+      elseCommands: elseResult.commands
     }, tokens[startIndex]),
-    nextIndex: startIndex + 1
+    nextIndex: elseResult.nextIndex
   };
+}
+
+// Whether the token at `index` is an ELSE clause with its instruction:
+// ELSE instruction, ELSE DO, ELSE IF ... (a bare ELSE belongs to the
+// IF ... THEN ... ELSE ... ENDIF block form).
+function isElseClause(tokens, index) {
+  return index < tokens.length && /^ELSE\s+\S/i.test(tokens[index].content);
+}
+
+// An ELSE clause's commands, and the index after it: ELSE DO ... END, ELSE
+// IF ... (an IF of any form), or ELSE and one instruction.
+function parseElseClause(tokens, index) {
+  const token = tokens[index];
+  const rest = token.content.replace(/^ELSE\s+/i, '');
+  if (/^DO\s*$/i.test(rest)) {
+    const commands = [];
+    let i = index + 1;
+    while (i < tokens.length && !/^END\s*$/i.test(tokens[i].content)) {
+      const result = parseStatement(tokens, i);
+      if (result.command) commands.push(result.command);
+      i = result.nextIndex;
+    }
+    if (i >= tokens.length) {
+      throw new Error(`Missing END for ELSE DO at line ${token.lineNumber}`);
+    }
+    return { commands, nextIndex: i + 1 };
+  }
+  // The rest of the clause as a statement of its own, which may go on over
+  // the tokens after it (an IF ... THEN DO ... END, an ELSE of its own).
+  const following = [{ ...token, content: rest }, ...tokens.slice(index + 1)];
+  const result = parseStatement(following, 0);
+  return { commands: result.command ? [result.command] : [], nextIndex: index + result.nextIndex };
 }
 
 function parseIfStatement(tokens, startIndex) {
@@ -1350,8 +1417,16 @@ function parseIfStatement(tokens, startIndex) {
     let elseCommands = [];
     let nextIndex = currentIndex + 1;  // Skip past END
 
+    // ELSE and one instruction (ELSE SAY 'no'), or ELSE IF of the single-line
+    // form; ELSE IF ... THEN DO and ELSE DO as before.
+    if (isElseClause(tokens, nextIndex) && !/^ELSE\s+DO\s*$/i.test(tokens[nextIndex].content)
+        && !/^ELSE\s+IF\s+.+?\s+THEN(?:\s+DO)?\s*$/i.test(tokens[nextIndex].content)) {
+      const elseResult = parseElseClause(tokens, nextIndex);
+      elseCommands = elseResult.commands;
+      nextIndex = elseResult.nextIndex;
+    }
     // Check for ELSE IF first (must come before ELSE DO check)
-    if (nextIndex < tokens.length && tokens[nextIndex].content.match(/^ELSE\s+IF\s+/i)) {
+    else if (nextIndex < tokens.length && tokens[nextIndex].content.match(/^ELSE\s+IF\s+/i)) {
       // Found ELSE IF, parse it as a nested IF statement in the else branch
       // Create a modified token that starts with IF instead of ELSE IF
       const elseIfLine = tokens[nextIndex].content.replace(/^ELSE\s+IF\s+/i, 'IF ');
