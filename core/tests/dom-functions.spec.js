@@ -236,7 +236,7 @@ describe('DOM Functions - ELEMENT()', () => {
       const start = Date.now();
       await element({ selector: 'sleep', arg3: 100 });
       const end = Date.now();
-      expect(end - start).toBeGreaterThanOrEqual(100);
+      expect(end - start).toBeGreaterThanOrEqual(95); // A timer may fire a few ms early by Date.now()
     });
   });
 });
