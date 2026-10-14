@@ -28,30 +28,15 @@ extract_jest_stats() {
   local module_path="$3"
   local temp_file="$4"
   
-  # Extract test suites from Jest output
-  local suites_line=$(echo "$output" | grep -E "Test Suites:" | tail -1)
-  local passed_suites=0
-  local failed_suites=0
-  
-  if [[ "$suites_line" =~ Test\ Suites:\ ([0-9]+)\ passed ]]; then
-    passed_suites=${BASH_REMATCH[1]}
-  elif [[ "$suites_line" =~ Test\ Suites:\ ([0-9]+)\ failed,\ ([0-9]+)\ passed ]]; then
-    failed_suites=${BASH_REMATCH[1]}
-    passed_suites=${BASH_REMATCH[2]}
-  fi
-  
-  # Extract tests from Jest output
-  local tests_line=$(echo "$output" | grep -E "Tests:" | tail -1)
-  local passed_tests=0
-  local failed_tests=0
-  
-  if [[ "$tests_line" =~ Tests:\ +([0-9]+)\ passed ]]; then
-    passed_tests=${BASH_REMATCH[1]}
-  elif [[ "$tests_line" =~ Tests:\ +([0-9]+)\ failed,\ ([0-9]+)\ passed ]]; then
-    failed_tests=${BASH_REMATCH[1]}
-    passed_tests=${BASH_REMATCH[2]}
-  fi
-  
+  # Extract suite and test counts from Jest's summary lines, each count on
+  # its own: "Tests: 2 failed, 20 skipped, 2520 passed, 2542 total"
+  local suites_line=$(echo "$output" | grep -E "^Test Suites:" | tail -1)
+  local tests_line=$(echo "$output" | grep -E "^Tests:" | tail -1)
+  local passed_suites=$(echo "$suites_line" | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+")
+  local failed_suites=$(echo "$suites_line" | grep -oE "[0-9]+ failed" | grep -oE "[0-9]+")
+  local passed_tests=$(echo "$tests_line" | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+")
+  local failed_tests=$(echo "$tests_line" | grep -oE "[0-9]+ failed" | grep -oE "[0-9]+")
+
   # Extract duration from Jest output
   local duration_line=$(echo "$output" | grep -E "Time:" | tail -1)
   local duration=""
@@ -73,9 +58,18 @@ extract_jest_stats() {
   TOTAL_JEST_PASSED=$((TOTAL_JEST_PASSED + passed_tests))
   TOTAL_JEST_FAILED=$((TOTAL_JEST_FAILED + failed_tests))
   
-  # Output temp file content if there were failures
-  if [ "$failed_tests" -gt 0 ] && [ -f "$temp_file" ]; then
+  # Show the failures (Jest's summary of failing tests when it gives one,
+  # else everything), or the whole output when Jest failed with no counts
+  # (a suite that could not load, a missing module)
+  if [ -f "$temp_file" ] && { [ "$failed_tests" -gt 0 ] || [ "$failed_suites" -gt 0 ]; }; then
     echo "❌ Test failures in $module:"
+    if grep -q "Summary of all failing tests" "$temp_file"; then
+      sed -n '/Summary of all failing tests/,$p' "$temp_file"
+    else
+      cat "$temp_file"
+    fi
+  elif [ -f "$temp_file" ] && [ -z "$tests_line" ] && grep -qE "FAIL|Error" "$temp_file"; then
+    echo "❌ $module: Jest gave no summary:"
     cat "$temp_file"
   fi
   
@@ -94,9 +88,9 @@ extract_rexxt_stats() {
   local temp_file="$4"
   
   # Extract files, tests, and expectations from rexxt summary
-  local files=$(echo "$output" | grep "test sources executed" | sed -E 's/.*([0-9]+) test sources executed.*/\1/' | tail -1)
-  local tests=$(echo "$output" | grep -E "[0-9]+ tests" | sed -E 's/.*([0-9]+) tests.*/\1/' | tail -1)
-  local expectations=$(echo "$output" | grep "expectations executed" | sed -E 's/.*([0-9]+) expectations executed.*/\1/' | tail -1)
+  local files=$(echo "$output" | grep -oE "[0-9]+ test sources executed" | tail -1 | grep -oE "^[0-9]+")
+  local tests=$(echo "$output" | grep -oE "[0-9]+ tests" | tail -1 | grep -oE "^[0-9]+")
+  local expectations=$(echo "$output" | grep -oE "[0-9]+ expectations executed" | tail -1 | grep -oE "^[0-9]+")
   
   files=${files:-0}
   tests=${tests:-0}

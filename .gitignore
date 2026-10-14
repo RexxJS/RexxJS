@@ -30,3 +30,6 @@ examples/spreadsheet-poc/rexxsheet-static
 *.log
 *.LICENSE.txt
 package-lock.json
+
+# Modules a test fetches at run time (REQUIRE of sqlite3, ...)
+core/.rexxjs-modules/
