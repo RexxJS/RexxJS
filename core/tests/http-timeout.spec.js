@@ -37,7 +37,8 @@ describe('HTTP_GET timeout', () => {
     expect(result.ok).toBe(false);
     expect(result.error).toContain('timeout');
     expect(result.error).toContain('2000ms');
-    expect(duration).toBeGreaterThanOrEqual(2000);
+    // A timer may fire a millisecond or so early by Date.now()'s reckoning
+    expect(duration).toBeGreaterThanOrEqual(1990);
     expect(duration).toBeLessThan(2500); // Should timeout quickly, not hang
   });
 
@@ -79,7 +80,8 @@ describe('HTTP_GET timeout', () => {
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain('timeout');
-    expect(duration).toBeGreaterThanOrEqual(30000); // Should be around 30s
+    // Around 30s; a timer may fire a millisecond or so early by Date.now()'s reckoning
+    expect(duration).toBeGreaterThanOrEqual(29990);
     expect(duration).toBeLessThan(31000);
   }, 35000);
 
