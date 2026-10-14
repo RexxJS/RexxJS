@@ -8,6 +8,7 @@ TOTAL_JEST_SUITES=0
 TOTAL_JEST_TESTS=0
 TOTAL_JEST_PASSED=0
 TOTAL_JEST_FAILED=0
+TOTAL_JEST_FAILED_SUITES=0
 TOTAL_REXXT_FILES=0
 TOTAL_REXXT_TESTS=0
 TOTAL_REXXT_EXPECTATIONS=0
@@ -57,6 +58,7 @@ extract_jest_stats() {
   TOTAL_JEST_TESTS=$((TOTAL_JEST_TESTS + total_tests))
   TOTAL_JEST_PASSED=$((TOTAL_JEST_PASSED + passed_tests))
   TOTAL_JEST_FAILED=$((TOTAL_JEST_FAILED + failed_tests))
+  TOTAL_JEST_FAILED_SUITES=$((TOTAL_JEST_FAILED_SUITES + failed_suites))
   
   # Show the failures (Jest's summary of failing tests when it gives one,
   # else everything), or the whole output when Jest failed with no counts
@@ -68,8 +70,9 @@ extract_jest_stats() {
     else
       cat "$temp_file"
     fi
-  elif [ -f "$temp_file" ] && [ -z "$tests_line" ] && grep -qE "FAIL|Error" "$temp_file"; then
-    echo "❌ $module: Jest gave no summary:"
+  elif [ -f "$temp_file" ] && [ -z "$tests_line" ] && grep -qE "Test suite failed to run|Cannot find module" "$temp_file"; then
+    # (not a package whose test script is npm's "no test specified")
+    echo "❌ $module: Jest could not run its suites:"
     cat "$temp_file"
   fi
   
@@ -339,6 +342,7 @@ echo "  Total Test Suites: $TOTAL_JEST_SUITES"
 echo "  Total Tests: $TOTAL_JEST_TESTS"
 echo "  ✅ Passed: $TOTAL_JEST_PASSED"
 echo "  ❌ Failed: $TOTAL_JEST_FAILED"
+echo "  ❌ Suites failed (including any that could not load): $TOTAL_JEST_FAILED_SUITES"
 if [ "$TOTAL_JEST_TESTS" -gt 0 ]; then
   JEST_PASS_RATE=$((TOTAL_JEST_PASSED * 100 / TOTAL_JEST_TESTS))
   echo "  📈 Pass Rate: $JEST_PASS_RATE%"
@@ -395,7 +399,7 @@ fi
 echo "::endgroup::"
 
 # Final status
-if [ "$TOTAL_JEST_FAILED" -eq 0 ] && [ "$TOTAL_PLAYWRIGHT_FAILED" -eq 0 ]; then
+if [ "$TOTAL_JEST_FAILED" -eq 0 ] && [ "$TOTAL_JEST_FAILED_SUITES" -eq 0 ] && [ "$TOTAL_PLAYWRIGHT_FAILED" -eq 0 ]; then
   echo "🎉 All tests passed!"
 
   # Build binary after successful tests
@@ -433,8 +437,8 @@ if [ "$TOTAL_JEST_FAILED" -eq 0 ] && [ "$TOTAL_PLAYWRIGHT_FAILED" -eq 0 ]; then
 else
   TOTAL_FAILURES=$((TOTAL_JEST_FAILED + TOTAL_PLAYWRIGHT_FAILED))
   echo "💥 $TOTAL_FAILURES tests failed"
-  if [ "$TOTAL_JEST_FAILED" -gt 0 ]; then
-    echo "  - Jest: $TOTAL_JEST_FAILED failed"
+  if [ "$TOTAL_JEST_FAILED" -gt 0 ] || [ "$TOTAL_JEST_FAILED_SUITES" -gt 0 ]; then
+    echo "  - Jest: $TOTAL_JEST_FAILED failed, $TOTAL_JEST_FAILED_SUITES suites failed"
   fi
   if [ "$TOTAL_PLAYWRIGHT_FAILED" -gt 0 ]; then
     echo "  - Playwright: $TOTAL_PLAYWRIGHT_FAILED failed"
