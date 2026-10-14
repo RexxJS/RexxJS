@@ -72,7 +72,7 @@ function checks its required argument.
 ## Security: remote-shell-handler puts the working dir in `cd "..."` unescaped
 
 `extras/addresses/system/src/remote-shell-handler.js`, `executeCommand`
-(about line 538): `remoteCommand = \`cd "${options.workingDir}" && ${command}\``.
+(about line 538): ``remoteCommand = `cd "${options.workingDir}" && ${command}` ``.
 A `"` in the working dir ends the quoted string and what follows runs on
 the remote host:
 
