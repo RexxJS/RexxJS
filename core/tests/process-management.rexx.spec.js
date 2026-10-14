@@ -6,6 +6,20 @@
 const { RexxInterpreter } = require('../src/interpreter');
 const { parse } = require('../src/parser');
 
+// A process of the test's own to look for: a node test's own process is
+// not reliably called "node" (npx, jest workers), so PGREP's tests start a
+// sleep and find that.
+const { spawn } = require('child_process');
+const withSleeper = async (fn) => {
+  const sleeper = spawn('sleep', ['300'], { stdio: 'ignore' });
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    return await fn(sleeper.pid);
+  } finally {
+    sleeper.kill();
+  }
+};
+
 describe('Process Management - Rexx Integration Tests', () => {
   let interpreter;
 
@@ -81,20 +95,23 @@ describe('Process Management - Rexx Integration Tests', () => {
 
   describe('PGREP function', () => {
     it('should find processes by name from REXX', async () => {
-      const rexxCode = `
-        LET pids = PGREP(pattern="node")
-        LET count = ARRAY_LENGTH(array=pids)
-        SAY "Found " || count || " node processes"
-      `;
+      await withSleeper(async (pid) => {
+        const rexxCode = `
+          LET pids = PGREP(pattern="sleep")
+          LET count = ARRAY_LENGTH(array=pids)
+          SAY "Found " || count || " sleep processes"
+        `;
 
-      const commands = parse(rexxCode);
-      await interpreter.run(commands);
+        const commands = parse(rexxCode);
+        await interpreter.run(commands);
 
-      const pids = interpreter.getVariable('pids');
-      const count = interpreter.getVariable('count');
+        const pids = interpreter.getVariable('pids');
+        const count = interpreter.getVariable('count');
 
-      expect(Array.isArray(pids)).toBe(true);
-      expect(count).toBeGreaterThan(0);
+        expect(Array.isArray(pids)).toBe(true);
+        expect(count).toBeGreaterThan(0);
+        expect(pids).toContain(pid);
+      });
     });
 
     it('should return empty array for non-matching pattern from REXX', async () => {
@@ -123,17 +140,19 @@ describe('Process Management - Rexx Integration Tests', () => {
       expect(typeof count).toBe('number');
     });
 
-    it('should find current process from REXX', async () => {
-      const rexxCode = `
-        LET nodePids = PGREP(pattern="node")
-        LET currentPid = GETPID()
-        LET found = ARRAY_INCLUDES(array=nodePids, value=currentPid)
-      `;
+    it('should find a process the test started from REXX', async () => {
+      await withSleeper(async (pid) => {
+        interpreter.variables.set('sleeperPid', pid);
+        const rexxCode = `
+          LET sleepPids = PGREP(pattern="sleep")
+          LET found = ARRAY_INCLUDES(array=sleepPids, value=sleeperPid)
+        `;
 
-      const commands = parse(rexxCode);
-      await interpreter.run(commands);
+        const commands = parse(rexxCode);
+        await interpreter.run(commands);
 
-      expect(interpreter.getVariable('found')).toBe(true);
+        expect(interpreter.getVariable('found')).toBe(true);
+      });
     });
   });
 
@@ -287,25 +306,27 @@ describe('Process Management - Rexx Integration Tests', () => {
 
   describe('Integration scenarios', () => {
     it('should combine PS and PGREP from REXX', async () => {
-      const rexxCode = `
-        -- Get all processes and node PIDs
-        LET allProcesses = PS()
-        LET nodePids = PGREP(pattern="node")
+      await withSleeper(async () => {
+        const rexxCode = `
+          -- Get all processes and sleep PIDs
+          LET allProcesses = PS()
+          LET sleepPids = PGREP(pattern="sleep")
 
-        -- Verify we found matching processes
-        LET psCount = ARRAY_LENGTH(array=allProcesses)
-        LET pgrepCount = ARRAY_LENGTH(array=nodePids)
+          -- Verify we found matching processes
+          LET psCount = ARRAY_LENGTH(array=allProcesses)
+          LET pgrepCount = ARRAY_LENGTH(array=sleepPids)
 
-        SAY "Found " || psCount || " total processes and " || pgrepCount || " node processes"
-      `;
+          SAY "Found " || psCount || " total processes and " || pgrepCount || " sleep processes"
+        `;
 
-      const commands = parse(rexxCode);
-      await interpreter.run(commands);
+        const commands = parse(rexxCode);
+        await interpreter.run(commands);
 
-      const psCount = interpreter.getVariable('psCount');
-      const pgrepCount = interpreter.getVariable('pgrepCount');
-      expect(psCount).toBeGreaterThan(0);
-      expect(pgrepCount).toBeGreaterThan(0);
+        const psCount = interpreter.getVariable('psCount');
+        const pgrepCount = interpreter.getVariable('pgrepCount');
+        expect(psCount).toBeGreaterThan(0);
+        expect(pgrepCount).toBeGreaterThan(0);
+      });
     });
 
     it('should use TOP to find high CPU processes from REXX', async () => {

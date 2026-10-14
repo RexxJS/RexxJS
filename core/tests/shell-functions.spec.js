@@ -3017,14 +3017,20 @@ describe('Shell-Inspired Functions', () => {
 
         describe('PGREP', () => {
           it('should find process by name pattern', async () => {
-            const script = `
-              LET result = PGREP(pattern="node")
-            `;
-            await interpreter.run(parse(script));
-            const result = interpreter.getVariable('result');
-            expect(Array.isArray(result)).toBe(true);
-            // Should find at least one node process (the test itself)
-            expect(result.length).toBeGreaterThan(0);
+            // A process of the test's own: its own is not reliably "node"
+            const sleeper = require('child_process').spawn('sleep', ['300'], { stdio: 'ignore' });
+            try {
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              const script = `
+                LET result = PGREP(pattern="sleep")
+              `;
+              await interpreter.run(parse(script));
+              const result = interpreter.getVariable('result');
+              expect(Array.isArray(result)).toBe(true);
+              expect(result).toContain(sleeper.pid);
+            } finally {
+              sleeper.kill();
+            }
           });
 
           it('should return array of PIDs', async () => {
