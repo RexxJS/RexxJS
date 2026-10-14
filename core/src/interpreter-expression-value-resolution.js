@@ -484,6 +484,17 @@ async function evaluateExpression(expr, resolveValueFn, variableGetFn, variableH
         }
         const builtInFunc = getBuiltinFunctionFn(method);
 
+        // A function that declares it needs parameters (requiresParameters,
+        // or a required entry in its parameterMetadata), called with none,
+        // says so, as interpreter-function-execution does for a call
+        // statement. Only a declaration counts here: a function with no
+        // metadata (PS(), GETPID()) may well take nothing.
+        if (Object.keys(expr.params || {}).length === 0 && builtInFunc &&
+            (builtInFunc.requiresParameters === true ||
+             (Array.isArray(builtInFunc.parameterMetadata) && builtInFunc.parameterMetadata.some(p => !p.optional)))) {
+          throw new Error(`${expr.command} function requires parameters`);
+        }
+
         // DOM functions receive params object directly
         if (method.startsWith('DOM_')) {
           return await builtInFunc(resolvedParams);

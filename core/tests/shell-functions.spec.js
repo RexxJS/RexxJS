@@ -3456,13 +3456,16 @@ describe('Shell-Inspired Functions', () => {
       });
 
       it('should return loopback interface', async () => {
+        // The loopback's name is the platform's: lo on Linux, lo0 on macOS
+        const nets = require('os').networkInterfaces();
+        const lo = Object.keys(nets).find((n) => nets[n].some((a) => a.internal));
         const script = `
-          LET result = IFCONFIG(interface="lo")
+          LET result = IFCONFIG(interface="${lo}")
         `;
         await interpreter.run(parse(script));
         const result = interpreter.getVariable('result');
         expect(result).toHaveProperty('name');
-        expect(result.name).toBe('lo');
+        expect(result.name).toBe(lo);
         expect(result).toHaveProperty('addresses');
         expect(Array.isArray(result.addresses)).toBe(true);
       });
