@@ -9,10 +9,14 @@
  * Usage:
  *   REQUIRE "claude-address" AS CLAUDE
  *   ADDRESS CLAUDE
- *   "SYSTEM ROLE You are a fiction editor assistant."
- *   chat_id = result
- *   "EDIT PARAGRAPH 1 CHAT" chat_id "TEXT 'It was a dark and stormy night.'"
- *   "END SESSION" chat_id
+ *   <<PROMPT
+ *   system=You are a fiction editor assistant.
+ *   prompt=Tighten this: It was a dark and stormy night.
+ *   PROMPT
+ *   "CLOSE_CHAT"
+ *
+ *   LET cp = checkpoint operation="ANALYZE_CODE" code=sourceCode
+ *   LET poll = wait_for_checkpoint checkpoint_id=cp.checkpointId
  *
  * Environment Variable Required:
  *   ANTHROPIC_API_KEY - Your Anthropic API key
@@ -81,9 +85,13 @@ async function ADDRESS_CLAUDE_HANDLER(commandOrMethod, params, sourceContext) {
     return formatClaudeResultForREXX({
       operation: 'STATUS',
       success: true,
+      service: 'claude',
+      provider: 'Anthropic',
       apiKeyConfigured: !!apiKey,
       hasActiveConversation: !!activeConversation,
       messageCount: messageCount,
+      activeCheckpoints: activeCheckpoints.size,
+      methods: Object.keys(ADDRESS_CLAUDE_METHODS),
       message: statusMessage
     });
   }
@@ -118,8 +126,42 @@ async function ADDRESS_CLAUDE_HANDLER(commandOrMethod, params, sourceContext) {
       });
     }
 
-    // Only heredoc format is supported
-    throw new Error('Claude ADDRESS only supports heredoc format (<<LABEL...LABEL), CLOSE_CHAT, or STATUS command');
+    // Handle CHECKPOINT command string: CHECKPOINT operation=... code="..." format=... timeout=...
+    if (typeof interpolatedCommand === 'string' &&
+        /^\s*CHECKPOINT\s/i.test(interpolatedCommand)) {
+      const checkpointParams = parseCheckpointCommand(interpolatedCommand);
+      const result = await handleCheckpoint(checkpointParams, apiKey);
+      return formatClaudeResultForREXX(result);
+    }
+
+    // Handle WAIT FOR CHECKPOINT command string: WAIT FOR CHECKPOINT <checkpoint_id>
+    if (typeof interpolatedCommand === 'string') {
+      const waitMatch = interpolatedCommand.trim().match(/^WAIT FOR CHECKPOINT ([\w_]+)$/i);
+      if (waitMatch) {
+        const result = await handleCheckpointPoll(waitMatch[1]);
+        return formatClaudeResultForREXX(result);
+      }
+    }
+
+    // Handle checkpoint method calls: checkpoint, wait_for_checkpoint/poll_checkpoint, complete_checkpoint
+    if (typeof interpolatedCommand === 'string') {
+      const methodParams = params || {};
+      switch (interpolatedCommand.trim().toLowerCase()) {
+        case 'checkpoint':
+          return formatClaudeResultForREXX(await handleCheckpoint(methodParams, apiKey));
+
+        case 'wait_for_checkpoint':
+        case 'poll_checkpoint':
+          return formatClaudeResultForREXX(await handleCheckpointPoll(methodParams.checkpoint_id));
+
+        case 'complete_checkpoint':
+          return formatClaudeResultForREXX(await handleCheckpointComplete(methodParams.checkpoint_id, methodParams.result));
+      }
+    }
+
+    throw new Error('Claude ADDRESS only supports heredoc format (<<LABEL...LABEL), CLOSE_CHAT, STATUS, ' +
+      'CHECKPOINT <key=value...>, WAIT FOR CHECKPOINT <id>, or the checkpoint, wait_for_checkpoint, ' +
+      'poll_checkpoint and complete_checkpoint methods');
 
   } catch (error) {
     const formattedError = formatClaudeErrorForREXX(error);
@@ -237,6 +279,24 @@ function getApiKey() {
   }
   
   return null;
+}
+
+// Parse CHECKPOINT command parameters: CHECKPOINT key=value key="quoted value" key='quoted value'
+function parseCheckpointCommand(command) {
+  const params = {};
+  const argText = command.trim().replace(/^CHECKPOINT\s+/i, '');
+  const pairPattern = /(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g;
+  let match;
+
+  while ((match = pairPattern.exec(argText)) !== null) {
+    const [, key, doubleQuoted, singleQuoted, bare] = match;
+    const value = doubleQuoted !== undefined ? doubleQuoted
+      : singleQuoted !== undefined ? singleQuoted
+      : bare;
+    params[key.toLowerCase()] = value;
+  }
+
+  return params;
 }
 
 // Handle CHECKPOINT creation with structured outputs
@@ -632,35 +692,10 @@ async function callClaudeAPI(session, apiKey) {
 
 // ADDRESS target methods metadata
 const ADDRESS_CLAUDE_METHODS = {
-  chat: {
-    description: "Send a message to Claude (with optional session ID)",
-    params: ["message", "chat_id", "system"],
-    returns: "object with Claude's response"
-  },
-  message: {
-    description: "Send a message to Claude (alias for chat)",
-    params: ["message", "chat_id", "system"],
-    returns: "object with Claude's response"
-  },
-  start: {
-    description: "Start a new chat session",
-    params: ["system"],
-    returns: "object with session ID"
-  },
-  session: {
-    description: "Start a new chat session (alias for start)",
-    params: ["system"],
-    returns: "object with session ID"
-  },
-  end: {
-    description: "End a chat session",
-    params: ["chat_id"],
-    returns: "object with session closure details"
-  },
-  close: {
-    description: "Close a chat session (alias for end)",
-    params: ["chat_id"],
-    returns: "object with session closure details"
+  close_chat: {
+    description: "Close the active conversation (same as the CLOSE_CHAT command)",
+    params: [],
+    returns: "object with conversation closure details"
   },
   checkpoint: {
     description: "Create a structured analysis checkpoint with Claude",

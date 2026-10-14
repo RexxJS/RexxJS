@@ -63,25 +63,34 @@ describe('Claude ADDRESS Library - Basic Functionality', () => {
     expect(global.CLAUDE_ADDRESS_META).toBeDefined();
     const metadata = global.CLAUDE_ADDRESS_META();
     
-    expect(metadata.type).toBe('address-target');
+    // 'address-handler' since ffd8cd5 (standardised in e8b297f); core accepts both
+    expect(metadata.type).toBe('address-handler');
     expect(metadata.name).toBe('Claude AI Chat Service');
     expect(metadata.provides.addressTarget).toBe('claude');
   });
 
-  test('should handle basic session start command', async () => {
+  test('should handle a heredoc prompt and close the conversation', async () => {
     await interpreter.run(parse('REQUIRE "./claude-address.js"'));
     await interpreter.run(parse('ADDRESS claude'));
     
     // Verify ADDRESS was set
     expect(interpreter.address).toBe('claude');
     
-    // Test via direct handler call (similar to sqlite tests)
+    // Test via direct handler call (similar to sqlite tests); fetch is mocked
     const claudeTarget = interpreter.addressTargets.get('claude');
-    const result = await claudeTarget.handler('SYSTEM ROLE You are a test assistant.');
+    const result = await claudeTarget.handler('system=You are a test assistant.\nprompt=Say hello');
     
-    expect(result.operation).toBe('START_SESSION');
     expect(result.success).toBe(true);
-    expect(result.sessionId).toBe(1);
+    expect(result.output).toBe('Mock Claude response');
+    expect(result.tokensUsed.total).toBe(15);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const requestBody = JSON.parse(global.fetch.mock.calls[0][1].body);
+    expect(requestBody.system).toBe('You are a test assistant.');
+    expect(requestBody.messages).toEqual([{ role: 'user', content: 'Say hello' }]);
+
+    const closeResult = await claudeTarget.handler('CLOSE_CHAT');
+    expect(closeResult.operation).toBe('CLOSE_CHAT');
+    expect(closeResult.messageCount).toBe(2);
   });
 
   test('should handle API key requirement', async () => {

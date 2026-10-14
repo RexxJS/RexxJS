@@ -8,9 +8,11 @@ This library provides integration with Anthropic's Claude AI assistant for RexxJ
 /* Set up your API key first */
 REQUIRE "claude-address.js"
 ADDRESS CLAUDE
-"SYSTEM ROLE You are a helpful REXX programming assistant."
-LET response = ask prompt="How do I reverse a string in REXX?"
-SAY response.content
+<<PROMPT
+system=You are a helpful REXX programming assistant.
+prompt=How do I reverse a string in REXX?
+PROMPT
+SAY RESULT.message
 ```
 
 ## Installation
@@ -46,65 +48,57 @@ ADDRESS SYSTEM
 
 ## ADDRESS Target: `claude`
 
-Once loaded, this library registers the `claude` ADDRESS target, allowing you to:
-- Start chat sessions with Claude
-- Send prompts and receive AI responses
-- Set system roles and behavior
-- Manage conversation context
-- Handle different Claude models
-- Stream responses for long outputs
+Once loaded, this library registers the `claude` ADDRESS target. It accepts exactly these
+commands; anything else raises an error listing them:
+
+| Command | Style | What it does |
+|---|---|---|
+| `key=value` heredoc (`<<LABEL ... LABEL`) | command string | Send a prompt in the active conversation |
+| `CLOSE_CHAT` / `close_chat` | command string or method | Discard the active conversation |
+| `STATUS` / `status` | command string or method | Report service status (needs no API key) |
+| `CHECKPOINT key=value ...` | command string | Create a structured-analysis checkpoint |
+| `WAIT FOR CHECKPOINT <id>` | command string | Poll a checkpoint |
+| `checkpoint` | method | Create a structured-analysis checkpoint |
+| `wait_for_checkpoint` / `poll_checkpoint` | method | Poll a checkpoint |
+| `complete_checkpoint` | method | Complete a checkpoint with an external result |
+
+Every command except `STATUS` requires `ANTHROPIC_API_KEY`.
 
 ## Usage Patterns
 
-### Basic Chat
+### Prompts (heredoc)
 
 ```rexx
 ADDRESS CLAUDE
-"SYSTEM ROLE You are a helpful programming tutor."
-LET response = ask prompt="Explain recursion in simple terms"
-SAY response.content
+<<PROMPT
+system=You are a REXX language expert who provides concise, accurate code examples.
+prompt=Show me a REXX loop example
+PROMPT
+SAY RESULT.message
 ```
 
-### System Role Configuration
-
-```rexx
-ADDRESS CLAUDE
-"SYSTEM ROLE You are a REXX language expert who provides concise, accurate code examples."
-LET help = ask prompt="Show me a REXX loop example"
-SAY help.content
-```
+Heredoc keys: `prompt` (or `message`, required) and `system` (used when the conversation
+starts). `model`, `temperature` and `max_tokens` are parsed but not yet passed to the API,
+which currently always uses `claude-3-5-sonnet-20241022` with `max_tokens` 4000. A value
+may continue over following lines that are not themselves `key=value`.
 
 ### Multi-turn Conversations
 
-```rexx
-ADDRESS CLAUDE
-"START SESSION"
-LET r1 = ask prompt="I'm working on a data processing script"
-LET r2 = ask prompt="How can I parse CSV files efficiently?"
-LET r3 = ask prompt="What about error handling?"
-```
-
-### Method-Style Operations
+There is a single active conversation. Each heredoc prompt is added to it, so follow-ups
+keep context until `CLOSE_CHAT`:
 
 ```rexx
 ADDRESS CLAUDE
-LET result = chat message="Write a function to calculate fibonacci" model="claude-3-sonnet-20240229"
-SAY "Response:" result.content
-SAY "Tokens used:" result.usage.total_tokens
+<<Q1
+prompt=I'm working on a data processing script
+Q1
+<<Q2
+prompt=How can I parse CSV files efficiently?
+Q2
+"CLOSE_CHAT"
 ```
 
 ## Available Methods
-
-### `ask` / `chat`
-Send a message to Claude and get a response.
-
-**Parameters:**
-- `prompt` / `message` - The message to send to Claude
-- `model` - Claude model to use (optional, defaults to claude-3-haiku-20240307)
-- `max_tokens` - Maximum tokens in response (optional, default 1000)
-- `temperature` - Response creativity 0-1 (optional, default 0.7)
-
-**Returns:** Object with `content`, `usage`, `model`
 
 ### `checkpoint`
 Create a structured analysis checkpoint with Claude using COMET-style long-polling.
@@ -136,36 +130,19 @@ Manually complete a checkpoint (for external collaborators).
 
 **Returns:** Object with completion confirmation
 
-### `system`
-Set the system role/behavior for Claude.
-
-**Parameters:**
-- `role` - System role description
-
-### `session`
-Manage conversation sessions.
-
-**Parameters:**
-- `action` - "start", "end", "status"
-
-**Returns:** Session information
+### `close_chat`
+Discard the active conversation. Same as the `CLOSE_CHAT` command.
 
 ### `status`
-Get Claude service status and configuration.
+Get Claude service status.
 
-**Returns:** Object with connection status, model info, usage stats
+**Returns:** Object with `service`, `provider`, `apiKeyConfigured`, `hasActiveConversation`,
+`messageCount`, `activeCheckpoints` and `methods`
 
 ## Claude Models
 
-Available models (as of 2024):
-- **claude-3-haiku-20240307** - Fast, efficient (default)
-- **claude-3-sonnet-20240229** - Balanced performance
-- **claude-3-opus-20240229** - Most capable
-
-```rexx
-ADDRESS CLAUDE
-LET response = ask prompt="Complex analysis task" model="claude-3-opus-20240229"
-```
+Requests currently always use `claude-3-5-sonnet-20241022`; the heredoc `model=` key is
+not yet honoured (see Prompts above).
 
 ## CHECKPOINT Technology - Structured Collaboration
 
@@ -197,9 +174,12 @@ END
 
 ```rexx
 ADDRESS CLAUDE
-CHECKPOINT operation="GENERATE_CODE" text="Create an email validation function" format="structured"
-/* Returns checkpointId for later polling */
+"CHECKPOINT operation=GENERATE_CODE text='Create an email validation function' format=structured"
+/* RESULT.checkpointId is the id to poll */
+"WAIT FOR CHECKPOINT" RESULT.checkpointId
 ```
+
+Values may be bare, `"double-quoted"` or `'single-quoted'`.
 
 ### Text Review Example
 
@@ -253,89 +233,17 @@ DO WHILE status <> "completed"
 END
 ```
 
-### Streaming Responses
-
-```rexx
-ADDRESS CLAUDE
-LET result = stream prompt="Write a long essay about AI" 
-/* Handles large responses efficiently */
-```
-
-### Token Management
-
-```rexx
-ADDRESS CLAUDE
-LET response = ask prompt="Summarize this text" max_tokens=500
-SAY "Used" response.usage.total_tokens "tokens"
-```
-
-### Temperature Control
-
-```rexx
-ADDRESS CLAUDE
-/* Creative response */
-LET creative = ask prompt="Write a poem" temperature=0.9
-
-/* Factual response */  
-LET factual = ask prompt="What is 2+2?" temperature=0.1
-```
-
 ## Error Handling
 
-```rexx
-ADDRESS CLAUDE
-"SYSTEM ROLE You are a math tutor"
-LET response = ask prompt="Solve this equation: x^2 + 5x + 6 = 0"
-IF response.error THEN DO
-    SAY "API Error:" response.error.message
-    IF response.error.type = "authentication_error" THEN
-        SAY "Check your ANTHROPIC_API_KEY"
-END
-```
-
-## Use Cases
-
-### Code Generation
-
-```rexx
-ADDRESS CLAUDE
-"SYSTEM ROLE You are a REXX programming expert"
-LET code = ask prompt="Write a REXX function to validate email addresses"
-SAY code.content
-```
-
-### Documentation
-
-```rexx
-ADDRESS CLAUDE
-"SYSTEM ROLE You are a technical writer"
-LET docs = ask prompt="Document this function: " || my_function_code
-SAY docs.content
-```
-
-### Data Analysis
-
-```rexx
-ADDRESS CLAUDE
-LET analysis = ask prompt="Analyze this CSV data and find trends: " || csv_data
-SAY analysis.content
-```
-
-### Code Review
-
-```rexx
-ADDRESS CLAUDE
-"SYSTEM ROLE You are a senior developer doing code review"
-LET review = ask prompt="Review this code for bugs and improvements: " || source_code
-SAY review.content
-```
+A failed request (missing API key, API error, unrecognised command) raises an error in the
+REXX program. `wait_for_checkpoint` on an unknown id returns `success: false` with
+`status: "not_found"`; `complete_checkpoint` on an unknown id raises an error.
 
 ## REXX Integration
 
 Standard REXX variables are set:
 - **RC** - Return code (0 = success)
-- **RESULT** - Claude's response content
-- **ERRORTEXT** - Error message if request failed
+- **RESULT** - The result object; `RESULT.message` holds Claude's reply for heredoc prompts
 
 ## Testing
 
@@ -345,15 +253,10 @@ Run the test suite:
 npm test
 ```
 
-Tests include:
-- Basic chat functionality
-- System role configuration
-- Session management
-- Error handling
-- API key validation
-- Model selection
-
-**Note:** Tests work with or without valid API key (mock mode when unavailable).
+The specs cover heredoc prompts, `CLOSE_CHAT`, `STATUS`, metadata, API key validation, and
+checkpoint creation, polling and completion. They make no network calls: `fetch` is mocked,
+and the checkpoint spec uses the `test-api-key-for-testing` key, which makes the library
+complete checkpoints with a canned result.
 
 ## Rate Limits and Costs
 
@@ -372,17 +275,16 @@ Tests include:
 
 ## Environment Compatibility
 
-- **Node.js**: Full support with @anthropic-ai/sdk
+- **Node.js**: Uses the global `fetch` (Node 18+) or `node-fetch`
 - **Browser**: Supported with appropriate CORS setup
-- **Testing**: Mock responses when API key unavailable
 
 ## Best Practices
 
-1. **System Roles**: Set clear, specific system roles
+1. **System Prompts**: Set a clear, specific `system=` on the first prompt
 2. **Prompt Engineering**: Be specific and clear in prompts
 3. **Error Handling**: Always handle API failures gracefully
 4. **Token Management**: Monitor usage to control costs
-5. **Context Management**: Use sessions for multi-turn conversations
+5. **Context Management**: `CLOSE_CHAT` between unrelated conversations
 
 ## Integration
 
