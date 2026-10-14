@@ -1,62 +1,73 @@
 /**
- * Deployment Handler Mock Tests - Orchestration Integration
+ * Deployment Orchestrator Mock Tests - Orchestration Integration
  * Tests high-level deployment orchestration with mocked container and remote shell handlers
- * 
+ *
+ * The orchestrator's two sub-handlers (podman-address's container handler and
+ * the remote shell handler) are replaced with stubs, so these tests pin down
+ * what the orchestrator asks of them and what it does with their answers.
+ *
  * Copyright (c) 2025 Paul Hammant
  * Licensed under the MIT License
  */
 
-const { spawn } = require('child_process');
 const fs = require('fs');
-const DeploymentHandler = require('../deployment-handler');
+const path = require('path');
+const DeploymentOrchestrator = require('../src/deployment-orchestrator');
 
-// Mock child_process and fs
+// Nothing here may spawn a real process or touch the real file system
 jest.mock('child_process');
 jest.mock('fs');
 
-describe('Deployment Handler - Mock Orchestration Tests', () => {
-  let deploymentHandler;
+describe('Deployment Orchestrator - Mock Orchestration Tests', () => {
+  let orchestrator;
+  let container;
+  let remoteShell;
   let mockContext;
-  let mockProcess;
+
+  // Answers the container stub gives, by operation (first word of the command)
+  let containerReplies;
+  // Answers the remote shell stub gives, by operation
+  let remoteReplies;
+
+  const operationOf = (command) => command.trim().split(/\s+/)[0];
+  const containerCommands = () => container.handleAddressCommand.mock.calls.map(([command]) => command);
+  const remoteCommands = () => remoteShell.handleMessage.mock.calls.map(([command]) => command);
 
   beforeEach(() => {
-    // Reset all mocks
     jest.clearAllMocks();
-    
-    // Setup mock process
-    mockProcess = {
-      stdout: {
-        on: jest.fn(),
-        pipe: jest.fn()
-      },
-      stderr: {
-        on: jest.fn(),
-        pipe: jest.fn()
-      },
-      stdin: {
-        write: jest.fn(),
-        end: jest.fn()
-      },
-      on: jest.fn(),
-      kill: jest.fn()
-    };
 
-    spawn.mockReturnValue(mockProcess);
-
-    // Setup fs mocks
     fs.existsSync.mockReturnValue(true);
     fs.readFileSync.mockReturnValue('mock rexx binary content');
-    fs.writeFileSync.mockImplementation(() => {});
-    fs.unlinkSync.mockImplementation(() => {});
-    fs.statSync.mockReturnValue({ 
-      size: 52428800, // 50MB
-      isFile: () => true 
-    });
 
-    // Initialize deployment handler
-    deploymentHandler = new DeploymentHandler();
-    
-    // Mock context
+    containerReplies = {
+      create: { success: true, operation: 'create', status: 'created' },
+      start: { success: true, operation: 'start', status: 'running' },
+      deploy_rexx: { success: true, operation: 'deploy_rexx', target: '/usr/local/bin/rexx' },
+      execute_rexx: { success: true, operation: 'execute_rexx', exitCode: 0, stdout: '', output: '' },
+      remove: { success: true, operation: 'remove' },
+      list: { success: true, operation: 'list', containers: [] }
+    };
+    remoteReplies = {
+      connect: { success: true },
+      upload: { success: true },
+      execute: { success: true, exitCode: 0, stdout: '', stderr: '', duration: 5 },
+      disconnect: { success: true },
+      list_connections: { success: true, connections: [] }
+    };
+
+    orchestrator = new DeploymentOrchestrator();
+
+    container = {
+      initialize: jest.fn().mockResolvedValue(undefined),
+      handleAddressCommand: jest.fn(async (command) => containerReplies[operationOf(command)])
+    };
+    remoteShell = {
+      initialize: jest.fn(),
+      handleMessage: jest.fn(async (command) => remoteReplies[operationOf(command)])
+    };
+    orchestrator.container = container;
+    orchestrator.remoteShell = remoteShell;
+
     mockContext = {
       variables: new Map([
         ['target_image', 'debian:stable'],
@@ -70,125 +81,99 @@ describe('Deployment Handler - Mock Orchestration Tests', () => {
 
   describe('Initialization and Configuration', () => {
     it('should initialize with default binary path', async () => {
-      await deploymentHandler.initialize({
+      await orchestrator.initialize({
         defaultBinaryPath: '/usr/local/bin/rexx-linux-x64',
         enableProgressCallbacks: true
       });
 
-      expect(deploymentHandler.defaultBinaryPath).toBe('/usr/local/bin/rexx-linux-x64');
-      expect(deploymentHandler.enableProgressCallbacks).toBe(true);
-      expect(deploymentHandler.activeDeployments.size).toBe(0);
+      expect(orchestrator.defaultBinaryPath).toBe('/usr/local/bin/rexx-linux-x64');
+      // Progress callbacks on means the CHECKPOINT channel got configured
+      expect(orchestrator.checkpointConfig.transportType).toBe('websocket');
+      expect(orchestrator.activeDeployments.size).toBe(0);
     });
 
     it('should initialize underlying handlers', async () => {
-      await deploymentHandler.initialize({
+      await orchestrator.initialize({
         container: { securityMode: 'moderate' },
         remoteShell: { securityMode: 'strict', maxConnections: 5 }
       });
 
-      expect(deploymentHandler.containerHandler).toBeDefined();
-      expect(deploymentHandler.remoteShellHandler).toBeDefined();
+      expect(container.initialize).toHaveBeenCalledWith({ securityMode: 'moderate' });
+      expect(remoteShell.initialize).toHaveBeenCalledWith({ securityMode: 'strict', maxConnections: 5 });
+      // No defaultBinaryPath given: the first candidate that exists is used
+      expect(orchestrator.defaultBinaryPath).toBe(path.resolve('./rexx-linux-x64'));
     });
 
-    it('should set up progress callbacks', async () => {
-      const mockProgressCallback = jest.fn();
-      
-      await deploymentHandler.initialize({
+    it('should set up CHECKPOINT communication from the progress config', async () => {
+      await orchestrator.initialize({
         enableProgressCallbacks: true,
-        progressCallback: mockProgressCallback
+        progressConfig: { transportType: 'http-polling', port: 9090, endpoint: '/progress' }
       });
 
-      expect(deploymentHandler.progressCallbacks.has('default')).toBe(true);
-      expect(deploymentHandler.progressCallbacks.get('default')).toBe(mockProgressCallback);
+      expect(orchestrator.checkpointConfig).toEqual({
+        transportType: 'http-polling',
+        port: 9090,
+        endpoint: '/progress',
+        timeout: 30000,
+        retryAttempts: 3
+      });
     });
   });
 
   describe('Container-based Deployments', () => {
     beforeEach(async () => {
-      // Setup successful initialization
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(0), 10); // Success
-        }
-      });
-
-      mockProcess.stdout.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('podman version 4.3.1'), 10);
-        }
-      });
-
-      await deploymentHandler.initialize({
+      await orchestrator.initialize({
         defaultBinaryPath: './rexx-linux-x64'
       });
     });
 
     it('should setup container deployment successfully', async () => {
-      // Mock container creation success
-      let commandType = 'version'; // Start with version check
-      
-      spawn.mockImplementation((command, args) => {
-        if (args && args[0] === 'run') {
-          commandType = 'create';
-        } else if (args && args[0] === 'cp') {
-          commandType = 'copy';
-        } else if (args && args[0] === 'exec') {
-          commandType = 'exec';
-        }
-        return mockProcess;
-      });
-
-      mockProcess.stdout.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          switch (commandType) {
-            case 'version':
-              setTimeout(() => callback('podman version 4.3.1'), 10);
-              break;
-            case 'create':
-              setTimeout(() => callback('container-id-12345'), 10);
-              break;
-            default:
-              setTimeout(() => callback('success'), 10);
-          }
-        }
-      });
-
-      const result = await deploymentHandler.handleMessage(
+      const result = await orchestrator.handleMessage(
         'setup_container image="debian:stable" name="test-deploy" rexx_binary="./rexx-linux-x64"',
         mockContext
       );
 
+      // create, then start (deploy_rexx needs a running container), then deploy
+      expect(containerCommands()).toEqual([
+        'create image="debian:stable" name="test-deploy" interactive=false',
+        'start name="test-deploy"',
+        'deploy_rexx container="test-deploy" rexx_binary="./rexx-linux-x64"'
+      ]);
+
       expect(result.success).toBe(true);
       expect(result.containerName).toBe('test-deploy');
-      expect(result.deploymentType).toBe('container');
+      expect(result.deploymentId).toBe('container_test-deploy_1');
       expect(result.status).toBe('ready');
-      
-      expect(deploymentHandler.activeDeployments.has('test-deploy')).toBe(true);
-      const deployment = deploymentHandler.activeDeployments.get('test-deploy');
+
+      const deployment = orchestrator.activeDeployments.get('container_test-deploy_1');
       expect(deployment.type).toBe('container');
-      expect(deployment.containerName).toBe('test-deploy');
+      expect(deployment.target).toBe('test-deploy');
+      expect(deployment.image).toBe('debian:stable');
       expect(deployment.status).toBe('ready');
     });
 
     it('should execute scripts on deployed container', async () => {
-      // Setup deployment first
-      await deploymentHandler.handleMessage(
+      await orchestrator.handleMessage(
         'setup_container image="debian:stable" name="exec-test"',
         mockContext
       );
 
-      // Mock script execution
-      mockProcess.stdout.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('Hello from RexxJS in container!'), 10);
-        }
-      });
+      containerReplies.execute_rexx = {
+        success: true,
+        exitCode: 0,
+        stdout: 'Hello from RexxJS in container!',
+        output: 'Hello from RexxJS in container!'
+      };
 
-      const result = await deploymentHandler.handleMessage(
+      const result = await orchestrator.handleMessage(
         'execute_remote script="SAY \'Hello from RexxJS in container!\'" target="exec-test"',
         mockContext
       );
 
+      // The whole quoted script reaches the container, spaces and all
+      expect(containerCommands()).toContain(
+        'execute_rexx container="exec-test" script="SAY \'Hello from RexxJS in container!\'" timeout=60000 progress_callback=false'
+      );
       expect(result.success).toBe(true);
       expect(result.target).toBe('exec-test');
       expect(result.deploymentType).toBe('container');
@@ -196,348 +181,298 @@ describe('Deployment Handler - Mock Orchestration Tests', () => {
     });
 
     it('should handle one-shot container deployment', async () => {
-      const oneShortScript = 'SAY "One-shot execution"\nLET result = 42\nSAY "Result: " || result';
-      
-      // Mock temporary container lifecycle
-      let operationCount = 0;
-      spawn.mockImplementation((command, args) => {
-        operationCount++;
-        return mockProcess;
-      });
+      const oneShotScript = 'SAY \'One-shot execution\'\nresult = 42\nSAY \'Result: \' || result';
 
-      mockProcess.stdout.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          if (operationCount <= 2) {
-            setTimeout(() => callback('podman version 4.3.1'), 10); // Version/create
-          } else {
-            setTimeout(() => callback('One-shot execution\nResult: 42'), 10); // Script output
-          }
-        }
-      });
+      containerReplies.execute_rexx = {
+        success: true,
+        exitCode: 0,
+        output: 'One-shot execution\nResult: 42'
+      };
 
-      const result = await deploymentHandler.handleMessage(
-        `deploy_and_execute script="${oneShortScript}" image="debian:stable" progress=true`,
+      const result = await orchestrator.handleMessage(
+        `deploy_and_execute script="${oneShotScript}" image="debian:stable"`,
         mockContext
       );
 
+      // A throwaway container: created, started, deployed to, run in, removed
+      expect(containerCommands()).toEqual([
+        'create image="debian:stable" name="oneshot-oneshot_1" interactive=false',
+        'start name="oneshot-oneshot_1"',
+        'deploy_rexx container="oneshot-oneshot_1" rexx_binary="./rexx-linux-x64"',
+        `execute_rexx container="oneshot-oneshot_1" script="${oneShotScript}" timeout=60000 progress_callback=false`,
+        'remove name="oneshot-oneshot_1" force=true'
+      ]);
+
       expect(result.success).toBe(true);
       expect(result.deploymentType).toBe('oneshot_container');
+      expect(result.target).toBe('oneshot-oneshot_1');
       expect(result.output).toContain('One-shot execution');
       expect(result.output).toContain('Result: 42');
       expect(result.cleanedUp).toBe(true);
-      expect(result.temporaryContainerId).toBeDefined();
     });
 
-    it('should monitor container deployment progress', async () => {
-      const progressMessages = [];
-      deploymentHandler.progressCallbacks.set('test', (event, params) => {
-        progressMessages.push({ event, params });
-      });
-
-      await deploymentHandler.handleMessage(
+    it('should pass the progress flag through to the container', async () => {
+      await orchestrator.handleMessage(
         'setup_container image="debian:stable" name="progress-test"',
         mockContext
       );
 
-      const progressScript = `
-        SAY "Starting processing..."
-        CHECKPOINT("started", "Processing initiated")
-        
-        DO i = 1 TO 5
-          CHECKPOINT("progress", i, 5)
-        END
-        
-        CHECKPOINT("completed", "Processing finished")
-      `;
-
-      await deploymentHandler.handleMessage(
-        `execute_remote script="${progressScript}" target="progress-test" progress=true`,
+      await orchestrator.handleMessage(
+        'execute_remote script="CHECKPOINT(\'progress\', 1, 5)" target="progress-test" progress=true timeout=5000',
         mockContext
       );
 
-      // In a real implementation, progress messages would be captured
-      // For this mock test, we verify the progress flag was processed
-      expect(deploymentHandler.activeDeployments.get('progress-test').progressEnabled).toBe(true);
+      expect(containerCommands()).toContain(
+        'execute_rexx container="progress-test" script="CHECKPOINT(\'progress\', 1, 5)" timeout=5000 progress_callback=true'
+      );
+      expect(orchestrator.activeDeployments.get('container_progress-test_1').lastExecution).toBeInstanceOf(Date);
     });
   });
 
   describe('Remote Shell Deployments', () => {
     beforeEach(async () => {
-      // Setup successful SSH connection
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(0), 10);
-        }
-      });
-
-      mockProcess.stdout.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('SSH connection successful'), 10);
-        }
-      });
-
-      await deploymentHandler.initialize({
+      await orchestrator.initialize({
         defaultBinaryPath: './rexx-linux-x64'
       });
     });
 
     it('should setup remote shell deployment', async () => {
-      const result = await deploymentHandler.handleMessage(
+      const result = await orchestrator.handleMessage(
         'setup_remote_shell host="deploy.example.com" user="deployer" key="~/.ssh/deploy_key" alias="remote-deploy"',
         mockContext
       );
 
+      expect(remoteCommands()).toEqual([
+        'connect host="deploy.example.com" user="deployer" key="~/.ssh/deploy_key" alias="remote-deploy"'
+      ]);
+
       expect(result.success).toBe(true);
-      expect(result.deploymentType).toBe('remote_shell');
       expect(result.connectionAlias).toBe('remote-deploy');
+      expect(result.deploymentId).toBe('remote_remote-deploy_1');
+      expect(result.binaryDeployed).toBe(false);
       expect(result.status).toBe('ready');
-      
-      expect(deploymentHandler.activeDeployments.has('remote-deploy')).toBe(true);
-      const deployment = deploymentHandler.activeDeployments.get('remote-deploy');
+
+      const deployment = orchestrator.activeDeployments.get('remote_remote-deploy_1');
       expect(deployment.type).toBe('remote_shell');
+      expect(deployment.target).toBe('remote-deploy');
       expect(deployment.host).toBe('deploy.example.com');
     });
 
     it('should deploy RexxJS binary to remote host', async () => {
-      // Setup remote connection first
-      await deploymentHandler.handleMessage(
-        'setup_remote_shell host="deploy.example.com" user="deployer" alias="binary-deploy"',
+      const result = await orchestrator.handleMessage(
+        'setup_remote_shell host="deploy.example.com" user="deployer" alias="binary-deploy" rexx_binary="./rexx-linux-x64"',
         mockContext
       );
 
-      // Mock binary deployment
-      let isUpload = false;
-      spawn.mockImplementation((command, args) => {
-        if (command === 'scp') {
-          isUpload = true;
-        }
-        return mockProcess;
-      });
-
-      const result = await deploymentHandler.handleMessage(
-        'deploy_binary target="binary-deploy" binary_path="./rexx-linux-x64" target_path="/usr/local/bin/rexx"',
-        mockContext
-      );
-
+      // Upload to /tmp, then make it executable and move it onto the PATH
+      expect(remoteCommands().slice(1)).toEqual([
+        'upload local="./rexx-linux-x64" remote="/tmp/rexx" connection="binary-deploy"',
+        'execute command="sudo chmod +x /tmp/rexx && sudo mv /tmp/rexx /usr/local/bin/" connection="binary-deploy"'
+      ]);
       expect(result.success).toBe(true);
-      expect(result.target).toBe('binary-deploy');
-      expect(result.binaryPath).toBe('./rexx-linux-x64');
-      expect(result.targetPath).toBe('/usr/local/bin/rexx');
-      
-      // Should have used SCP for upload
-      expect(spawn).toHaveBeenCalledWith('scp', expect.arrayContaining([
-        './rexx-linux-x64', 'deployer@deploy.example.com:/usr/local/bin/rexx'
-      ]), expect.any(Object));
+      expect(result.binaryDeployed).toBe(true);
     });
 
     it('should execute remote scripts', async () => {
-      // Setup deployment
-      await deploymentHandler.handleMessage(
+      await orchestrator.handleMessage(
         'setup_remote_shell host="deploy.example.com" user="deployer" alias="remote-exec"',
         mockContext
       );
 
-      // Mock script execution
-      mockProcess.stdout.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('Remote RexxJS execution successful'), 10);
-        }
-      });
+      remoteReplies.execute = {
+        success: true,
+        exitCode: 0,
+        stdout: 'Remote RexxJS execution successful',
+        stderr: '',
+        duration: 12
+      };
 
-      const result = await deploymentHandler.handleMessage(
+      const result = await orchestrator.handleMessage(
         'execute_remote script="SAY \'Remote RexxJS execution successful\'" target="remote-exec"',
         mockContext
       );
 
+      // Without progress: write a temp script, run it with rexx, remove it
+      const executes = remoteCommands().filter(command => command.startsWith('execute '));
+      expect(executes).toHaveLength(3);
+      expect(executes[0]).toMatch(/^execute command="cat > \/tmp\/rexx_\d+\.rexx" connection="remote-exec"$/);
+      expect(executes[1]).toMatch(/^execute command="\/usr\/local\/bin\/rexx \/tmp\/rexx_\d+\.rexx" connection="remote-exec" timeout=60000$/);
+      expect(executes[2]).toMatch(/^execute command="rm -f \/tmp\/rexx_\d+\.rexx" connection="remote-exec"$/);
+
       expect(result.success).toBe(true);
       expect(result.target).toBe('remote-exec');
       expect(result.deploymentType).toBe('remote_shell');
-      expect(result.output).toContain('Remote RexxJS execution successful');
+      expect(result.stdout).toContain('Remote RexxJS execution successful');
     });
 
     it('should handle remote deployment failures gracefully', async () => {
-      // Mock SSH connection failure
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(255), 10); // SSH failure
-        }
-      });
-
-      mockProcess.stderr.on.mockImplementation((event, callback) => {
-        if (event === 'data') {
-          setTimeout(() => callback('ssh: connect to host failed: Connection refused'), 10);
-        }
-      });
+      remoteShell.handleMessage.mockRejectedValueOnce(
+        new Error('Connection failed: ssh: connect to host failed: Connection refused')
+      );
 
       await expect(
-        deploymentHandler.handleMessage(
+        orchestrator.handleMessage(
           'setup_remote_shell host="unreachable.com" user="deployer" alias="failed"',
           mockContext
         )
-      ).rejects.toThrow('Remote shell setup failed');
+      ).rejects.toThrow('Remote shell setup failed: Connection failed: ssh: connect to host failed');
+      expect(orchestrator.activeDeployments.size).toBe(0);
     });
   });
 
   describe('Multi-target Deployments', () => {
     beforeEach(async () => {
-      // Setup successful environment
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(0), 10);
-        }
-      });
-
-      await deploymentHandler.initialize();
+      await orchestrator.initialize();
     });
 
     it('should deploy to multiple targets simultaneously', async () => {
-      // Setup container target
-      await deploymentHandler.handleMessage(
+      await orchestrator.handleMessage(
         'setup_container image="debian:stable" name="multi-container"',
         mockContext
       );
-
-      // Setup remote shell target  
-      await deploymentHandler.handleMessage(
+      await orchestrator.handleMessage(
         'setup_remote_shell host="multi.example.com" user="deployer" alias="multi-remote"',
         mockContext
       );
 
-      expect(deploymentHandler.activeDeployments.size).toBe(2);
+      expect(orchestrator.activeDeployments.size).toBe(2);
 
-      // Execute on both targets
-      const script = 'SAY "Multi-target execution"';
-      
-      const containerResult = await deploymentHandler.handleMessage(
-        `execute_remote script="${script}" target="multi-container"`,
-        mockContext
-      );
+      const script = 'SAY \'Multi-target execution\'';
 
-      const remoteResult = await deploymentHandler.handleMessage(
-        `execute_remote script="${script}" target="multi-remote"`,
-        mockContext
-      );
+      const [containerResult, remoteResult] = await Promise.all([
+        orchestrator.handleMessage(`execute_remote script="${script}" target="multi-container"`, mockContext),
+        orchestrator.handleMessage(`execute_remote script="${script}" target="multi-remote"`, mockContext)
+      ]);
 
       expect(containerResult.success).toBe(true);
       expect(containerResult.deploymentType).toBe('container');
-      
+      expect(containerResult.target).toBe('multi-container');
+
       expect(remoteResult.success).toBe(true);
       expect(remoteResult.deploymentType).toBe('remote_shell');
-    });
-
-    it('should handle mixed deployment types in orchestration', async () => {
-      const result = await deploymentHandler.handleMessage(
-        'setup_mixed_deployment containers=["debian:stable", "ubuntu:latest"] remote_hosts=["host1.com", "host2.com"]',
-        mockContext
-      );
-
-      expect(result.success).toBe(true);
-      expect(result.deploymentType).toBe('mixed');
-      expect(result.containerTargets).toBe(2);
-      expect(result.remoteTargets).toBe(2);
-      expect(deploymentHandler.activeDeployments.size).toBe(4); // 2 containers + 2 remotes
+      expect(remoteResult.target).toBe('multi-remote');
     });
   });
 
   describe('Deployment Lifecycle Management', () => {
     beforeEach(async () => {
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          setTimeout(() => callback(0), 10);
-        }
-      });
-
-      await deploymentHandler.initialize();
+      await orchestrator.initialize();
     });
 
     it('should monitor deployment status', async () => {
-      await deploymentHandler.handleMessage(
+      await orchestrator.handleMessage(
         'setup_container image="debian:stable" name="monitor-test"',
         mockContext
       );
 
-      const result = await deploymentHandler.handleMessage(
+      containerReplies.list = {
+        success: true,
+        containers: [
+          { name: 'other', status: 'stopped', created: new Date().toISOString() },
+          { name: 'monitor-test', status: 'running', created: new Date(Date.now() - 60000).toISOString() }
+        ]
+      };
+
+      const result = await orchestrator.handleMessage(
         'monitor_deployment target="monitor-test"',
         mockContext
       );
 
       expect(result.success).toBe(true);
-      expect(result.target).toBe('monitor-test');
-      expect(result.status).toBe('ready');
-      expect(result.deploymentType).toBe('container');
-      expect(result.uptime).toBeDefined();
+      expect(result.deploymentId).toBe('container_monitor-test_1');
+      expect(result.status.target).toBe('monitor-test');
+      expect(result.status.type).toBe('container');
+      expect(result.status.status).toBe('running');
+      expect(result.status.uptime).toBeGreaterThanOrEqual(60000);
+      expect(result.lastResult).toBeNull();
     });
 
-    it('should get detailed deployment monitoring', async () => {
-      await deploymentHandler.handleMessage(
-        'setup_container image="debian:stable" name="detailed-monitor"',
+    it('should monitor remote shell deployment status', async () => {
+      await orchestrator.handleMessage(
+        'setup_remote_shell host="mon.example.com" user="deployer" alias="remote-monitor"',
         mockContext
       );
 
-      const result = await deploymentHandler.handleMessage(
-        'monitor_deployment target="detailed-monitor" detailed=true',
+      remoteReplies.execute = { success: true, exitCode: 0, stdout: 'done', stderr: '', duration: 42 };
+      await orchestrator.handleMessage(
+        'execute_remote script="SAY \'done\'" target="remote-monitor"',
+        mockContext
+      );
+
+      remoteReplies.list_connections = {
+        success: true,
+        connections: [{ id: 'remote-monitor', createdAt: new Date().toISOString() }]
+      };
+
+      const result = await orchestrator.handleMessage(
+        'monitor_deployment target="remote-monitor"',
         mockContext
       );
 
       expect(result.success).toBe(true);
-      expect(result.detailed).toBe(true);
-      expect(result.resourceUsage).toBeDefined();
-      expect(result.logs).toBeDefined();
+      expect(result.status.type).toBe('remote_shell');
+      expect(result.status.status).toBe('connected');
+      expect(result.lastExecution).toBeInstanceOf(Date);
+      expect(result.lastResult).toEqual({ exitCode: 0, duration: 42 });
     });
 
     it('should cleanup specific deployment', async () => {
-      // Create deployment
-      await deploymentHandler.handleMessage(
+      await orchestrator.handleMessage(
         'setup_container image="debian:stable" name="cleanup-test"',
         mockContext
       );
 
-      expect(deploymentHandler.activeDeployments.has('cleanup-test')).toBe(true);
+      expect(orchestrator.activeDeployments.has('container_cleanup-test_1')).toBe(true);
 
-      // Cleanup
-      const result = await deploymentHandler.handleMessage(
+      const result = await orchestrator.handleMessage(
         'cleanup_deployment target="cleanup-test"',
         mockContext
       );
 
+      expect(containerCommands()).toContain('remove name="cleanup-test" force=false');
       expect(result.success).toBe(true);
       expect(result.target).toBe('cleanup-test');
-      expect(result.cleanupType).toBe('container');
-      expect(deploymentHandler.activeDeployments.has('cleanup-test')).toBe(false);
+      expect(result.deploymentId).toBe('container_cleanup-test_1');
+      expect(orchestrator.activeDeployments.has('container_cleanup-test_1')).toBe(false);
     });
 
-    it('should cleanup all deployments', async () => {
-      // Create multiple deployments
-      await deploymentHandler.handleMessage(
+    it('should list deployments and clean each one up', async () => {
+      await orchestrator.handleMessage(
         'setup_container image="debian:stable" name="cleanup1"',
         mockContext
       );
-      await deploymentHandler.handleMessage(
-        'setup_container image="ubuntu:latest" name="cleanup2"',
+      await orchestrator.handleMessage(
+        'setup_remote_shell host="cleanup.example.com" user="deployer" alias="cleanup2"',
         mockContext
       );
 
-      expect(deploymentHandler.activeDeployments.size).toBe(2);
+      const listed = await orchestrator.handleMessage('list_deployments', mockContext);
 
-      const result = await deploymentHandler.handleMessage(
-        'cleanup_all_deployments',
-        mockContext
-      );
+      expect(listed.success).toBe(true);
+      expect(listed.count).toBe(2);
+      expect(listed.deployments.map(d => [d.type, d.target])).toEqual([
+        ['container', 'cleanup1'],
+        ['remote_shell', 'cleanup2']
+      ]);
 
-      expect(result.success).toBe(true);
-      expect(result.cleanedUp).toBe(2);
-      expect(deploymentHandler.activeDeployments.size).toBe(0);
+      for (const deployment of listed.deployments) {
+        await orchestrator.handleMessage(`cleanup_deployment target="${deployment.id}"`, mockContext);
+      }
+
+      expect(containerCommands()).toContain('remove name="cleanup1" force=false');
+      expect(remoteCommands()).toContain('disconnect connection="cleanup2"');
+      expect(orchestrator.activeDeployments.size).toBe(0);
     });
   });
 
   describe('Error Handling and Recovery', () => {
     beforeEach(async () => {
-      await deploymentHandler.initialize();
+      await orchestrator.initialize();
     });
 
     it('should handle deployment target not found', async () => {
       await expect(
-        deploymentHandler.handleMessage(
+        orchestrator.handleMessage(
           'execute_remote script="SAY \'test\'" target="nonexistent"',
           mockContext
         )
@@ -546,39 +481,24 @@ describe('Deployment Handler - Mock Orchestration Tests', () => {
 
     it('should handle invalid deployment commands', async () => {
       await expect(
-        deploymentHandler.handleMessage('invalid_deployment_command', mockContext)
-      ).rejects.toThrow('Unknown deployment command: invalid_deployment_command');
+        orchestrator.handleMessage('invalid_deployment_command', mockContext)
+      ).rejects.toThrow('Unknown deployment operation: invalid_deployment_command');
     });
 
     it('should handle binary deployment failures', async () => {
-      fs.existsSync.mockReturnValue(false); // Binary doesn't exist
+      containerReplies.deploy_rexx = {
+        success: false,
+        operation: 'error',
+        error: 'Failed to deploy RexxJS binary: RexxJS binary not found: ./nonexistent'
+      };
 
       await expect(
-        deploymentHandler.handleMessage(
+        orchestrator.handleMessage(
           'setup_container image="debian:stable" name="binary-fail" rexx_binary="./nonexistent"',
           mockContext
         )
-      ).rejects.toThrow('Binary file ./nonexistent not found');
-    });
-
-    it('should implement retry logic for failed operations', async () => {
-      let attemptCount = 0;
-      
-      mockProcess.on.mockImplementation((event, callback) => {
-        if (event === 'close') {
-          attemptCount++;
-          // Fail first two attempts, succeed on third
-          setTimeout(() => callback(attemptCount < 3 ? 1 : 0), 10);
-        }
-      });
-
-      const result = await deploymentHandler.handleMessage(
-        'setup_container image="debian:stable" name="retry-test" retry_attempts=3',
-        mockContext
-      );
-
-      expect(result.success).toBe(true);
-      expect(result.attempts).toBe(3);
+      ).rejects.toThrow('Container setup failed: RexxJS deployment failed: Failed to deploy RexxJS binary: RexxJS binary not found: ./nonexistent');
+      expect(orchestrator.activeDeployments.size).toBe(0);
     });
   });
 
@@ -598,14 +518,14 @@ describe('Deployment Handler - Mock Orchestration Tests', () => {
        * └─────────────────────────────────────────────┘
        */
 
-      await deploymentHandler.initialize({
+      await orchestrator.initialize({
         defaultBinaryPath: './rexx-linux-x64'
       });
 
-      expect(deploymentHandler.activeDeployments.size).toBe(0);
+      expect(orchestrator.activeDeployments.size).toBe(0);
 
       // INTERACTION: Setup development environment (container)
-      let result = await deploymentHandler.handleMessage(
+      let result = await orchestrator.handleMessage(
         'setup_container image="debian:stable" name="dev-env"',
         mockContext
       );
@@ -624,14 +544,14 @@ describe('Deployment Handler - Mock Orchestration Tests', () => {
        */
 
       expect(result.success).toBe(true);
-      expect(deploymentHandler.activeDeployments.size).toBe(1);
-      
-      const devDeployment = deploymentHandler.activeDeployments.get('dev-env');
+      expect(orchestrator.activeDeployments.size).toBe(1);
+
+      const devDeployment = orchestrator.activeDeployments.get(result.deploymentId);
       expect(devDeployment.type).toBe('container');
       expect(devDeployment.status).toBe('ready');
 
       // INTERACTION: Setup staging environment (remote)
-      result = await deploymentHandler.handleMessage(
+      result = await orchestrator.handleMessage(
         'setup_remote_shell host="staging.example.com" user="staging" alias="staging-env"',
         mockContext
       );
@@ -655,50 +575,48 @@ describe('Deployment Handler - Mock Orchestration Tests', () => {
        */
 
       expect(result.success).toBe(true);
-      expect(deploymentHandler.activeDeployments.size).toBe(2);
-      
-      const stagingDeployment = deploymentHandler.activeDeployments.get('staging-env');
+      expect(orchestrator.activeDeployments.size).toBe(2);
+
+      const stagingDeployment = orchestrator.activeDeployments.get(result.deploymentId);
       expect(stagingDeployment.type).toBe('remote_shell');
       expect(stagingDeployment.status).toBe('ready');
 
       // INTERACTION: Deploy same application to both environments
-      const appScript = 'SAY "Application v1.0 deployed"; LET version = "1.0"; SAY "Version: " || version';
+      const appScript = 'SAY \'Application v1.0 deployed\'';
 
-      const devResult = await deploymentHandler.handleMessage(
+      const devResult = await orchestrator.handleMessage(
         `execute_remote script="${appScript}" target="dev-env"`,
         mockContext
       );
-
-      const stagingResult = await deploymentHandler.handleMessage(
+      const stagingResult = await orchestrator.handleMessage(
         `execute_remote script="${appScript}" target="staging-env"`,
         mockContext
       );
 
       expect(devResult.success).toBe(true);
       expect(devResult.deploymentType).toBe('container');
-      
+
       expect(stagingResult.success).toBe(true);
       expect(stagingResult.deploymentType).toBe('remote_shell');
 
       // INTERACTION: Monitor both deployments
-      const devMonitor = await deploymentHandler.handleMessage(
+      const devMonitor = await orchestrator.handleMessage(
         'monitor_deployment target="dev-env"',
         mockContext
       );
-
-      const stagingMonitor = await deploymentHandler.handleMessage(
+      const stagingMonitor = await orchestrator.handleMessage(
         'monitor_deployment target="staging-env"',
         mockContext
       );
 
       expect(devMonitor.success).toBe(true);
+      expect(devMonitor.lastExecution).toBeInstanceOf(Date);
       expect(stagingMonitor.success).toBe(true);
+      expect(stagingMonitor.lastExecution).toBeInstanceOf(Date);
 
-      // INTERACTION: Cleanup all environments
-      const cleanupResult = await deploymentHandler.handleMessage(
-        'cleanup_all_deployments',
-        mockContext
-      );
+      // INTERACTION: Cleanup both environments
+      await orchestrator.handleMessage('cleanup_deployment target="dev-env"', mockContext);
+      await orchestrator.handleMessage('cleanup_deployment target="staging-env"', mockContext);
 
       /*
        * AFTER CLEANUP: Back to clean state
@@ -712,9 +630,9 @@ describe('Deployment Handler - Mock Orchestration Tests', () => {
        * └─────────────────────────────────────────────┘
        */
 
-      expect(cleanupResult.success).toBe(true);
-      expect(cleanupResult.cleanedUp).toBe(2);
-      expect(deploymentHandler.activeDeployments.size).toBe(0);
+      expect(containerCommands()).toContain('remove name="dev-env" force=false');
+      expect(remoteCommands()).toContain('disconnect connection="staging-env"');
+      expect(orchestrator.activeDeployments.size).toBe(0);
     });
 
     it('should demonstrate progress monitoring workflow', async () => {
@@ -731,33 +649,18 @@ describe('Deployment Handler - Mock Orchestration Tests', () => {
        * └─────────────────────────────────────────────┘
        */
 
-      const progressMessages = [];
-      await deploymentHandler.initialize({
+      await orchestrator.initialize({
         enableProgressCallbacks: true,
-        progressCallback: (event, params) => {
-          progressMessages.push({ event, params, timestamp: Date.now() });
-        }
+        defaultBinaryPath: './rexx-linux-x64'
       });
 
       // INTERACTION: Deploy with progress monitoring
-      await deploymentHandler.handleMessage(
-        'setup_container image="debian:stable" name="progress-demo"',
+      await orchestrator.handleMessage(
+        'setup_remote_shell host="worker.example.com" user="deployer" alias="progress-demo"',
         mockContext
       );
 
-      const progressScript = `
-        SAY "Starting long-running task..."
-        CHECKPOINT("task_start", "Long-running task initiated")
-        
-        LET total_items = 100
-        DO i = 1 TO total_items
-          /* Simulate work */
-          IF i // 10 = 0 THEN
-            CHECKPOINT("progress", i, total_items)
-        END
-        
-        CHECKPOINT("task_complete", "All items processed successfully")
-      `;
+      const progressScript = 'CHECKPOINT(\'task_start\', \'Long-running task initiated\')';
 
       /*
        * DURING EXECUTION: Progress updates flowing
@@ -765,19 +668,15 @@ describe('Deployment Handler - Mock Orchestration Tests', () => {
        * │ Deployment Orchestrator                     │
        * │ Active Deployments: 1                       │
        * │                                             │
-       * │ > progress-demo (container)                 │
+       * │ > progress-demo (remote_shell)              │
        * │   Status: executing                         │
-       * │   Progress: [░░░░░░░░░░] 60/100             │
        * │                                             │
        * │ CHECKPOINT Flow:                            │
        * │   task_start ✓                             │
-       * │   progress: 10/100 ✓                       │
-       * │   progress: 20/100 ✓                       │
-       * │   progress: 60/100 ✓ (current)             │
        * └─────────────────────────────────────────────┘
        */
 
-      const result = await deploymentHandler.handleMessage(
+      const result = await orchestrator.handleMessage(
         `execute_remote script="${progressScript}" target="progress-demo" progress=true`,
         mockContext
       );
@@ -788,24 +687,35 @@ describe('Deployment Handler - Mock Orchestration Tests', () => {
        * │ Deployment Orchestrator                     │
        * │ Active Deployments: 1                       │
        * │                                             │
-       * │ > progress-demo (container)                 │
+       * │ > progress-demo (remote_shell)              │
        * │   Status: ready                             │
        * │   Last Execution: successful                │
        * │                                             │
-       * │ Progress Summary:                           │
-       * │   • task_start                              │
-       * │   • progress updates: 10 checkpoints       │
-       * │   • task_complete                           │
-       * │   Duration: 1.2s                           │
+       * │ Checkpoint: completed                       │
        * └─────────────────────────────────────────────┘
        */
 
       expect(result.success).toBe(true);
-      expect(result.progressEnabled).toBe(true);
-      
-      const deployment = deploymentHandler.activeDeployments.get('progress-demo');
-      expect(deployment.progressEnabled).toBe(true);
-      expect(deployment.lastExecution).toBeDefined();
+      expect(result.checkpointId).toMatch(/^deploy_\d+_/);
+
+      // The script sent out carries the CHECKPOINT plumbing plus the original
+      const sent = remoteCommands().find(command => command.includes('CHECKPOINT_REMOTE'));
+      expect(sent).toContain(`checkpoint_id = "${result.checkpointId}"`);
+      expect(sent).toContain(progressScript);
+
+      const status = await orchestrator.handleMessage(
+        `get_checkpoint checkpoint_id="${result.checkpointId}"`,
+        mockContext
+      );
+      expect(status.success).toBe(true);
+      expect(status.status).toBe('completed');
+
+      const listed = await orchestrator.handleMessage('list_checkpoints', mockContext);
+      expect(listed.activeCheckpoints).toBe(1);
+      expect(listed.checkpoints[0].checkpointId).toBe(result.checkpointId);
+
+      const deployment = orchestrator.activeDeployments.get('remote_progress-demo_1');
+      expect(deployment.lastExecution).toBeInstanceOf(Date);
     });
   });
 });

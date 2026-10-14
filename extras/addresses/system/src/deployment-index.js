@@ -7,8 +7,10 @@
  */
 
 const RemoteShellHandler = require('./remote-shell-handler');
-const PodmanHandler = require('./podman-handler');
-const DockerHandler = require('./docker-handler');
+// The container handlers: podman-address's and docker-address's (they
+// moved there in 320a693)
+const { AddressPodmanHandler: PodmanHandler } = require('../../podman-address/podman-address.js');
+const { AddressDockerHandler: DockerHandler } = require('../../docker-address/docker-address.js');
 const DeploymentOrchestrator = require('./deployment-orchestrator');
 
 module.exports = {

@@ -14,8 +14,8 @@ const https = require('https');
 // Mock dependencies
 jest.mock('fs');
 jest.mock('https');
-jest.mock('../remote-shell-handler');
-jest.mock('../podman-handler');
+jest.mock('../src/remote-shell-handler');
+jest.mock('../../podman-address/podman-address.js');
 
 // Import after mocking
 const DeploymentOrchestrator = require('../src/deployment-orchestrator');
@@ -48,6 +48,13 @@ describe('Deployment Orchestrator Remote REQUIRE', () => {
     fs.existsSync.mockClear();
     fs.readFileSync.mockClear();
     https.get.mockClear();
+  });
+
+  afterEach(() => {
+    // path is Node's real module, shared with Jest's own runner: a stub left
+    // on path.resolve breaks Jest after the tests ("Cannot find module
+    // 'jest-util'"), so spies must be put back
+    jest.restoreAllMocks();
   });
 
   describe('Remote REQUIRE Request Handling', () => {
@@ -113,7 +120,7 @@ describe('Deployment Orchestrator Remote REQUIRE', () => {
       
       fs.existsSync.mockReturnValue(true);
       fs.readFileSync.mockReturnValue(libraryContent);
-      path.resolve = jest.fn().mockReturnValue('/full/path/test-local-lib.js');
+      jest.spyOn(path, 'resolve').mockReturnValue('/full/path/test-local-lib.js');
       
       const result = await orchestrator.resolveLibraryForRemote(libraryPath);
       
@@ -126,7 +133,7 @@ describe('Deployment Orchestrator Remote REQUIRE', () => {
       const libraryPath = './missing-lib.js';
       
       fs.existsSync.mockReturnValue(false);
-      path.resolve = jest.fn().mockReturnValue('/full/path/missing-lib.js');
+      jest.spyOn(path, 'resolve').mockReturnValue('/full/path/missing-lib.js');
       
       await expect(
         orchestrator.resolveLibraryForRemote(libraryPath)

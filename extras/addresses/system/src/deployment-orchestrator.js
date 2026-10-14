@@ -42,7 +42,8 @@ function log(operation, details) {
   logActivity('DEPLOYMENT', operation, details);
 }
 const RemoteShellHandler = require('./remote-shell-handler');
-const PodmanHandler = require('./podman-handler');
+// The container handler: podman-address's (it moved there in 320a693)
+const { AddressPodmanHandler: PodmanHandler } = require('../../podman-address/podman-address.js');
 
 class SCROOrchestrator {
   constructor() {
@@ -142,16 +143,15 @@ class SCROOrchestrator {
    * Parse command into operation and parameters
    */
   parseCommand(command) {
-    const parts = command.split(/\s+/);
-    const operation = parts[0].toLowerCase();
-    const args = { operation };
+    const operation = command.split(/\s+/, 1)[0];
+    const args = { operation: operation.toLowerCase() };
 
-    for (let i = 1; i < parts.length; i++) {
-      const part = parts[i];
-      if (part.includes('=')) {
-        const [key, ...valueParts] = part.split('=');
-        args[key] = valueParts.join('=').replace(/^"(.*)"$/, '$1');
-      }
+    // key=value pairs; a double-quoted value may contain spaces (scripts do)
+    const pairPattern = /(\w+)=("[^"]*"|\S+)/g;
+    const rest = command.slice(operation.length);
+    let match;
+    while ((match = pairPattern.exec(rest)) !== null) {
+      args[match[1]] = match[2].replace(/^"(.*)"$/s, '$1');
     }
 
     return args;
@@ -177,23 +177,34 @@ class SCROOrchestrator {
 
     try {
       // Create container
-      const createResult = await this.container.handleMessage(
+      const createResult = await this.container.handleAddressCommand(
         `create image="${image}" name="${name}" interactive=${interactive}`,
         context
       );
 
       if (!createResult.success) {
-        throw new Error(`Container creation failed: ${createResult.message}`);
+        throw new Error(`Container creation failed: ${createResult.error}`);
+      }
+
+      // Start it: podman's create leaves it 'created', and deploy_rexx and
+      // execute_rexx both need it 'running'
+      const startResult = await this.container.handleAddressCommand(
+        `start name="${name}"`,
+        context
+      );
+
+      if (!startResult.success) {
+        throw new Error(`Container start failed: ${startResult.error}`);
       }
 
       // Deploy RexxJS binary
-      const deployResult = await this.container.handleMessage(
+      const deployResult = await this.container.handleAddressCommand(
         `deploy_rexx container="${name}" rexx_binary="${binaryPath}"`,
         context
       );
 
       if (!deployResult.success) {
-        throw new Error(`RexxJS deployment failed: ${deployResult.message}`);
+        throw new Error(`RexxJS deployment failed: ${deployResult.error}`);
       }
 
       // Store deployment info
@@ -247,9 +258,11 @@ class SCROOrchestrator {
     const connectionAlias = alias || `conn_${this.deploymentCounter}`;
 
     try {
-      // Setup remote shell connection
+      // Setup remote shell connection (key is optional: without one, ssh
+      // uses its own default identities)
+      const keyArg = key ? ` key="${key}"` : '';
       const connectResult = await this.remoteShell.handleMessage(
-        `connect host="${host}" user="${user}" key="${key}" alias="${connectionAlias}"`,
+        `connect host="${host}" user="${user}"${keyArg} alias="${connectionAlias}"`,
         context
       );
 
@@ -356,7 +369,7 @@ class SCROOrchestrator {
       if (deployment.type === 'container') {
         // Execute in container
         const command = `execute_rexx container="${deployment.target}" script="${rexxScript}" timeout=${execTimeout} progress_callback=${progress}`;
-        result = await this.container.handleMessage(command, context);
+        result = await this.container.handleAddressCommand(command, context);
       } else if (deployment.type === 'remote_shell') {
         // Execute on remote shell
         if (enableProgress) {
@@ -433,7 +446,7 @@ class SCROOrchestrator {
         }, context);
 
         // Cleanup container
-        await this.container.handleMessage(`remove container="${containerName}" force=true`, context);
+        await this.container.handleAddressCommand(`remove name="${containerName}" force=true`, context);
 
         return {
           ...executeResult,
@@ -543,13 +556,13 @@ class SCROOrchestrator {
       let status;
       
       if (deployment.type === 'container') {
-        const listResult = await this.container.handleMessage('list', context);
-        const containerInfo = listResult.containers.find(c => c.id === deployment.target);
+        const listResult = await this.container.handleAddressCommand('list', context);
+        const containerInfo = listResult.containers.find(c => c.name === deployment.target);
         status = {
           target: deployment.target,
           type: 'container',
           status: containerInfo ? containerInfo.status : 'unknown',
-          uptime: containerInfo ? Date.now() - new Date(containerInfo.createdAt).getTime() : 0
+          uptime: containerInfo ? Date.now() - new Date(containerInfo.created).getTime() : 0
         };
       } else if (deployment.type === 'remote_shell') {
         const connectionResult = await this.remoteShell.handleMessage('list_connections', context);
@@ -592,7 +605,7 @@ class SCROOrchestrator {
 
     try {
       if (deployment.type === 'container') {
-        await this.container.handleMessage(`remove container="${deployment.target}" force=${force}`, context);
+        await this.container.handleAddressCommand(`remove name="${deployment.target}" force=${force}`, context);
       } else if (deployment.type === 'remote_shell') {
         await this.remoteShell.handleMessage(`disconnect connection="${deployment.target}"`, context);
       }
@@ -907,7 +920,7 @@ ${script}
     const checkpoint = this.activeCheckpoints.get(checkpointId);
     
     const executionPromise = deployment.type === 'container' 
-      ? this.container.handleMessage(`execute container="${deployment.name}" script="${enhancedScript}"`, {})
+      ? this.container.handleAddressCommand(`execute container="${deployment.name}" script="${enhancedScript}"`, {})
       : this.remoteShell.handleMessage(`execute host="${deployment.host}" script="${enhancedScript}"`, {});
     
     // Setup checkpoint listener for this execution
