@@ -1,74 +1,36 @@
 /**
- * Tests for sympy function parameter requirements
+ * Tests for sympy function parameter requirements: a function called with
+ * nothing to work on says so.
+ *
+ * The module exports SY_SYMBOL, SY_NUM and SY_DIFF. This spec used to test
+ * SYMPY_SIMPLIFY, SYMPY_EXPAND and six more that the module never had, and
+ * could not load (its paths were one level short), so until 2026-10-14
+ * none of it had run.
  */
 
 describe('sympy Function Parameter Requirements', () => {
   let interpreter;
   let parse;
 
-  beforeEach(async () => {
-    // Use dynamic import for ESM module
-    const modules = await import('../../../core/src/interpreter.js');
-    const InterpreterClass = modules.Interpreter || modules.default;
-    
-    const parserModule = await import('../../../core/src/parser.js');
-    parse = parserModule.parse || parserModule.default;
-    
-    interpreter = new InterpreterClass();
-    
-    // Load sympy functions
-    const sympyFunctions = await import('./src/sympy-functions.js');
-    if (sympyFunctions.SYMPY_FUNCTIONS_MAIN) {
-      const funcs = sympyFunctions.SYMPY_FUNCTIONS_MAIN();
-      Object.assign(interpreter.operations, funcs);
-    }
+  beforeEach(() => {
+    const { Interpreter } = require('../../../../core/src/interpreter.js');
+    ({ parse } = require('../../../../core/src/parser.js'));
+    interpreter = new Interpreter();
+    // The module's functions, as built-in functions: they take positional
+    // arguments
+    Object.assign(interpreter.builtInFunctions, require('../src/sympy-functions.js'));
   });
 
-  test('SYMPY_SIMPLIFY without parameters should throw clear error', async () => {
-    const script = `result = SYMPY_SIMPLIFY`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('SYMPY_SIMPLIFY function requires parameters');
+  test('SY_SYMBOL without parameters should throw clear error', async () => {
+    await expect(interpreter.run(parse('result = SY_SYMBOL()'))).rejects.toThrow('Symbol name must be a non-empty string.');
   });
 
-  test('SYMPY_EXPAND without parameters should throw clear error', async () => {
-    const script = `result = SYMPY_EXPAND`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('SYMPY_EXPAND function requires parameters');
+  test('SY_DIFF without parameters should throw clear error', async () => {
+    await expect(interpreter.run(parse('result = SY_DIFF()'))).rejects.toThrow('Cannot convert');
   });
 
-  test('SYMPY_FACTOR without parameters should throw clear error', async () => {
-    const script = `result = SYMPY_FACTOR`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('SYMPY_FACTOR function requires parameters');
-  });
-
-  test('SYMPY_SOLVE without parameters should throw clear error', async () => {
-    const script = `result = SYMPY_SOLVE`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('SYMPY_SOLVE function requires parameters');
-  });
-
-  test('SYMPY_DIFF without parameters should throw clear error', async () => {
-    const script = `result = SYMPY_DIFF`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('SYMPY_DIFF function requires parameters');
-  });
-
-  test('SYMPY_INTEGRATE without parameters should throw clear error', async () => {
-    const script = `result = SYMPY_INTEGRATE`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('SYMPY_INTEGRATE function requires parameters');
-  });
-
-  test('SYMPY_LIMIT without parameters should throw clear error', async () => {
-    const script = `result = SYMPY_LIMIT`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('SYMPY_LIMIT function requires parameters');
-  });
-
-  test('SYMPY_MATRIX without parameters should throw clear error', async () => {
-    const script = `result = SYMPY_MATRIX`;
-    
-    await expect(interpreter.run(parse(script))).rejects.toThrow('SYMPY_MATRIX function requires parameters');
+  test('SY_NUM without parameters is the number 0', async () => {
+    await interpreter.run(parse('result = SY_NUM()'));
+    expect(interpreter.getVariable('result')).toEqual({ value: 0 });
   });
 });
