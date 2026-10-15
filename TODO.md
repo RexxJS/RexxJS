@@ -48,7 +48,62 @@ DOWN: PROCEDURE
 
 Seen in `core/src` at `d27c738`.
 
-## numpy-inspired functions called with no arguments give a value
+## A host function's string argument: a backslash before n, t or r
+
+Found 2026-10-15, putting `C:\temp` into the sae spreadsheet over its
+control bus (`spraedsheet/mcp/`). Given to a function the host
+supplies (`externalFunctions`, as the spreadsheet's `SETCELL`), a literal
+loses its backslashes wrongly, while RexxJS's own built-ins read the same
+literal right:
+
+```rexx
+SAY LENGTH("a\\b")                /* 3: a\b, right */
+CALL SETCELL "E1", "C:\\temp"      /* SETCELL is given C:\, a tab, emp */
+CALL SETCELL "E1", "C:\temp"       /* the same: \t is a tab here, which a
+                                      REXX writer may not expect either */
+```
+
+No way of writing it gets a backslash followed by `t`, `n` or `r` to such a
+function, in single quotes or double (the spreadsheet tried both). The
+likely place: unquoting by four replaces in turn, `\n`, `\t`, `\r` and then
+`\\`, so that the second backslash of a `\\` starts a `\t`
+(`interpreter-expression-value-resolution.js` about line 99,
+`interpreter-variable-stack.js` about line 92), where
+`escape-sequence-processor.js` decodes in one pass. A spec: a host
+function given `"C:\\temp"` receives `C:\temp`, and given `"a\\nb"`
+receives `a\nb`. The comment in `interpreter-string-and-expression-
+processing.js` that single-quoted strings get no escapes is not what a
+host function sees either. The spreadsheet's MCP server does not wait on
+this (it sends values base64-encoded), but its `spreadsheet_run`
+description warns against writing such text in REXX until it is fixed.
+
+## CALL cannot reach a host function; DO FOREVER and LEAVE are missing
+
+Found 2026-10-15, running whole programs in the sae spreadsheet
+(`spraedsheet/mcp/`, its `RUN_PROGRAM`). Three things a REXX writer
+expects, each its own gap:
+
+```rexx
+CALL SETCELL "B1", "x"     /* Subroutine 'SETCELL' not found: a function the
+                              host supplies (externalFunctions) is reachable
+                              as SETCELL(...) but not by CALL */
+DO FOREVER                 /* Invalid DO loop specification: FOREVER */
+  ...
+END
+DO WHILE 1
+  IF n = 3 THEN LEAVE      /* Function LEAVE is not available: read as a
+                              function call, not the loop instruction */
+END
+```
+
+A routine of the program's own (`CALL mine 7` with `mine: PROCEDURE`) works,
+as does `DO i = 1 TO n`, `DO WHILE cond` ended by its condition, and the
+functions called as functions. Specs: `CALL` of an external function sets
+RESULT as the function's value; `DO FOREVER ... LEAVE` runs until the LEAVE;
+`LEAVE` in a `DO WHILE` leaves it. Until then the spreadsheet's
+`spreadsheet_run_program` tool says to call the app's functions as
+functions and to end loops by their conditions.
+
 
 Found 2026-10-14, when `extras/functions/numpy-inspired/__tests__/
 parameter-requirement.spec.js` first loaded (its paths had been one level
