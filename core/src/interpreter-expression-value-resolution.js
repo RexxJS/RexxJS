@@ -30,6 +30,12 @@
  * that work with the interpreter's variable resolution and function calling systems.
  */
 
+// escape-sequence-processor.js: one pass over a literal's escapes (Node by
+// require; in a browser it registers itself on window)
+const processEscapeSequences = (typeof require !== 'undefined' && typeof module !== 'undefined')
+  ? require('./escape-sequence-processor.js').processEscapeSequences
+  : window.processEscapeSequences;
+
 /**
  * Resolve values from various sources (literals, variables, expressions)
  * @param {*} value - Value to resolve (can be string, number, object, etc.)
@@ -95,11 +101,13 @@ async function resolveValue(value, variableGetFn, variableHasFn, evaluateExpress
       if (!unquoted.split(q + q).join('').includes(q)) {
         unquoted = unquoted.split(q + q).join(q);
       }
-      // Process escape sequences
-      unquoted = unquoted.replace(/\\n/g, '\n');
-      unquoted = unquoted.replace(/\\t/g, '\t');
-      unquoted = unquoted.replace(/\\r/g, '\r');
-      unquoted = unquoted.replace(/\\\\/g, '\\');
+      // A double-quoted literal's escape sequences, in one pass that takes
+      // \\ first (so the second backslash of a \\ never starts a \t):
+      // escape-sequence-processor.js. A single-quoted literal has none, as
+      // in SAY and evaluateConcatenation.
+      if (value[0] === '"') {
+        unquoted = processEscapeSequences(unquoted);
+      }
       return unquoted;
     }
     // Handle escaped quotes
