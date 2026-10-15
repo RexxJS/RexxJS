@@ -128,7 +128,10 @@ async function resolveVariableValue(value, variables, evaluateExpressionFn, vari
   
   // If value is a string that looks like a variable reference (e.g., "myVar.x")
   if (typeof value === 'string' && value.includes('.')) {
-    const parts = value.split('.');
+    if (variables.has(value)) {
+      return variables.get(value);
+    }
+    const parts = derivedName(value, (n) => variables.has(n), (n) => variables.get(n)).split('.');
     const varName = parts[0];
     
     // Check if this is a variable reference
@@ -189,6 +192,25 @@ async function interpolateStringWithVars(template, variables, variableResolver) 
     interpolateFn = window.interpolateString;
   }
   return await interpolateFn(template, (varName) => resolveVariableValue(varName, variables, null, variableResolver));
+}
+
+/**
+ * A compound symbol's derived name (TRL 3.4): the stem, then each tail part
+ * replaced by the value of the variable of that name when one is set. A
+ * tail part that is a number, or an unset symbol, stays as it is. A name
+ * with no tail, or one set as a whole (RUNTIME.TYPE), is returned as given.
+ * @param {string} name - The symbol as written, e.g. list.i
+ * @param {Function} has - name -> whether that variable is set
+ * @param {Function} get - name -> that variable's value
+ * @returns {string} The derived name, e.g. list.2
+ */
+function derivedName(name, has, get) {
+  if (typeof name !== 'string' || !name.includes('.') || has(name)) return name;
+  const parts = name.split('.');
+  if (!/^[A-Za-z_]\w*$/.test(parts[0])) return name;
+  const tail = parts.slice(1).map((part) =>
+    /^[A-Za-z_]\w*$/.test(part) && has(part) ? String(get(part)) : part);
+  return [parts[0], ...tail].join('.');
 }
 
 /**
@@ -351,6 +373,7 @@ async function executeQueue(command, stack, variables, evaluateExpressionFn) {
 if (typeof module !== 'undefined' && module.exports) {
     // Node.js environment
     module.exports = { 
+        derivedName,
         resolveVariableValue,
         interpolateStringWithVars,
         getVariable,
@@ -372,6 +395,7 @@ if (typeof module !== 'undefined' && module.exports) {
     }
     if (!window.rexxModuleRegistry.has('variableStack')) {
         window.rexxModuleRegistry.set('variableStack', {
+            derivedName,
             resolveVariableValue,
             interpolateStringWithVars,
             getVariable,

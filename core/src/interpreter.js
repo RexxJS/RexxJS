@@ -1033,6 +1033,11 @@ class RexxInterpreter {
     return variableStackUtils.getVariable(name, this.variables, this.variableResolver);
   }
 
+  // A compound symbol's derived name (TRL 3.4): list.i is list.2 when i = 2
+  derivedName(name) {
+    return variableStackUtils.derivedName(name, (n) => this.variables.has(n), (n) => this.variables.get(n));
+  }
+
   isExternalScriptCall(subroutineName) {
     return parseSubroutineUtils.isExternalScriptCall(subroutineName);
   }
@@ -1471,7 +1476,7 @@ class RexxInterpreter {
               result = await this.evaluateExpression(command.expression);
             }
             
-            const variableName = await this.interpolateString(command.variable);
+            const variableName = this.derivedName(await this.interpolateString(command.variable));
 
             // Handle compound variable assignment (e.g., RESULT.message = value)
             if (variableName.includes('.')) {
@@ -1565,7 +1570,7 @@ class RexxInterpreter {
               }
             }
             
-            const variableName = await this.interpolateString(command.variable);
+            const variableName = this.derivedName(await this.interpolateString(command.variable));
 
             // Handle compound variable assignment (e.g., RESULT.message = value)
             if (variableName.includes('.')) {

@@ -36,6 +36,12 @@ const processEscapeSequences = (typeof require !== 'undefined' && typeof module 
   ? require('./escape-sequence-processor.js').processEscapeSequences
   : window.processEscapeSequences;
 
+// interpreter-variable-stack.js's derivedName: a compound symbol's tail
+// substituted (Node by require; in a browser from the module registry)
+const derivedName = (typeof require !== 'undefined' && typeof module !== 'undefined')
+  ? require('./interpreter-variable-stack.js').derivedName
+  : (name, has, get) => window.rexxModuleRegistry.get('variableStack').derivedName(name, has, get);
+
 /**
  * Resolve values from various sources (literals, variables, expressions)
  * @param {*} value - Value to resolve (can be string, number, object, etc.)
@@ -135,7 +141,11 @@ async function resolveValue(value, variableGetFn, variableHasFn, evaluateExpress
   
   // If value is a string that looks like a variable reference (e.g., "myVar.x")
   if (typeof value === 'string' && value.includes('.')) {
-    const parts = value.split('.');
+    if (variableHasFn(value)) {
+      return variableGetFn(value);
+    }
+    // A compound symbol's tail is substituted first (list.i is list.2)
+    const parts = derivedName(value, variableHasFn, variableGetFn).split('.');
     const varName = parts[0];
 
     // Check if this is a variable reference
