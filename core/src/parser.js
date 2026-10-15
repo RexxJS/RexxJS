@@ -1785,6 +1785,11 @@ function parseCondition(conditionStr) {
 // is parsed as one, to be worked out before the call; anything else stays
 // text, resolved as before (a literal, a number, a name, a call, an arrow
 // function's source).
+// A binary operator at either end of a positional argument's text: the blank
+// beside it does not end the argument.
+const BINARY_OPERATOR_AT_END = /(\|\||\*\*|\/\/|==|<=|>=|<>|\\=|¬=|[+\-*\/%=<>&|])$/;
+const BINARY_OPERATOR_AT_START = /^(\|\||\*\*|\/\/|==|<=|>=|<>|\\=|¬=|[+\-*\/%=<>&|])/;
+
 function argumentOf(arg) {
   // An arrow function, a number, or a named argument (delimiter=",").
   if (arg.includes('=>') || /^-?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(arg) || /^\w+=(?!=)/.test(arg)) return arg;
@@ -1867,8 +1872,15 @@ function parseFunctionCall(line) {
               // End of this argument
               break;
             } else if (!inQuotes && parenCount === 0 && char === ' ' && !inArrowFunction) {
-              // End of this argument (space separator) - but only if not in quotes or arrow function!
-              break;
+              // A blank ends the argument, unless it is the blank beside a
+              // binary operator (a || b, 5 + 3): then the operands and the
+              // operator are one argument, as LENGTH(a||b)'s is.
+              if (BINARY_OPERATOR_AT_END.test(argValue.trimEnd()) ||
+                  BINARY_OPERATOR_AT_START.test(remaining.substring(i).trimStart())) {
+                argValue += char;
+              } else {
+                break;
+              }
             } else {
               argValue += char;
             }
