@@ -253,23 +253,22 @@ const evaluateConcatenation = async function(expression, resolveValueFn, evaluat
       }
     };
 
-    // Each side of || is terms joined by blanks, as in classic REXX
-    // (SAY "(RC" rc || ")"): a side of several terms, none of them an
-    // operator or an operand of one, is each term worked out and joined
-    // with one blank.
-    const OPERATOR = /[+\-*\/%<>=]/;
+    // Each side of || is terms joined by blanks or abutted, as in classic
+    // REXX (SAY "(RC" rc || ")", v"text"): parser.js's concatenationTerms
+    // reads the side's terms, arithmetic among them bound tighter, and each
+    // is worked out and joined with one blank, or none when abutted. A side
+    // that is not such a list (one with = in it) is one term.
+    const concatenationTerms = (typeof require !== 'undefined' && typeof module !== 'undefined')
+      ? require('./parser').concatenationTerms
+      : window.concatenationTerms;
     const results = [];
     for (const part of parts) {
-      const terms = isSingleLiteral(part) ? [part] : parseQuotedParts(part);
-      const blankJoined = terms.length > 1 &&
-        terms.every((t) => isSingleLiteral(t) || !OPERATOR.test(t));
-      if (blankJoined) {
-        const values = [];
-        for (const t of terms) values.push(await term(t));
-        results.push(values.join(' '));
-      } else {
-        results.push(await term(part));
+      const groups = concatenationTerms(part) || [{ text: part, abut: false }];
+      let joined = '';
+      for (let g = 0; g < groups.length; g++) {
+        joined += (g === 0 || groups[g].abut ? '' : ' ') + await term(groups[g].text);
       }
+      results.push(joined);
     }
 
     return results.join('');

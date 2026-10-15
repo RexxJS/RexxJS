@@ -1001,8 +1001,9 @@ function parseStatement(tokens, startIndex) {
       };
     }
 
-    // Check if it's a concatenation expression with || FIRST
-    if (hasTopLevelConcatenation(expression)) {
+    // Check if it's a concatenation expression with || FIRST, or of terms
+    // joined by blanks or abuttal (v "text", v"text")
+    if (hasTopLevelConcatenation(expression) || isTermConcatenation(expression)) {
       return {
         command: addLineNumber({
           type: 'ASSIGNMENT',
@@ -1326,8 +1327,8 @@ function parseStatement(tokens, startIndex) {
     const variableName = simpleAssignMatch[1];
     const expression = simpleAssignMatch[2];
 
-    // A concatenation (a || b) first, as the LET path has it
-    if (hasTopLevelConcatenation(expression)) {
+    // A concatenation (a || b, v "text", v"text") first, as the LET path has it
+    if (hasTopLevelConcatenation(expression) || isTermConcatenation(expression)) {
       return {
         command: addLineNumber({
           type: 'ASSIGNMENT',
@@ -1422,6 +1423,113 @@ function hasTopLevelConcatenation(expression) {
     }
   }
   return false;
+}
+
+// The operator characters: a term made only of these (+, ||, |>), or one
+// that starts or ends with one (-1, a+), links to its neighbour.
+const OPERATOR_TERM = /^[+\-*\/%=<>\\¬&|!]+$/;
+const OPERATOR_START = /^[+\-*\/%=<>\\¬&|!]/;
+const OPERATOR_END = /[+\-*\/%=<>\\¬&|!]$/;
+
+/**
+ * The terms of a concatenation, as classic REXX reads an expression (TRL
+ * 6.1): blank-separated terms are joined with one blank; a term abutting a
+ * quoted literal (v"text", "a"'b') with nothing between. Arithmetic binds
+ * tighter, so a run of terms linked by operators (n + 1, a*2, x |> f) is
+ * one term here. Each term is {text, abut}, abut true when it follows the
+ * one before with no blank.
+ *
+ * null when the expression is not a list of terms to concatenate: a
+ * literal array or object; an unterminated literal; or a term with = in
+ * it, a call's named parameter (execute command="ls") or a comparison.
+ * @param {string} expression - The right-hand side as written
+ * @returns {Array<{text: string, abut: boolean}>|null}
+ */
+function concatenationTerms(expression) {
+  const expr = expression.trim();
+  if (expr[0] === '[' || expr[0] === '{') return null;
+  const terms = [];
+  let current = '';
+  let abut = false;
+  let depth = 0;
+  const end = (nextAbut) => {
+    if (current !== '') terms.push({ text: current, abut });
+    current = '';
+    abut = nextAbut;
+  };
+  for (let i = 0; i < expr.length; i++) {
+    const c = expr[i];
+    if (c === '"' || c === "'") {
+      // A literal to its closing quote: a doubled quote is one quote of
+      // it, and in a double-quoted one a backslash escapes the next char
+      let literal = c;
+      let j = i + 1;
+      for (; j < expr.length; j++) {
+        if (c === '"' && expr[j] === '\\' && j + 1 < expr.length) {
+          literal += expr[j] + expr[j + 1];
+          j++;
+          continue;
+        }
+        literal += expr[j];
+        if (expr[j] === c) {
+          if (expr[j + 1] === c) {
+            literal += c;
+            j++;
+            continue;
+          }
+          break;
+        }
+      }
+      if (j >= expr.length) return null;
+      if (depth === 0) {
+        if (current !== '' && !OPERATOR_END.test(current)) end(true);
+        current += literal;
+        if (/[A-Za-z0-9_.(]/.test(expr[j + 1] || '')) end(true);
+      } else {
+        current += literal;
+      }
+      i = j;
+    } else if (c === '(') {
+      depth++;
+      current += c;
+    } else if (c === ')') {
+      depth--;
+      current += c;
+    } else if (c === ' ' && depth === 0) {
+      end(false);
+    } else {
+      current += c;
+    }
+  }
+  end(false);
+
+  const groups = [];
+  for (const term of terms) {
+    const prev = groups[groups.length - 1];
+    const quoted = term.text[0] === '"' || term.text[0] === "'";
+    const linked = prev && !term.abut &&
+      (OPERATOR_TERM.test(prev.text) || OPERATOR_END.test(prev.text) ||
+       (!quoted && (OPERATOR_TERM.test(term.text) || OPERATOR_START.test(term.text))));
+    if (linked) {
+      prev.text += ' ' + term.text;
+    } else {
+      groups.push({ text: term.text, abut: term.abut });
+    }
+  }
+  if (groups.some((g) => g.text.replace(/"[^"]*"|'[^']*'/g, '').includes('='))) return null;
+  return groups;
+}
+
+/**
+ * Whether an expression is two or more terms to concatenate (v "text",
+ * v"text"), which a CONCATENATION node has evaluateConcatenation work out,
+ * as || does.
+ * @param {string} expression - The right-hand side as written
+ * @returns {boolean}
+ */
+function isTermConcatenation(expression) {
+  const groups = concatenationTerms(expression);
+  return groups !== null && groups.length > 1;
 }
 
 function parseSingleLineIfStatement(tokens, startIndex, match) {
@@ -1805,6 +1913,8 @@ const BINARY_OPERATOR_AT_START = /^(\|\||\*\*|\/\/|==|<=|>=|<>|\\=|¬=|[+\-*\/%=
 function argumentOf(arg) {
   // An arrow function, a number, or a named argument (delimiter=",").
   if (arg.includes('=>') || /^-?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(arg) || /^\w+=(?!=)/.test(arg)) return arg;
+  // Terms joined by blanks or abuttal (a "yz", a"yz") are a concatenation
+  if (isTermConcatenation(arg)) return { type: 'CONCATENATION', value: arg };
   const unquoted = arg.replace(/"[^"]*"|'[^']*'/g, '""');
   if (!/[+\-*/%<>=¬|]/.test(unquoted)) return arg;
   // || is concatenation, worked out as LET's is.
@@ -2269,6 +2379,15 @@ function parseExpression(exprStr) {
         elements: elements
       };
     }
+  }
+
+  // Terms joined by blanks or abuttal (v "text", v"text") are a
+  // concatenation, as || is; arithmetic among them binds tighter
+  if (isTermConcatenation(expr)) {
+    return {
+      type: 'CONCATENATION',
+      value: expr
+    };
   }
 
   // First check if this looks like a mathematical expression (contains operators or parentheses)
@@ -2765,10 +2884,11 @@ function parseFactor(expr) {
 
 // Export for both Node.js and browser environments
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { parse, parseFunctionCall, parseExpression };
+  module.exports = { parse, parseFunctionCall, parseExpression, concatenationTerms };
 } else {
   // Browser environment - attach to window
   window.parse = parse;
   window.parseFunctionCall = parseFunctionCall;
   window.parseExpression = parseExpression;
+  window.concatenationTerms = concatenationTerms;
 }

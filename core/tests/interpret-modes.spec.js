@@ -43,7 +43,7 @@ describe('INTERPRET Statement Modes', () => {
       interpreter.variables.set('original', 'value');
       
       const commands = parse(`
-        LET code = "LET modified = original || \" changed\"\\nLET new_var = \"created\""
+        LET code = "LET modified = original || "" changed""\\nLET new_var = ""created"""
         INTERPRET code
       `);
       

@@ -3480,7 +3480,7 @@ describe('Rexx-lite Interpreter', () => {
       it('should handle array slicing and concatenation', async () => {
         const script = `
           LET arr1 = "[1, 2, 3, 4, 5]"
-          LET arr2 = "[\"a\", \"b\", \"c\"]"
+          LET arr2 = '["a", "b", "c"]'
           LET slice = ARRAY_SLICE array=arr1 start=1 end=4
           LET concatenated = ARRAY_CONCAT array1=arr1 array2=arr2
           LET reversed = ARRAY_REVERSE array=arr1
@@ -3501,7 +3501,7 @@ describe('Rexx-lite Interpreter', () => {
 
       it('should handle array sorting and searching', async () => {
         const script = `
-          LET mixed = "[\"banana\", \"apple\", \"cherry\"]"
+          LET mixed = '["banana", "apple", "cherry"]'
           LET numbers = "[3, 1, 4, 1, 5]"
           LET sortedAsc = ARRAY_SORT array=mixed order=asc
           LET sortedDesc = ARRAY_SORT array=numbers order=desc
@@ -3593,7 +3593,7 @@ describe('Rexx-lite Interpreter', () => {
 
       it('should handle array functions in control flow', async () => {
         const script = `
-          LET items = "[\"apple\", \"banana\", \"cherry\"]"
+          LET items = '["apple", "banana", "cherry"]'
           LET itemCount = ARRAY_LENGTH array=items
           
           IF itemCount > 2 THEN
@@ -3657,7 +3657,7 @@ describe('Rexx-lite Interpreter', () => {
 
       it('should work with kitchen RPC calls', async () => {
         const script = `
-          LET ingredients = "[\"potatoes\", \"chicken\", \"rice\"]"
+          LET ingredients = '["potatoes", "chicken", "rice"]'
           LET quantities = "[3, 2, 5]"
           LET totalItems = ARRAY_SUM array=quantities
           LET firstIngredient = ARRAY_SHIFT array=ingredients
@@ -3734,8 +3734,8 @@ describe('Rexx-lite Interpreter', () => {
 
       it('should handle array concatenation with string interpolation', async () => {
         const script = `
-          LET fruits = "[\"apple\", \"banana\"]"
-          LET vegetables = "[\"carrot\", \"lettuce\"]"
+          LET fruits = '["apple", "banana"]'
+          LET vegetables = '["carrot", "lettuce"]'
           LET combined = ARRAY_CONCAT array1=fruits array2=vegetables
           LET joinedList = JOIN array=combined separator=", "
           LET message = "Shopping list: {{joinedList}}"
