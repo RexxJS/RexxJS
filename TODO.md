@@ -142,14 +142,6 @@ abuttal, and the uppercase name of an unset variable (specs
 `blank-concatenation-and-abuttal.spec.js`, `unset-variable-name.spec.js`),
 and left alone:
 
-- **A blank between terms inside a call's parentheses ends the argument.**
-  `LENGTH(a "yz")` is `LENGTH(a, "yz")` (parser.js's positional-argument
-  scanner, about line 1995, "A blank ends the argument"), and through the
-  arithmetic path `removeSpacesExceptInQuotes` drops the blank, so
-  `n = LENGTH(a "yz")` gives 3 where TRL 6.1 says 4. Abuttal there
-  (`LENGTH(a"yz")`) works. The scanner exists for RexxJS's own
-  blank-separated positional arguments; decide whether that form or the
-  classic concatenation wins inside parentheses.
 - **A DO loop's control variable after the loop.** `DO i = 1 TO 2 ... END`
   then `SAY i` gives 2; classic REXX leaves the value that ended the loop,
   3 (TRL 4.3, "the control variable has the value that caused the loop to

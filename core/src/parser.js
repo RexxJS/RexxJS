@@ -1905,11 +1905,6 @@ function parseCondition(conditionStr) {
 // is parsed as one, to be worked out before the call; anything else stays
 // text, resolved as before (a literal, a number, a name, a call, an arrow
 // function's source).
-// A binary operator at either end of a positional argument's text: the blank
-// beside it does not end the argument.
-const BINARY_OPERATOR_AT_END = /(\|\||\*\*|\/\/|==|<=|>=|<>|\\=|¬=|[+\-*\/%=<>&|])$/;
-const BINARY_OPERATOR_AT_START = /^(\|\||\*\*|\/\/|==|<=|>=|<>|\\=|¬=|[+\-*\/%=<>&|])/;
-
 function argumentOf(arg) {
   // An arrow function, a number, or a named argument (delimiter=",").
   if (arg.includes('=>') || /^-?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(arg) || /^\w+=(?!=)/.test(arg)) return arg;
@@ -1933,11 +1928,23 @@ function parseFunctionCall(line) {
   if (!parts) return null;
 
   const command = parts[1];
-  const argsStr = parts[2];
+  let argsStr = parts[2];
   
   // Debug logging removed
   
   const params = {};
+
+  // REQUIRE "library" AS pattern: the AS clause is not part of the
+  // library argument (which would otherwise read as a concatenation of
+  // the three terms)
+  let asClause = null;
+  if (command.toUpperCase() === 'REQUIRE' && argsStr) {
+    const asMatch = argsStr.match(/^(.*\S)\s+AS\s+(\S+)\s*$/i);
+    if (asMatch) {
+      argsStr = asMatch[1];
+      asClause = asMatch[2];
+    }
+  }
 
   if (argsStr && argsStr.trim().length > 0) {
     // Handle parentheses syntax: FUNC(param=value) or FUNC param=value
@@ -1993,17 +2000,11 @@ function parseFunctionCall(line) {
             } else if (!inQuotes && parenCount === 0 && char === ',') {
               // End of this argument
               break;
-            } else if (!inQuotes && parenCount === 0 && char === ' ' && !inArrowFunction) {
-              // A blank ends the argument, unless it is the blank beside a
-              // binary operator (a || b, 5 + 3): then the operands and the
-              // operator are one argument, as LENGTH(a||b)'s is.
-              if (BINARY_OPERATOR_AT_END.test(argValue.trimEnd()) ||
-                  BINARY_OPERATOR_AT_START.test(remaining.substring(i).trimStart())) {
-                argValue += char;
-              } else {
-                break;
-              }
             } else {
+              // A blank does not end the argument: only a comma does. Terms
+              // with blanks between (a "yz") are the one argument, their
+              // concatenation (TRL 6.1), as argumentOf reads it; a blank
+              // beside an operator (5 + 3, a || b) is that expression.
               argValue += char;
             }
 
@@ -2046,12 +2047,13 @@ function parseFunctionCall(line) {
         } else if (inQuotes && char === quoteChar) {
           inQuotes = false;
           quoteChar = '';
-        } else if (!inQuotes && char === '(') {
+        } else if (!inQuotes && (char === '(' || char === '[' || char === '{')) {
           parenCount++;
-        } else if (!inQuotes && char === ')') {
+        } else if (!inQuotes && (char === ')' || char === ']' || char === '}')) {
           parenCount--;
         } else if (!inQuotes && parenCount === 0 && char === ' ') {
-          // End of this parameter value (space separator)
+          // End of this parameter value (space separator); a blank inside
+          // parentheses, a literal array or a literal object is not one
           break;
         } else if (!inQuotes && parenCount === 0 && char === ',') {
           // Check if comma is followed by a parameter name (name=)
@@ -2135,13 +2137,8 @@ function parseFunctionCall(line) {
     }
   }
 
-  // Special handling for REQUIRE with AS clause
-  // REQUIRE "library" AS pattern
-  if (command.toUpperCase() === 'REQUIRE' && argsStr) {
-    const asMatch = argsStr.match(/\bAS\s+(\S+)/i);
-    if (asMatch) {
-      params.asClause = asMatch[1];
-    }
+  if (asClause) {
+    params.asClause = asClause;
   }
 
   return {
@@ -2463,10 +2460,17 @@ function parseExpression(exprStr) {
   return null;
 }
 
+// Blanks are dropped outside quoted literals and outside a call's
+// parentheses. Inside a call's parentheses they stay: a blank between two
+// terms there is their concatenation (LENGTH(a "yz") is 4, TRL 6.1), which
+// parseFunctionCall's argument reading works out; a grouping parenthesis
+// (one not after a name) is arithmetic, and loses its blanks.
 function removeSpacesExceptInQuotes(expr) {
   let result = '';
   let inQuotes = false;
   let quoteChar = '';
+  const parens = []; // for each open parenthesis, whether it is a call's
+  let callDepth = 0;
   
   for (let i = 0; i < expr.length; i++) {
     const char = expr[i];
@@ -2484,8 +2488,17 @@ function removeSpacesExceptInQuotes(expr) {
     } else if (inQuotes) {
       // Inside quotes - preserve all characters including spaces
       result += char;
+    } else if (char === '(') {
+      const isCall = /\w$/.test(result);
+      parens.push(isCall);
+      if (isCall) callDepth++;
+      result += char;
+    } else if (char === ')') {
+      if (parens.pop()) callDepth--;
+      result += char;
     } else if (char === ' ') {
-      // Outside quotes - skip spaces
+      // Outside quotes - skip spaces, unless inside a call's parentheses
+      if (callDepth > 0) result += char;
       continue;
     } else {
       // Outside quotes - keep non-space characters
