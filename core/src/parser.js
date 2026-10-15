@@ -953,33 +953,7 @@ function parseStatement(tokens, startIndex) {
     }
 
     // Check if it's a concatenation expression with || FIRST
-    // But only if the || is not inside quoted strings or parentheses
-    const hasUnquotedPipe = (() => {
-      let inQuotes = false;
-      let quoteChar = '';
-      let parenDepth = 0;
-      for (let i = 0; i < expression.length - 1; i++) {
-        const char = expression[i];
-        const nextChar = expression[i + 1];
-
-        if ((char === '"' || char === "'") && !inQuotes) {
-          inQuotes = true;
-          quoteChar = char;
-        } else if (char === quoteChar && inQuotes) {
-          inQuotes = false;
-          quoteChar = '';
-        } else if (!inQuotes && char === '(') {
-          parenDepth++;
-        } else if (!inQuotes && char === ')') {
-          parenDepth--;
-        } else if (!inQuotes && parenDepth === 0 && char === '|' && nextChar === '|') {
-          return true;
-        }
-      }
-      return false;
-    })();
-
-    if (hasUnquotedPipe) {
+    if (hasTopLevelConcatenation(expression)) {
       return {
         command: addLineNumber({
           type: 'ASSIGNMENT',
@@ -1302,6 +1276,21 @@ function parseStatement(tokens, startIndex) {
   if (simpleAssignMatch) {
     const variableName = simpleAssignMatch[1];
     const expression = simpleAssignMatch[2];
+
+    // A concatenation (a || b) first, as the LET path has it
+    if (hasTopLevelConcatenation(expression)) {
+      return {
+        command: addLineNumber({
+          type: 'ASSIGNMENT',
+          variable: variableName,
+          expression: {
+            type: 'CONCATENATION',
+            value: expression
+          }
+        }, token),
+        nextIndex: startIndex + 1
+      };
+    }
     
     // Check if it's a quoted string
     if (expression.match(/^(['"`]).*\1$/)) {
@@ -1353,6 +1342,37 @@ function parseStatement(tokens, startIndex) {
   
   // Skip unrecognized lines
   return { command: null, nextIndex: startIndex + 1 };
+}
+
+/**
+ * Whether an expression has a || outside quotes and parentheses: a
+ * concatenation, for LET and for an assignment without LET alike.
+ * @param {string} expression - The right-hand side as written
+ * @returns {boolean}
+ */
+function hasTopLevelConcatenation(expression) {
+  let inQuotes = false;
+  let quoteChar = '';
+  let parenDepth = 0;
+  for (let i = 0; i < expression.length - 1; i++) {
+    const char = expression[i];
+    const nextChar = expression[i + 1];
+
+    if ((char === '"' || char === "'") && !inQuotes) {
+      inQuotes = true;
+      quoteChar = char;
+    } else if (char === quoteChar && inQuotes) {
+      inQuotes = false;
+      quoteChar = '';
+    } else if (!inQuotes && char === '(') {
+      parenDepth++;
+    } else if (!inQuotes && char === ')') {
+      parenDepth--;
+    } else if (!inQuotes && parenDepth === 0 && char === '|' && nextChar === '|') {
+      return true;
+    }
+  }
+  return false;
 }
 
 function parseSingleLineIfStatement(tokens, startIndex, match) {
