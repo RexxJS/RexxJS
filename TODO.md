@@ -134,6 +134,37 @@ tests yet"; proxmox-address has only `test-proxmox-cow.rexx`).
   so (0ef6534); one with no declaration still runs with whatever the
   calling convention supplies (see the numpy entry above).
 
+## Classic-REXX gaps the 2026-10-15 specs ran into
+
+Found while fixing compound-variable tails, blank concatenation and
+abuttal, and the uppercase name of an unset variable (specs
+`core/tests/compound-variables.spec.js`,
+`blank-concatenation-and-abuttal.spec.js`, `unset-variable-name.spec.js`),
+and left alone:
+
+- **A blank between terms inside a call's parentheses ends the argument.**
+  `LENGTH(a "yz")` is `LENGTH(a, "yz")` (parser.js's positional-argument
+  scanner, about line 1995, "A blank ends the argument"), and through the
+  arithmetic path `removeSpacesExceptInQuotes` drops the blank, so
+  `n = LENGTH(a "yz")` gives 3 where TRL 6.1 says 4. Abuttal there
+  (`LENGTH(a"yz")`) works. The scanner exists for RexxJS's own
+  blank-separated positional arguments; decide whether that form or the
+  classic concatenation wins inside parentheses.
+- **A DO loop's control variable after the loop.** `DO i = 1 TO 2 ... END`
+  then `SAY i` gives 2; classic REXX leaves the value that ended the loop,
+  3 (TRL 4.3, "the control variable has the value that caused the loop to
+  end").
+- **`DO v OVER stem.`** (the trailing-period stem form) walks the
+  characters of the string `STEM.`, not the stem's values; `DO v OVER stem`
+  works.
+- **Variable names are case-sensitive** (`foo` and `FOO` are two
+  variables), where classic REXX uppercases every symbol. That is why an
+  unset tail symbol stays as typed in a compound variable's derived name
+  (`result.message` keeps the key `message`), and why `x = active` sets
+  the lowercase `x`. Making names case-insensitive is a larger change than
+  any of the three fixes; every spec that reads `interpreter.variables`
+  by a lowercase key would move with it.
+
 ## Test hygiene
 
 - **`core/tests/dom-functions.spec.js` does not exit when run alone.** Its
