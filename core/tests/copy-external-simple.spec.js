@@ -29,7 +29,7 @@ describe('COPY with External Scripts - Return Values', () => {
       fs.mkdirSync(tempDir);
     }
     
-    testScriptPath = path.join(tempDir, 'test-external.rexx');
+    testScriptPath = path.join(tempDir, 'copy-external-simple.rexx');
   });
 
   afterEach(() => {

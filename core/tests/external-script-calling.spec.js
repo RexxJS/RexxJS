@@ -28,7 +28,7 @@ describe('External REXX Script Calling', () => {
       fs.mkdirSync(tempDir);
     }
     
-    testScriptPath = path.join(tempDir, 'test-external.rexx');
+    testScriptPath = path.join(tempDir, 'external-script-calling.rexx');
   });
 
   afterEach(() => {
