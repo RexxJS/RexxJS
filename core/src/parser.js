@@ -719,6 +719,18 @@ function parseStatement(tokens, startIndex) {
     };
   }
   
+  // PROCEDURE statement: the routine it starts gets a generation of
+  // variables of its own per CALL; PROCEDURE EXPOSE a b stem. shares those
+  // with the caller (a trailing period names a whole stem)
+  const procedureMatch = line.match(/^PROCEDURE(?:\s+EXPOSE\s+(.+))?\s*$/i);
+  if (procedureMatch) {
+    const expose = procedureMatch[1] ? procedureMatch[1].trim().split(/\s+/) : [];
+    return {
+      command: addLineNumber({ type: 'PROCEDURE', expose }, token),
+      nextIndex: startIndex + 1
+    };
+  }
+
   // RETURN statement
   const returnMatch = line.match(/^RETURN(?:\s+(.*))?/i);
   if (returnMatch) {

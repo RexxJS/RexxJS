@@ -9,32 +9,7 @@ CI green again after a year red: the tests that had stopped loading were
 brought back, and these are what they (and the people fixing them) turned
 up but left alone. Security first.
 
-## PROCEDURE is ignored: a routine's variables are its caller's
-
-Found 2026-10-15, fixing "Recursion through CALL never stops" (CALL's
-arguments: an expression `n - 1` was split at its blanks into three
-arguments, and a variable holding 0 arrived as its name; both fixed, spec
-`core/tests/call-recursion.spec.js`). `DOWN: PROCEDURE` parses as a label
-with a `PROCEDURE` function call hung on it, which `discoverSubroutines`
-drops, so there is no per-call variable scope and no `EXPOSE`. A
-self-calling routine therefore stops, but its `n` is clobbered by the
-inner call:
-
-```rexx
-CALL FACT 5
-SAY RESULT          /* 1, where Rexx says 120 */
-EXIT
-FACT: PROCEDURE
-  ARG n
-  IF n <= 1 THEN RETURN 1
-  CALL FACT n - 1
-  RETURN n * RESULT
-```
-
-Give a routine that starts with `PROCEDURE` its own variables for the
-call (restoring the caller's on RETURN), with `PROCEDURE EXPOSE a b`
-sharing the named ones.
-
+## numpy-inspired functions called with no arguments answer instead of erroring
 
 Found 2026-10-14, when `extras/functions/numpy-inspired/__tests__/
 parameter-requirement.spec.js` first loaded (its paths had been one level

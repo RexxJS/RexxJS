@@ -55,9 +55,8 @@ describe('a routine that CALLs itself', () => {
     expect(said).toEqual(['3', '2', '1', '0', 'done']);
   });
 
-  // The usual factorial (CALL FACT n - 1 ... RETURN n * RESULT) now stops,
-  // but gives 1, not 120: PROCEDURE is not implemented, so the routine's n
-  // is the caller's n. See TODO.md.
+  // The usual factorial (CALL FACT n - 1 ... RETURN n * RESULT) is in
+  // procedure.spec.js: it needs PROCEDURE's own variables per call.
 
   test('an expression argument alongside a plain one, comma-separated', async () => {
     await run([

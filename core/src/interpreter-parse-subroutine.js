@@ -188,12 +188,21 @@ function discoverSubroutines(commands, subroutines) {
     if (command.type === 'LABEL') {
       const subroutineName = command.name;
       const subroutineCommands = [];
-      
+      // PROCEDURE as the routine's first instruction, on the label's line
+      // (NAME: PROCEDURE) or the next: the routine has a generation of
+      // variables of its own per CALL, sharing only what EXPOSE names
+      let procedure = command.statement && command.statement.type === 'PROCEDURE'
+        ? command.statement : null;
+
       // Collect commands until next label, end of script, or RETURN
       i++; // Skip the label itself
+      if (!procedure && i < commands.length && commands[i].type === 'PROCEDURE') {
+        procedure = commands[i];
+        i++;
+      }
       while (i < commands.length) {
         const cmd = commands[i];
-        
+
         // Stop at next label or RETURN
         if (cmd.type === 'LABEL' || cmd.type === 'RETURN') {
           if (cmd.type === 'RETURN') {
@@ -202,14 +211,16 @@ function discoverSubroutines(commands, subroutines) {
           }
           break;
         }
-        
+
         subroutineCommands.push(cmd);
         i++;
       }
-      
+
       // Register the subroutine (store in uppercase for case-insensitive lookup)
       subroutines.set(subroutineName.toUpperCase(), {
-        commands: subroutineCommands
+        commands: subroutineCommands,
+        procedure: !!procedure,
+        expose: procedure ? procedure.expose : []
       });
       
       // Continue from current position (don't increment i again)
@@ -263,6 +274,56 @@ async function resolveCallArgument(arg, resolveValueFn, evaluateExpressionFn) {
     }
   }
   return await resolveValueFn(arg);
+}
+
+/**
+ * A PROCEDURE routine's own generation of variables (TRL section 3,
+ * PROCEDURE): the caller's are set aside and the routine starts with only
+ * what EXPOSE names, a stem by its root ("stem." shares every stem.x, which
+ * live under the root's entry). What the interpreter records about the
+ * runtime itself (RUNTIME.*) is not a script variable and stays visible.
+ * @param {Map} variables - The interpreter's variables, emptied for the routine
+ * @param {Array<string>} expose - The names PROCEDURE EXPOSE listed
+ * @returns {Object} What leaveProcedureGeneration needs to restore the caller's
+ */
+function enterProcedureGeneration(variables, expose) {
+  const callerVariables = new Map(variables);
+  const shared = expose.map((name) => name.endsWith('.') ? name.slice(0, -1) : name);
+  variables.clear();
+  for (const [name, value] of callerVariables) {
+    if (name.startsWith('RUNTIME.')) {
+      variables.set(name, value);
+    }
+  }
+  for (const name of shared) {
+    if (callerVariables.has(name)) {
+      variables.set(name, callerVariables.get(name));
+    }
+  }
+  return { callerVariables, shared };
+}
+
+/**
+ * The end of a PROCEDURE routine's generation: the caller's variables come
+ * back as they were, except the EXPOSEd ones, which are as the routine
+ * left them (set, changed, or dropped).
+ * @param {Map} variables - The interpreter's variables, holding the routine's
+ * @param {Object} generation - What enterProcedureGeneration returned
+ */
+function leaveProcedureGeneration(variables, generation) {
+  const { callerVariables, shared } = generation;
+  const sharedNow = shared.map((name) => [name, variables.has(name), variables.get(name)]);
+  variables.clear();
+  for (const [name, value] of callerVariables) {
+    variables.set(name, value);
+  }
+  for (const [name, isSet, value] of sharedNow) {
+    if (isSet) {
+      variables.set(name, value);
+    } else {
+      variables.delete(name);
+    }
+  }
 }
 
 async function executeCall(command, variables, subroutines, callStack, evaluateExpressionFn,
@@ -355,20 +416,28 @@ async function executeCall(command, variables, subroutines, callStack, evaluateE
       evaluatedArgs.push(await resolveCallArgument(args[i], resolveValueFn, evaluateExpressionFn));
     }
 
+  const subroutineData = subroutines.get(actualSubroutineName);
+
+  // A PROCEDURE routine keeps the caller's arguments too: its ARG and the
+  // caller's are each of their own generation
+  const callerArgv = subroutineData.procedure && argv ? argv.slice() : null;
+
   // Update argv array for subroutine arguments
   if (argv) {
     argv.length = 0; // Clear existing array
     argv.push(...evaluatedArgs); // Populate with new arguments
   }
   
-  // Push call context for tracking (variables are shared in REXX)
+  // Push call context for tracking (variables are shared in REXX, unless
+  // the routine starts with PROCEDURE)
   callStack.push({
     subroutine: actualSubroutineName
   });
   
+  const generation = subroutineData.procedure
+    ? enterProcedureGeneration(variables, subroutineData.expose) : null;
   
   try {
-    const subroutineData = subroutines.get(actualSubroutineName);
     
     // Check if this is a built-in function
     if (subroutineData.isBuiltIn && subroutineData.func) {
@@ -396,8 +465,8 @@ async function executeCall(command, variables, subroutines, callStack, evaluateE
         popExecutionContextFn();
         callStack.pop();
         
-        // Variables are shared between main and subroutines in REXX
-        // So no variable restoration needed - changes persist
+        // A routine without PROCEDURE shares the caller's variables, so its
+        // changes persist; a PROCEDURE routine's generation ends in finally
         return { terminated: false, returnValue: result.value };
       }
       
@@ -414,6 +483,14 @@ async function executeCall(command, variables, subroutines, callStack, evaluateE
     // Only pop the call stack (which is separate from execution stack)
     callStack.pop();
     throw error;
+  } finally {
+    if (generation) {
+      leaveProcedureGeneration(variables, generation);
+    }
+    if (callerArgv) {
+      argv.length = 0;
+      argv.push(...callerArgv);
+    }
   }
 }
 

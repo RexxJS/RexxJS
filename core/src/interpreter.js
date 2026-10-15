@@ -1358,6 +1358,11 @@ class RexxInterpreter {
         case 'RETURN':
           return await this.executeReturn(command);
           
+        case 'PROCEDURE':
+          // Reached only by falling or jumping into a routine: a CALLed
+          // routine's PROCEDURE is taken by discoverSubroutines (TRL error 17)
+          throw new Error('Unexpected PROCEDURE: it is valid only as the first instruction of a routine reached by CALL');
+          
         case 'TRACE':
           this.traceMode = traceFormattingUtils.executeTrace(command, this.traceOutput, this.addTraceOutput.bind(this));
           break;
