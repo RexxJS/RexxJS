@@ -99,6 +99,39 @@ function removeCommentsPreservingStrings(line) {
 }
 
 // Import function parsing strategies
+// True when the blank-separated pieces of a CALL's arguments (outside quotes
+// and parentheses) include a bare binary operator, so that the whole is one
+// expression.
+const CALL_BINARY_OPERATORS = new Set(['+', '-', '*', '/', '//', '%', '**', '||', '=', '==', '<', '>', '<=', '>=', '<>', '\\=', '\\==', '¬=', '&', '|', '&&']);
+function callArgsHoldAnOperator(argsString) {
+  let piece = '';
+  let inQuotes = false;
+  let quoteChar = '';
+  let parenLevel = 0;
+  const pieces = [];
+  for (let i = 0; i < argsString.length; i++) {
+    const char = argsString[i];
+    if ((char === '"' || char === "'") && !inQuotes) {
+      inQuotes = true;
+      quoteChar = char;
+    } else if (char === quoteChar && inQuotes) {
+      inQuotes = false;
+      quoteChar = '';
+    } else if (char === '(' && !inQuotes) {
+      parenLevel++;
+    } else if (char === ')' && !inQuotes) {
+      parenLevel--;
+    } else if (char === ' ' && !inQuotes && parenLevel === 0) {
+      if (piece) pieces.push(piece);
+      piece = '';
+      continue;
+    }
+    piece += char;
+  }
+  if (piece) pieces.push(piece);
+  return pieces.some((p) => CALL_BINARY_OPERATORS.has(p));
+}
+
 function callIsFunctionCallExpression(expression) {
   if (typeof require !== 'undefined' && typeof module !== 'undefined') {
     // Node.js environment
@@ -611,7 +644,11 @@ function parseStatement(tokens, startIndex) {
         }
       }
       
-      const separator = hasCommas ? ',' : ' ';
+      // With no commas, the arguments are split at blanks (CALL PAIR 1 2).
+      // But CALL DOWN n - 1 is one argument, the expression n - 1, as in
+      // REXX: when any blank-separated piece is a bare operator, the whole
+      // is one expression. (-5 is a number, not an operator.)
+      const separator = hasCommas ? ',' : (callArgsHoldAnOperator(argsString) ? '\0' : ' ');
       
       let parenLevel = 0;
       

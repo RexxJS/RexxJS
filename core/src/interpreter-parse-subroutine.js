@@ -372,25 +372,12 @@ async function executeCall(command, variables, subroutines, callStack, evaluateE
       throw new Error(`Subroutine '${actualSubroutineName}' not found`);
     }
     
-    // Evaluate and populate argv array for subroutine
+    // The routine's arguments, each worked out as a function call's are
+    // (a literal, an expression such as n - 1, a variable's value, 0 included)
     const evaluatedArgs = [];
     for (let i = 0; i < args.length; i++) {
-      let argValue;
-
-    // Evaluate argument value
-    if (typeof args[i] === 'string') {
-      if ((args[i].startsWith('"') && args[i].endsWith('"')) ||
-          (args[i].startsWith("'") && args[i].endsWith("'"))) {
-        argValue = args[i].slice(1, -1); // Remove quotes
-      } else {
-        argValue = variables.get(args[i]) || args[i];
-      }
-    } else {
-      argValue = evaluateExpressionFn(args[i]);
+      evaluatedArgs.push(await resolveCallArgument(args[i], resolveValueFn, evaluateExpressionFn));
     }
-
-    evaluatedArgs.push(argValue);
-  }
 
   // Update argv array for subroutine arguments
   if (argv) {

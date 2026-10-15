@@ -77,7 +77,7 @@ describe('CALL with arguments and ARG statement', () => {
       await interpreter.run(parse(script));
       expect(interpreter.getVariable('text')).toBe('literal string');
       expect(interpreter.getVariable('variable')).toBe('from variable');
-      expect(interpreter.getVariable('number')).toBe('123'); // Numbers come through as strings
+      expect(interpreter.getVariable('number')).toBe(123); // A number, as LET x = 123 and a function call's 123 are
     });
   });
 
@@ -108,8 +108,8 @@ describe('CALL with arguments and ARG statement', () => {
       `;
       
       await interpreter.run(parse(script));
-      expect(interpreter.getVariable('x')).toBe('10'); // Numbers come through as strings in ARG
-      expect(interpreter.getVariable('y')).toBe('20');
+      expect(interpreter.getVariable('x')).toBe(10); // A number, as LET x = 10 is
+      expect(interpreter.getVariable('y')).toBe(20);
       expect(interpreter.getVariable('operation')).toBe('adding');
       expect(interpreter.getVariable('result')).toBe('adding: 10 and 20');
     });

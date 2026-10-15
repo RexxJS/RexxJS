@@ -9,44 +9,31 @@ CI green again after a year red: the tests that had stopped loading were
 brought back, and these are what they (and the people fixing them) turned
 up but left alone. Security first.
 
-## Recursion through CALL never stops
+## PROCEDURE is ignored: a routine's variables are its caller's
 
-Found 2026-10-14, while making `IF()` lazy for sae's spreadsheet (a
-function that calls itself). A routine called by CALL works, and so does
-one called once from another; one that CALLs itself does not, for two
-reasons, each its own bug.
+Found 2026-10-15, fixing "Recursion through CALL never stops" (CALL's
+arguments: an expression `n - 1` was split at its blanks into three
+arguments, and a variable holding 0 arrived as its name; both fixed, spec
+`core/tests/call-recursion.spec.js`). `DOWN: PROCEDURE` parses as a label
+with a `PROCEDURE` function call hung on it, which `discoverSubroutines`
+drops, so there is no per-call variable scope and no `EXPOSE`. A
+self-calling routine therefore stops, but its `n` is clobbered by the
+inner call:
 
 ```rexx
-CALL DOWN 3
-SAY "done"
+CALL FACT 5
+SAY RESULT          /* 1, where Rexx says 120 */
 EXIT
-DOWN: PROCEDURE
+FACT: PROCEDURE
   ARG n
-  SAY n
-  IF n > 0 THEN CALL DOWN n - 1
-  RETURN 0
+  IF n <= 1 THEN RETURN 1
+  CALL FACT n - 1
+  RETURN n * RESULT
 ```
 
-1. **An expression as CALL's argument is not worked out.** `CALL DOWN n - 1`
-   passes 3 every time: the script says `3` until the heap runs out (Node
-   aborts, "JavaScript heap out of memory"), where Rexx says 3, 2, 1, 0 and
-   `done`. The usual factorial (`CALL FACT n - 1` ... `RETURN n * RESULT`)
-   fails the same way.
-
-2. **A variable holding 0, passed to CALL, arrives as its name.** With the
-   argument worked out first,
-
-   ```rexx
-     LET m = n - 1
-     IF n > 0 THEN CALL DOWN m
-   ```
-
-   the script says `3`, `2`, `1`, then `m`, and stops with "Non-numeric
-   value in arithmetic: 'm' is not a valid number". At n = 1, m is 0, and
-   the callee's `ARG n` gets the text `m`: as if a lookup takes 0 (falsy)
-   for "no such variable" and falls back to the name.
-
-Seen in `core/src` at `d27c738`.
+Give a routine that starts with `PROCEDURE` its own variables for the
+call (restoring the caller's on RETURN), with `PROCEDURE EXPOSE a b`
+sharing the named ones.
 
 
 Found 2026-10-14, when `extras/functions/numpy-inspired/__tests__/
