@@ -2449,8 +2449,9 @@ function parseExpression(exprStr) {
       }
     }
     
-    // Check if it's a variable reference (with or without property access)
-    if (expr.match(/^[a-zA-Z_]\w*(\.[a-zA-Z_]\w*)*$/)) {
+    // Check if it's a variable reference (with or without property access),
+    // a compound symbol's tail part being a number too (list.2, stem.0)
+    if (expr.match(/^[a-zA-Z_]\w*(\.\w*)*$/)) {
       return {
         type: 'VARIABLE',
         name: expr

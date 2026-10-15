@@ -150,7 +150,7 @@ const interpolateString = async function(template, resolveValueFn) {
     return result;
 }
 
-const evaluateConcatenation = async function(expression, resolveValueFn, evaluateExpressionFn) {
+const evaluateConcatenation = async function(expression, resolveValueFn, evaluateExpressionFn, unsetSymbolValueFn) {
     // Split the expression by || operators while preserving quoted strings and parentheses
     const parts = [];
     let current = '';
@@ -242,9 +242,10 @@ const evaluateConcatenation = async function(expression, resolveValueFn, evaluat
             return String(resolved);
           }
         } else {
-          // No operators, treat as variable
+          // No operators, treat as variable; a symbol no variable is set
+          // for is its uppercase name (TRL 3.1)
           const resolved = await resolveValueFn(part);
-          return String(resolved);
+          return String(unsetSymbolValueFn && resolved === part ? unsetSymbolValueFn(part) : resolved);
         }
       } else {
         // No expression evaluator - treat as variable reference

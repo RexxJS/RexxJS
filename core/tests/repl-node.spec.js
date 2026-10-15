@@ -171,8 +171,8 @@ describe('Terminal REPL (Node.js)', () => {
 
       await repl.executeCommand('SAY undefinedVar');
 
-      // Should output the literal string "undefinedVar" (REXX behavior)
-      expect(mockLog).toHaveBeenCalledWith('undefinedVar');
+      // An unset variable is its name in uppercase (REXX behavior)
+      expect(mockLog).toHaveBeenCalledWith('UNDEFINEDVAR');
       mockLog.mockRestore();
     });
 

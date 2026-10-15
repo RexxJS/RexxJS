@@ -214,6 +214,20 @@ function derivedName(name, has, get) {
 }
 
 /**
+ * The value of a symbol that is no set variable (TRL 3.1): its own name in
+ * uppercase, a compound symbol's tail derived first (list.i is LIST.2 when
+ * i = 2, TRL 3.4). Anything that is not a symbol is returned as given.
+ * @param {string} name - The symbol as written
+ * @param {Function} has - name -> whether that variable is set
+ * @param {Function} get - name -> that variable's value
+ * @returns {string}
+ */
+function unsetSymbolValue(name, has, get) {
+  if (typeof name !== 'string' || !/^[A-Za-z_]\w*(\.\w*)*$/.test(name)) return name;
+  return derivedName(name, has, get).toUpperCase();
+}
+
+/**
  * Get variable value
  * @param {string} name - Variable name
  * @param {Map} variables - Variables map
@@ -374,6 +388,7 @@ if (typeof module !== 'undefined' && module.exports) {
     // Node.js environment
     module.exports = { 
         derivedName,
+        unsetSymbolValue,
         resolveVariableValue,
         interpolateStringWithVars,
         getVariable,
@@ -396,6 +411,7 @@ if (typeof module !== 'undefined' && module.exports) {
     if (!window.rexxModuleRegistry.has('variableStack')) {
         window.rexxModuleRegistry.set('variableStack', {
             derivedName,
+            unsetSymbolValue,
             resolveVariableValue,
             interpolateStringWithVars,
             getVariable,

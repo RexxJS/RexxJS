@@ -1038,6 +1038,11 @@ class RexxInterpreter {
     return variableStackUtils.derivedName(name, (n) => this.variables.has(n), (n) => this.variables.get(n));
   }
 
+  // A symbol no variable is set for is its own name in uppercase (TRL 3.1)
+  unsetSymbolValue(name) {
+    return variableStackUtils.unsetSymbolValue(name, (n) => this.variables.has(n), (n) => this.variables.get(n));
+  }
+
   isExternalScriptCall(subroutineName) {
     return parseSubroutineUtils.isExternalScriptCall(subroutineName);
   }
@@ -2035,9 +2040,10 @@ class RexxInterpreter {
         // Single quoted string (no interpolation)
         outputParts.push(unquoteLiteral(part));
       } else {
-        // Variable reference or literal
+        // Variable reference or literal; a symbol no variable is set for
+        // is its uppercase name (TRL 3.1)
         const resolved = await this.resolveValue(part);
-        outputParts.push(String(resolved));
+        outputParts.push(String(resolved === part ? this.unsetSymbolValue(part) : resolved));
       }
     }
     
@@ -2096,7 +2102,8 @@ class RexxInterpreter {
       condition,
       this.resolveValue.bind(this),
       compareValues,
-      isTruthy
+      isTruthy,
+      (name) => this.unsetSymbolValue(name)
     );
   }
 
@@ -2181,7 +2188,8 @@ class RexxInterpreter {
           // If parsing fails, try resolving as a variable
           return await this.resolveValue(exprStr);
         }
-      }
+      },
+      (name) => this.unsetSymbolValue(name)
     );
   }
   

@@ -5545,7 +5545,7 @@ SAY first || " " || second || " " || third || "!"`;
       const interpreter = new Interpreter(addressSender, testOutput);
       await interpreter.run(commands);
       
-      expect(testOutput.hasOutput('Result: undefined_var end')).toBe(true);
+      expect(testOutput.hasOutput('Result: UNDEFINED_VAR end')).toBe(true);
     });
     
     it('should handle concatenation in IF conditions', async () => {

@@ -18,8 +18,8 @@
  * - PROCEDURE anywhere but as the first instruction of a CALLed routine is
  *   an error (TRL error 17, "Unexpected PROCEDURE").
  *
- * An unset variable's value is its name as typed here (not uppercased as
- * classic REXX would), which the hidden-variable tests rely on.
+ * An unset variable's value is its name in uppercase (TRL 3.1), which the
+ * hidden-variable tests rely on: a hidden x reads as X.
  */
 
 const { Interpreter } = require('../src/interpreter');
@@ -67,7 +67,7 @@ describe('PROCEDURE', () => {
       '  SAY x z',
       '  RETURN',
     ]);
-    expect(said).toEqual(['x', 'inner new', 'outer kept']);
+    expect(said).toEqual(['X', 'inner new', 'outer kept']);
     expect(interpreter.variables.has('z')).toBe(false);
   });
 
@@ -109,7 +109,7 @@ describe('PROCEDURE', () => {
       '  other = "changed"',
       '  RETURN',
     ]);
-    expect(said).toEqual(['other', '15 mine']);
+    expect(said).toEqual(['OTHER', '15 mine']);
   });
 
   test('EXPOSE of several names, and of a variable the caller has not set yet', async () => {
@@ -153,7 +153,7 @@ describe('PROCEDURE', () => {
       '  data.1 = "routine"',
       '  RETURN',
     ]);
-    expect(said).toEqual(['data.1', 'caller']);
+    expect(said).toEqual(['DATA.1', 'caller']);
   });
 
   test('nested CALLs each have a generation of their own', async () => {
@@ -172,7 +172,7 @@ describe('PROCEDURE', () => {
       '  v = "inner"',
       '  RETURN v',
     ]);
-    expect(said).toEqual(['v', 'outer inner', 'main']);
+    expect(said).toEqual(['V', 'outer inner', 'main']);
   });
 
   test('a PROCEDURE routine calling one without PROCEDURE shares its own generation with it', async () => {

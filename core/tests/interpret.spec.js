@@ -111,7 +111,7 @@ describe('INTERPRET Function', () => {
       expect(interpreter.variables.get('result_number')).toBe(42);
       
       // Should not be able to access non-whitelisted variables (would be empty string)
-      expect(interpreter.variables.get('result_secret')).toBe('secret'); // treated as literal since secret var not available
+      expect(interpreter.variables.get('result_secret')).toBe('SECRET'); // an unset symbol's uppercase name, since secret var not available
     });
 
     test('should only copy back whitelisted variables', async () => {
@@ -125,7 +125,7 @@ describe('INTERPRET Function', () => {
       await interpreter.run(commands);
       
       // Whitelisted variable should be copied back
-      expect(interpreter.variables.get('allowed_out')).toBe('should_be_copied');
+      expect(interpreter.variables.get('allowed_out')).toBe('SHOULD_BE_COPIED');
       
       // Non-whitelisted variable should not be copied back
       expect(interpreter.variables.get('blocked_out')).toBeUndefined();
@@ -196,8 +196,8 @@ describe('INTERPRET Function', () => {
       const commands = parse(`LET success = INTERPRET string="${rexxCode}"`);
       await interpreter.run(commands);
       
-      expect(interpreter.variables.get('text')).toBe('hello_world');
-      expect(interpreter.variables.get('substring')).toBe('world');
+      expect(interpreter.variables.get('text')).toBe('HELLO_WORLD');
+      expect(interpreter.variables.get('substring')).toBe('WORLD');
       expect(interpreter.variables.get('result')).toBe('WORLD');
       expect(interpreter.variables.get('success')).toBe(true);
     });
@@ -236,8 +236,8 @@ describe('INTERPRET Function', () => {
       const commands2 = parse('LET result2 = INTERPRET string="LET stage2 = stage1 || _second"');
       await interpreter.run(commands2);
 
-      expect(interpreter.variables.get('stage1')).toBe('first');
-      expect(interpreter.variables.get('stage2')).toBe('first_second');
+      expect(interpreter.variables.get('stage1')).toBe('FIRST');
+      expect(interpreter.variables.get('stage2')).toBe('FIRST_SECOND');
       expect(interpreter.variables.get('result1')).toBe(true);
       expect(interpreter.variables.get('result2')).toBe(true);
     });

@@ -160,7 +160,7 @@ describe('INTERPRET Statement Modes', () => {
       await interpreter.run(commands);
       
       expect(interpreter.variables.get('result1')).toBe(42);
-      expect(interpreter.variables.get('result2')).toBe('computed');
+      expect(interpreter.variables.get('result2')).toBe('COMPUTED');
       expect(interpreter.variables.get('result3')).toBe(3.14);
       expect(interpreter.variables.get('hidden')).toBeUndefined();
     });
@@ -179,7 +179,7 @@ describe('INTERPRET Statement Modes', () => {
       await interpreter.run(commands);
       
       expect(interpreter.variables.get('result')).toBe(60); // (10 + 2) * 5
-      expect(interpreter.variables.get('debug')).toBe('10_plus_2_equals_12');
+      expect(interpreter.variables.get('debug')).toBe('10_PLUS_2_EQUALS_12');
       
       // Original variables unchanged
       expect(interpreter.variables.get('multiplier')).toBe(5);
@@ -197,8 +197,8 @@ describe('INTERPRET Statement Modes', () => {
       
       await interpreter.run(commands);
       
-      // Should treat nonexistent as literal since it wasn't available for import
-      expect(interpreter.variables.get('result')).toBe('value_with_nonexistent');
+      // nonexistent, not available for import, is an unset symbol: its uppercase name
+      expect(interpreter.variables.get('result')).toBe('value_WITH_NONEXISTENT');
     });
 
     test('should handle non-existent export variables gracefully', async () => {
@@ -209,7 +209,7 @@ describe('INTERPRET Statement Modes', () => {
       
       await interpreter.run(commands);
       
-      expect(interpreter.variables.get('created')).toBe('actual');
+      expect(interpreter.variables.get('created')).toBe('ACTUAL');
       expect(interpreter.variables.get('nonexistent')).toBeUndefined();
     });
 
@@ -246,7 +246,7 @@ describe('INTERPRET Statement Modes', () => {
       
       await interpreter.run(commands);
       
-      expect(interpreter.variables.get('exported')).toBe('this_should_be_visible');
+      expect(interpreter.variables.get('exported')).toBe('THIS_SHOULD_BE_VISIBLE');
       expect(interpreter.variables.get('hidden')).toBeUndefined();
     });
 
@@ -437,7 +437,7 @@ describe('INTERPRET Statement Modes', () => {
       
       await interpreter.run(commands);
       
-      expect(interpreter.variables.get('dynamic_result')).toBe('computed_value');
+      expect(interpreter.variables.get('dynamic_result')).toBe('COMPUTED_VALUE');
     });
 
     test('should support export with dynamic variable names', async () => {
