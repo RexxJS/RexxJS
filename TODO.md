@@ -165,6 +165,11 @@ tests yet"; proxmox-address has only `test-proxmox-cow.rexx`).
   31 tests pass, then Jest waits on an open handle (`npx jest
   tests/dom-functions.spec.js`; find it with `--detectOpenHandles`). The
   full run exits, so CI is unaffected.
+- **Two specs race over one temp file.** `core/tests/copy-external-simple.
+  spec.js` and `core/tests/external-script-calling.spec.js` both write and
+  delete `tests/temp-scripts/test-external.rexx`; run in parallel workers,
+  one can delete it under the other ("External REXX script not found",
+  seen once on 2026-10-15, green on rerun). Give each its own file name.
 - **Three bash tests need bash 4** (`${X^^}`, `declare -A`) and fail under
   macOS's bash 3.2: in `extras/addresses/system/__tests__/`,
   system-address-bash-shell's parameter-expansion, associative-array and

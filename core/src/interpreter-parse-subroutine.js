@@ -294,24 +294,10 @@ async function executeCall(command, variables, subroutines, callStack, evaluateE
     
     // Check if this is an external script call (contains .rexx or path separators)
     if (isExternalScriptCallFn(actualSubroutineName)) {
-      // Evaluate arguments before passing to external script (same logic as internal subroutines)
+      // Its arguments worked out as a routine's own are
       const evaluatedArgs = [];
       for (let i = 0; i < args.length; i++) {
-        let argValue;
-        
-        // Evaluate argument value
-        if (typeof args[i] === 'string') {
-          if ((args[i].startsWith('"') && args[i].endsWith('"')) ||
-              (args[i].startsWith("'") && args[i].endsWith("'"))) {
-            argValue = args[i].slice(1, -1); // Remove quotes
-          } else {
-            argValue = variables.get(args[i]) || args[i];
-          }
-        } else {
-          argValue = await evaluateExpressionFn(args[i]);  // AWAIT the evaluation of COPY() calls!
-        }
-        
-        evaluatedArgs.push(argValue);
+        evaluatedArgs.push(await resolveCallArgument(args[i], resolveValueFn, evaluateExpressionFn));
       }
       
       const result = await executeExternalScriptFn(actualSubroutineName, evaluatedArgs);
@@ -326,26 +312,16 @@ async function executeCall(command, variables, subroutines, callStack, evaluateE
         // Execute built-in function and set RESULT variable
         const builtInFunc = builtInFunctions[actualSubroutineName];
         
-        // Resolve arguments for built-in function - simplified approach
+        // Its arguments worked out as a function call's are: a quoted
+        // literal with its escapes, an expression (n + 1), a variable's
+        // value (0 included)
         const convertedArgs = [];
         for (let i = 0; i < args.length; i++) {
-          let argValue;
-          if (typeof args[i] === 'string') {
-            if ((args[i].startsWith('"') && args[i].endsWith('"')) ||
-                (args[i].startsWith("'") && args[i].endsWith("'"))) {
-              argValue = args[i].slice(1, -1); // Remove quotes
-            } else {
-              // Try to get variable value first, then fallback to literal
-              argValue = variables.get(args[i]) || args[i];
-            }
-          } else {
-            argValue = args[i];
-          }
-          convertedArgs.push(argValue);
+          convertedArgs.push(await resolveCallArgument(args[i], resolveValueFn, evaluateExpressionFn));
         }
         
         // Execute the built-in function
-        const result = builtInFunc(...convertedArgs);
+        const result = await builtInFunc(...convertedArgs);
         
         // Set RESULT variable for CALL syntax
         variables.set('RESULT', result);
@@ -396,24 +372,8 @@ async function executeCall(command, variables, subroutines, callStack, evaluateE
     
     // Check if this is a built-in function
     if (subroutineData.isBuiltIn && subroutineData.func) {
-      // Call the built-in function directly with evaluated arguments
-      const evaluatedArgs = [];
-      for (let i = 0; i < args.length; i++) {
-        let argValue;
-        if (typeof args[i] === 'string') {
-          if ((args[i].startsWith('"') && args[i].endsWith('"')) ||
-              (args[i].startsWith("'") && args[i].endsWith("'"))) {
-            argValue = args[i].slice(1, -1); // Remove quotes
-          } else {
-            argValue = variables.get(args[i]) || args[i];
-          }
-        } else {
-          argValue = evaluateExpressionFn(args[i]);
-        }
-        evaluatedArgs.push(argValue);
-      }
-      
-      // Call the built-in function
+      // Call the built-in function with its arguments worked out as a
+      // routine's own are (they were resolved above)
       const result = await subroutineData.func.apply(this, evaluatedArgs);
       
       // Pop execution and call contexts
