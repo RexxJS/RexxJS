@@ -1221,6 +1221,19 @@ function parseStatement(tokens, startIndex) {
     throw new Error(`EXIT UNLESS syntax error: unexpected ${separator === '.' ? 'period' : 'semicolon'} after condition. Expected comma (,) to separate condition from message. Use: EXIT UNLESS condition, 'message'`);
   }
 
+  // LEAVE and ITERATE: the innermost DO loop ends, or goes to its next
+  // iteration (a named loop is not supported)
+  const loopControlMatch = line.match(/^(LEAVE|ITERATE)(?:\s+(\w+))?\s*$/i);
+  if (loopControlMatch) {
+    if (loopControlMatch[2]) {
+      throw new Error(`${loopControlMatch[1].toUpperCase()} ${loopControlMatch[2]}: a named loop is not supported, only the innermost DO loop`);
+    }
+    return {
+      command: addLineNumber({ type: loopControlMatch[1].toUpperCase() }, token),
+      nextIndex: startIndex + 1
+    };
+  }
+
   // EXIT statement
   const exitMatch = line.match(/^EXIT(?:\s+(.+))?/i);
   if (exitMatch) {
@@ -1656,6 +1669,11 @@ function parseLoopSpecification(specStr) {
       type: 'WHILE',
       condition: parseCondition(whileMatch[1])
     };
+  }
+
+  // DO FOREVER: until LEAVE, RETURN or EXIT (and the iteration safety limit)
+  if (/^FOREVER$/i.test(spec)) {
+    return { type: 'FOREVER' };
   }
 
   // DO UNTIL condition - loops until condition becomes true

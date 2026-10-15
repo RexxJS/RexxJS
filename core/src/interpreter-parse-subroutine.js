@@ -235,11 +235,40 @@ function discoverSubroutines(commands, subroutines) {
  * @param {Function} executeExternalScriptFn - Function to execute external scripts
  * @param {string} sourceFilename - Current source filename
  * @param {*} currentReturnValue - Current return value from interpreter
+ * @param {Object} externalFunctions - Functions the host supplies (and REQUIRE'd libraries register)
+ * @param {Function} resolveValueFn - Function to resolve a value (a literal, a variable, an expression), as a function call's arguments are
  * @returns {Object} Execution result with terminated flag and returnValue
  */
+/**
+ * One argument of a CALL, as a function call's would be: a quoted literal
+ * unquoted (with its escape sequences), an expression (n + 1) worked out, a
+ * variable's value, a function call's result.
+ * @param {string|Object} arg - The argument as the parser left it
+ * @param {Function} resolveValueFn - Resolves a literal, a variable
+ * @param {Function} evaluateExpressionFn - Evaluates an expression object
+ * @returns {*} The argument's value
+ */
+async function resolveCallArgument(arg, resolveValueFn, evaluateExpressionFn) {
+  if (typeof arg !== 'string') {
+    return await evaluateExpressionFn(arg);
+  }
+  const quoted = (arg.startsWith('"') && arg.endsWith('"')) || (arg.startsWith("'") && arg.endsWith("'"));
+  if (!quoted) {
+    const parseExpression = (typeof require !== 'undefined' && typeof module !== 'undefined')
+      ? require('./parser').parseExpression
+      : window.parseExpression;
+    const expression = parseExpression(arg);
+    if (expression) {
+      return await evaluateExpressionFn(expression);
+    }
+  }
+  return await resolveValueFn(arg);
+}
+
 async function executeCall(command, variables, subroutines, callStack, evaluateExpressionFn,
                           pushExecutionContextFn, popExecutionContextFn, getCurrentExecutionContextFn,
-                          executeCommandsFn, isExternalScriptCallFn, executeExternalScriptFn, sourceFilename, currentReturnValue, builtInFunctions, callConvertParamsToArgsFn, argv) {
+                          executeCommandsFn, isExternalScriptCallFn, executeExternalScriptFn, sourceFilename, currentReturnValue, builtInFunctions, callConvertParamsToArgsFn, argv,
+                          externalFunctions, resolveValueFn) {
   const { subroutine, arguments: args, isVariableCall } = command;
   
   // Push subroutine call context onto execution stack immediately
@@ -325,6 +354,21 @@ async function executeCall(command, variables, subroutines, callStack, evaluateE
         return;
       }
       
+      // A function the host supplies (externalFunctions), reachable by CALL as
+      // by SETCELL(...): its arguments resolved as a function call's are, its
+      // value in RESULT
+      const hostFunc = externalFunctions && (externalFunctions[actualSubroutineName] || externalFunctions[subroutine]);
+      if (hostFunc) {
+        const hostArgs = [];
+        for (let i = 0; i < args.length; i++) {
+          hostArgs.push(await resolveCallArgument(args[i], resolveValueFn, evaluateExpressionFn));
+        }
+        const result = await hostFunc(...hostArgs);
+        variables.set('RESULT', result);
+        popExecutionContextFn();
+        return { terminated: false, returnValue: result };
+      }
+
       throw new Error(`Subroutine '${actualSubroutineName}' not found`);
     }
     

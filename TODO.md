@@ -48,33 +48,6 @@ DOWN: PROCEDURE
 
 Seen in `core/src` at `d27c738`.
 
-## CALL cannot reach a host function; DO FOREVER and LEAVE are missing
-
-Found 2026-10-15, running whole programs in the sae spreadsheet
-(`spraedsheet/mcp/`, its `RUN_PROGRAM`). Three things a REXX writer
-expects, each its own gap:
-
-```rexx
-CALL SETCELL "B1", "x"     /* Subroutine 'SETCELL' not found: a function the
-                              host supplies (externalFunctions) is reachable
-                              as SETCELL(...) but not by CALL */
-DO FOREVER                 /* Invalid DO loop specification: FOREVER */
-  ...
-END
-DO WHILE 1
-  IF n = 3 THEN LEAVE      /* Function LEAVE is not available: read as a
-                              function call, not the loop instruction */
-END
-```
-
-A routine of the program's own (`CALL mine 7` with `mine: PROCEDURE`) works,
-as does `DO i = 1 TO n`, `DO WHILE cond` ended by its condition, and the
-functions called as functions. Specs: `CALL` of an external function sets
-RESULT as the function's value; `DO FOREVER ... LEAVE` runs until the LEAVE;
-`LEAVE` in a `DO WHILE` leaves it. Until then the spreadsheet's
-`spreadsheet_run_program` tool says to call the app's functions as
-functions and to end loops by their conditions.
-
 
 Found 2026-10-14, when `extras/functions/numpy-inspired/__tests__/
 parameter-requirement.spec.js` first loaded (its paths had been one level

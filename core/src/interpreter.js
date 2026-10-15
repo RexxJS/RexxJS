@@ -1177,6 +1177,10 @@ class RexxInterpreter {
             return result;
           }
         }
+        if (result && result.loopControl) {
+          // LEAVE or ITERATE: out to the innermost DO loop
+          return result;
+        }
         if (result && result.skipCommands) {
           // Handle LINES command skipping - skip the next N commands
           i += result.skipCommands;
@@ -1338,7 +1342,9 @@ class RexxInterpreter {
             this.returnValue,
             this.builtInFunctions,
             callConvertParamsToArgs,
-            this.argv  // Pass argv array reference for efficient argument storage
+            this.argv,  // Pass argv array reference for efficient argument storage
+            this.externalFunctions,
+            this.resolveValue.bind(this)
           );
           if (callResult && callResult.terminated) {
             return callResult;
@@ -1381,7 +1387,9 @@ class RexxInterpreter {
                 this.returnValue,
                 this.builtInFunctions,
                 callConvertParamsToArgs,
-                this.argv  // Pass argv array reference for efficient argument storage
+                this.argv,  // Pass argv array reference for efficient argument storage
+                this.externalFunctions,
+                this.resolveValue.bind(this)
               );
               const variableName = await this.interpolateString(command.variable);
               
@@ -1584,6 +1592,9 @@ class RexxInterpreter {
         
         case 'IF':
           const ifResult = await controlFlowUtils.executeIfStatement(command, this.evaluateCondition.bind(this), this.run.bind(this));
+          if (ifResult && ifResult.loopControl) {
+            return ifResult;
+          }
           if (ifResult && ifResult.terminated) {
             if (ifResult.type === 'RETURN') {
               // RETURN inside IF should bubble up to caller
@@ -1623,6 +1634,9 @@ class RexxInterpreter {
         
         case 'SELECT':
           const selectResult = await controlFlowUtils.executeSelectStatement.call(this, command, this.evaluateCondition.bind(this), this.run.bind(this));
+          if (selectResult && selectResult.loopControl) {
+            return selectResult;
+          }
           if (selectResult && selectResult.terminated) {
             if (selectResult.type === 'RETURN') {
               // RETURN inside SELECT should bubble up to caller
@@ -1640,6 +1654,12 @@ class RexxInterpreter {
         case 'EXIT':
           await this.executeExitStatement(command);
           break;
+
+        case 'LEAVE':
+        case 'ITERATE':
+          // The innermost DO loop takes it (interpreter-control-flow.js); the
+          // statements after it in the block do not run
+          return { loopControl: command.type };
 
         case 'EXIT_UNLESS':
           await this.executeExitUnlessStatement(command);
