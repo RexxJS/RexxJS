@@ -153,8 +153,27 @@ function parse(scriptText) {
   // Merge lines when next line starts with |>
   lines = mergePipeContinuationLines(lines);
 
-  const tokens = tokenize(lines);
+  const tokens = joinThenClauses(tokenize(lines));
   return parseTokens(tokens);
+}
+
+// IF condition, then a clause starting THEN (on the next line, or after a
+// ';'), is the one clause IF condition THEN ... (TRL 4.1: THEN may start a
+// clause of its own after the condition's).
+function joinThenClauses(tokens) {
+  const joined = [];
+  for (const token of tokens) {
+    const prev = joined[joined.length - 1];
+    if (prev && prev.type === 'LINE' && token.type === 'LINE' &&
+        /^THEN(\s|$)/i.test(token.content) &&
+        /^(ELSE\s+)?IF\s+\S/i.test(prev.content) &&
+        !/\sTHEN(\s|$)/i.test(prev.content.replace(/"[^"]*"|'[^']*'/g, '""'))) {
+      joined[joined.length - 1] = { ...prev, content: prev.content + ' ' + token.content };
+    } else {
+      joined.push(token);
+    }
+  }
+  return joined;
 }
 
 function mergePipeContinuationLines(lines) {
@@ -1546,8 +1565,11 @@ function parseSingleLineIfStatement(tokens, startIndex, match) {
   const thenResult = parseStatement(thenTokens, 0);
   const thenCommands = thenResult.command ? [thenResult.command] : [];
 
-  // An ELSE clause after it (the next line, or after a ';').
-  const elseResult = isElseClause(tokens, startIndex + 1) ? parseElseClause(tokens, startIndex + 1) : { commands: [], nextIndex: startIndex + 1 };
+  // An ELSE clause after it (the next line, or after a ';'), its
+  // instruction on the same line or the next
+  const elseResult = isElseClause(tokens, startIndex + 1)
+    ? parseElseClause(tokens, startIndex + 1)
+    : nextLineElseClause(tokens, startIndex + 1) || { commands: [], nextIndex: startIndex + 1 };
 
   return {
     command: addLineNumber({
@@ -1592,6 +1614,64 @@ function parseElseClause(tokens, index) {
   return { commands: result.command ? [result.command] : [], nextIndex: index + result.nextIndex };
 }
 
+// The bare ELSE tokens that are an ENDIF block's own branch separator
+// (IF ... THEN, its instructions, ELSE, its instructions, ENDIF), set
+// aside before the block's instructions are parsed, so that an IF among
+// them does not take that ELSE as its own.
+const endifBlockElses = new WeakSet();
+
+// A bare ELSE at `index` with its instruction on the next line (TRL 4.1),
+// when it is not an ENDIF block's own: its commands and the index after
+// it; null when there is no such ELSE.
+function nextLineElseClause(tokens, index) {
+  if (index >= tokens.length || !/^ELSE\s*$/i.test(tokens[index].content) ||
+      endifBlockElses.has(tokens[index])) {
+    return null;
+  }
+  if (index + 1 >= tokens.length || /^(ELSE|END|ENDIF)(\s|$)/i.test(tokens[index + 1].content)) {
+    throw new Error(`ELSE at line ${tokens[index].lineNumber} has no instruction after it`);
+  }
+  // A DO on the next line begins a DO ... END group: ELSE DO
+  if (/^DO\s*$/i.test(tokens[index + 1].content)) {
+    const group = [{ ...tokens[index], content: 'ELSE DO' }, ...tokens.slice(index + 2)];
+    const result = parseElseClause(group, 0);
+    return { commands: result.commands, nextIndex: index + 1 + result.nextIndex };
+  }
+  const result = parseStatement(tokens, index + 1);
+  return { commands: result.command ? [result.command] : [], nextIndex: result.nextIndex };
+}
+
+// Whether an IF condition THEN at a line's end at `startIndex` is the ENDIF
+// block form: an ENDIF closes it, paired as brackets are (the nearest
+// unclosed IF ... THEN first), before the DO ... END or SELECT block it is
+// in ends. Returns that ENDIF block's own bare ELSE's index (-1 for none),
+// or null when no ENDIF closes it, and the IF is classic REXX's, governing
+// the one instruction after THEN.
+function endifBlockElse(tokens, startIndex) {
+  let open = 1;
+  let blocks = 0;
+  let ownElse = -1;
+  for (let j = startIndex + 1; j < tokens.length; j++) {
+    if (tokens[j].type !== 'LINE') continue;
+    const c = tokens[j].content;
+    if (/^ENDIF\s*$/i.test(c)) {
+      open--;
+      if (open === 0) return ownElse;
+    } else if (/^(ELSE\s+)?IF\s+.+?\s+THEN\s*$/i.test(c)) {
+      open++;
+    } else if (/^ELSE\s*$/i.test(c)) {
+      if (open === 1 && blocks === 0 && ownElse === -1) ownElse = j;
+    } else if (/^END(\s|$)/i.test(c)) {
+      blocks--;
+      if (blocks < 0) return null;
+    } else if (/^DO(\s|$)/i.test(c) || /\sTHEN\s+DO\s*$/i.test(c) ||
+               /^(ELSE|OTHERWISE)\s+DO\s*$/i.test(c) || /^SELECT\s*$/i.test(c)) {
+      blocks++;
+    }
+  }
+  return null;
+}
+
 function parseIfStatement(tokens, startIndex) {
   const ifLine = tokens[startIndex].content;
   
@@ -1634,6 +1714,13 @@ function parseIfStatement(tokens, startIndex) {
     if (isElseClause(tokens, nextIndex) && !/^ELSE\s+DO\s*$/i.test(tokens[nextIndex].content)
         && !/^ELSE\s+IF\s+.+?\s+THEN(?:\s+DO)?\s*$/i.test(tokens[nextIndex].content)) {
       const elseResult = parseElseClause(tokens, nextIndex);
+      elseCommands = elseResult.commands;
+      nextIndex = elseResult.nextIndex;
+    }
+    // A bare ELSE, its instruction on the next line
+    else if (nextIndex < tokens.length && /^ELSE\s*$/i.test(tokens[nextIndex].content) &&
+             !endifBlockElses.has(tokens[nextIndex])) {
+      const elseResult = nextLineElseClause(tokens, nextIndex);
       elseCommands = elseResult.commands;
       nextIndex = elseResult.nextIndex;
     }
@@ -1696,6 +1783,40 @@ function parseIfStatement(tokens, startIndex) {
   }
   
   const condition = parseCondition(conditionMatch[1]);
+
+  const ownElse = endifBlockElse(tokens, startIndex);
+  if (ownElse === null) {
+    // Classic REXX: the one instruction after THEN, on the next line, is
+    // the one governed, then an ELSE clause after it, if any (TRL 4.1)
+    const next = startIndex + 1;
+    if (next >= tokens.length || /^(ELSE|END|ENDIF)(\s|$)/i.test(tokens[next].content)) {
+      throw new Error(`IF ... THEN at line ${tokens[startIndex].lineNumber} has no instruction after it`);
+    }
+    // A DO on the next line begins a DO ... END group: IF ... THEN DO
+    if (/^DO\s*$/i.test(tokens[next].content)) {
+      const group = [{ ...tokens[startIndex], content: ifLine.replace(/\s*THEN\s*$/i, ' THEN DO') }, ...tokens.slice(next + 1)];
+      const result = parseIfStatement(group, 0);
+      return { command: result.command, nextIndex: startIndex + 1 + result.nextIndex };
+    }
+    const thenResult = parseStatement(tokens, next);
+    const elseResult = isElseClause(tokens, thenResult.nextIndex)
+      ? parseElseClause(tokens, thenResult.nextIndex)
+      : nextLineElseClause(tokens, thenResult.nextIndex) ||
+        { commands: [], nextIndex: thenResult.nextIndex };
+    return {
+      command: addLineNumber({
+        type: 'IF',
+        condition: condition,
+        thenCommands: thenResult.command ? [thenResult.command] : [],
+        elseCommands: elseResult.commands
+      }, tokens[startIndex]),
+      nextIndex: elseResult.nextIndex
+    };
+  }
+  if (ownElse >= 0) {
+    endifBlockElses.add(tokens[ownElse]);
+  }
+
   const thenCommands = [];
   const elseCommands = [];
   let currentIndex = startIndex + 1;
