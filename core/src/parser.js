@@ -2020,7 +2020,52 @@ function parseLoopSpecification(specStr) {
   throw new Error(`Invalid DO loop specification: ${spec}`);
 }
 
+// The parts of `text` between its top-level `op` characters (| or &): not
+// inside quotes or parentheses, and not || (concatenation), |> (a pipe) or
+// && (exclusive or). One part when there is none.
+function splitTopLevelLogical(text, op) {
+  const parts = [];
+  let depth = 0, quote = '', start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quote) { if (c === quote) quote = ''; continue; }
+    if (c === '"' || c === "'") { quote = c; continue; }
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (depth === 0 && c === op && text[i + 1] !== op && text[i - 1] !== op && !(op === '|' && text[i + 1] === '>')) {
+      parts.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(text.slice(start));
+  return parts;
+}
+
+// `text` with one pair of parentheses round all of it taken off, or as it is.
+function stripEnclosingParens(text) {
+  const t = text.trim();
+  if (!t.startsWith('(') || !t.endsWith(')')) return t;
+  let depth = 0, quote = '';
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (quote) { if (c === quote) quote = ''; continue; }
+    if (c === '"' || c === "'") { quote = c; continue; }
+    if (c === '(') depth++;
+    else if (c === ')' && --depth === 0 && i < t.length - 1) return t;
+  }
+  return t.slice(1, -1).trim();
+}
+
 function parseCondition(conditionStr) {
+  // | (or) and & (and), classic REXX's logical operators, & binding tighter
+  // (TRL 2.3): IF a \= 'x' | b \= 'y' THEN ... is two comparisons. Before,
+  // the first comparison operator split the whole condition in two.
+  const ors = splitTopLevelLogical(conditionStr, '|');
+  if (ors.length > 1) return { type: 'LOGICAL_OR', parts: ors.map((p) => parseCondition(p.trim())) };
+  const ands = splitTopLevelLogical(conditionStr, '&');
+  if (ands.length > 1) return { type: 'LOGICAL_AND', parts: ands.map((p) => parseCondition(p.trim())) };
+  const inner = stripEnclosingParens(conditionStr);
+  if (inner !== conditionStr.trim()) return parseCondition(inner);
   // Simple condition parsing - supports all comparison operators: =, !=, \=, ¬=, <>, ><, >, <, >=, <=
   const comparisonMatch = conditionStr.match(/^(.+?)\s*([><=¬!\\]+|><)\s*(.+)$/);
   
