@@ -122,8 +122,9 @@ CHECKPOINT("complete", final_message)`;
         expect(interpreter.getVariable('btn_4')).toBeUndefined(); // Should not exist
         expect(interpreter.getVariable('complete')).toBe("Processed 24 buttons");
         
-        // Final button_index should be 24 (end of loop)
-        expect(interpreter.getVariable('button_index')).toBe(24);
+        // button_index is left with the value that ended the loop, 25
+        // after DO button_index = 1 TO 24 (TRL 4.2)
+        expect(interpreter.getVariable('button_index')).toBe(25);
     });
 
     test('should fail gracefully if DO loop has syntax errors', async () => {

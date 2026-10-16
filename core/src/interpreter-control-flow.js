@@ -138,45 +138,44 @@ async function executeRangeLoop(loopSpec, bodyCommands, resolveValueFn, runComma
   
   const step = startNum <= endNum ? 1 : -1;
   
-  // Store original value if variable already exists
+  return await runControlledLoop(variable, startNum, endNum, step, bodyCommands, runCommandsFn, variables);
+}
+
+/**
+ * The controlled repetitive loop of DO var = start TO end [BY step]: the
+ * control variable is set, the body run, the variable stepped and tested
+ * against the end value, until it passes it. The variable is then left
+ * with the value that ended the loop (TRL 4.2): 3 after DO i = 1 TO 2. A
+ * LEAVE leaves it as it was in that iteration.
+ *
+ * RexxJS's own rule, kept (interpreter.spec.js "should preserve loop
+ * variable scope"): a value the variable had before the loop is put back
+ * after it, where classic REXX keeps the loop's value (TODO.md).
+ * @returns {Object|null} Result object if terminated, null otherwise
+ */
+async function runControlledLoop(variable, startNum, endNum, stepNum, bodyCommands, runCommandsFn, variables) {
   const originalValue = variables.get(variable);
-  
+  const past = stepNum > 0 ? (i) => i > endNum : (i) => i < endNum;
+  let i = startNum;
   try {
-    if (step > 0) {
-      for (let i = startNum; i <= endNum; i += step) {
-        variables.set(variable, i);
-        const result = await runCommandsFn(bodyCommands);
-        if (result && result.terminated) {
-          return result;
-        }
-        if (result && result.loopControl === 'LEAVE') {
-          break;
-        }
-        // ITERATE: on to the next iteration
+    for (; !past(i); i += stepNum) {
+      variables.set(variable, i);
+      const result = await runCommandsFn(bodyCommands);
+      if (result && result.terminated) {
+        return result;
       }
-    } else {
-      for (let i = startNum; i >= endNum; i += step) {
-        variables.set(variable, i);
-        const result = await runCommandsFn(bodyCommands);
-        if (result && result.terminated) {
-          return result;
-        }
-        if (result && result.loopControl === 'LEAVE') {
-          break;
-        }
-        // ITERATE: on to the next iteration
+      if (result && result.loopControl === 'LEAVE') {
+        return null;
       }
+      // ITERATE: on to the next iteration
     }
+    variables.set(variable, i);
+    return null;
   } finally {
-    // In Rexx, DO loop variables persist after the loop completes
-    // Only restore the original value if one existed before the loop
     if (originalValue !== undefined) {
       variables.set(variable, originalValue);
     }
-    // If no original value existed, keep the loop variable with its final value
   }
-  
-  return null;
 }
 
 /**
@@ -206,45 +205,7 @@ async function executeRangeLoopWithStep(loopSpec, bodyCommands, resolveValueFn, 
     throw new Error('DO loop step cannot be zero');
   }
   
-  // Store original value if variable already exists
-  const originalValue = variables.get(variable);
-  
-  try {
-    if (stepNum > 0) {
-      for (let i = startNum; i <= endNum; i += stepNum) {
-        variables.set(variable, i);
-        const result = await runCommandsFn(bodyCommands);
-        if (result && result.terminated) {
-          return result;
-        }
-        if (result && result.loopControl === 'LEAVE') {
-          break;
-        }
-        // ITERATE: on to the next iteration
-      }
-    } else {
-      for (let i = startNum; i >= endNum; i += stepNum) {
-        variables.set(variable, i);
-        const result = await runCommandsFn(bodyCommands);
-        if (result && result.terminated) {
-          return result;
-        }
-        if (result && result.loopControl === 'LEAVE') {
-          break;
-        }
-        // ITERATE: on to the next iteration
-      }
-    }
-  } finally {
-    // In Rexx, DO loop variables persist after the loop completes
-    // Only restore the original value if one existed before the loop
-    if (originalValue !== undefined) {
-      variables.set(variable, originalValue);
-    }
-    // If no original value existed, keep the loop variable with its final value
-  }
-  
-  return null;
+  return await runControlledLoop(variable, startNum, endNum, stepNum, bodyCommands, runCommandsFn, variables);
 }
 
 /**

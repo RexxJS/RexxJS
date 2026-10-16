@@ -64,8 +64,9 @@ describe('Variable Resolution Tests', () => {
     
     try {
       await interpreter.run(commands);
-      // Loop variable should exist after loop
-      expect(interpreter.variables.get('i')).toBe(3);
+      // The control variable is left with the value that ended the loop,
+      // 4 after DO i = 1 TO 3 (TRL 4.2)
+      expect(interpreter.variables.get('i')).toBe(4);
     } catch (error) {
       console.error('DO loop failed:', error.message);
       throw error;

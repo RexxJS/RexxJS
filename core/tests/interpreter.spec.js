@@ -342,8 +342,9 @@ describe('Rexx-lite Interpreter', () => {
     expect(meals[1].servings).toBe(2);
     expect(meals[2].servings).toBe(3);
     
-    // Loop variable should persist after loop with final value (standard Rexx behavior)
-    expect(interpreter.getVariable('i')).toBe(3);
+    // The control variable is left with the value that ended the loop,
+    // 4 after DO i = 1 TO 3 (TRL 4.2)
+    expect(interpreter.getVariable('i')).toBe(4);
   });
 
   it('should execute DO range loop with step', async () => {

@@ -142,10 +142,15 @@ abuttal, and the uppercase name of an unset variable (specs
 `blank-concatenation-and-abuttal.spec.js`, `unset-variable-name.spec.js`),
 and left alone:
 
-- **A DO loop's control variable after the loop.** `DO i = 1 TO 2 ... END`
-  then `SAY i` gives 2; classic REXX leaves the value that ended the loop,
-  3 (TRL 4.3, "the control variable has the value that caused the loop to
-  end").
+- **A DO loop's control variable is put back after the loop** when it had
+  a value before it: `i = 99; DO i = 1 TO 2; END; SAY i` gives 99, where
+  classic REXX gives 3 (the loop's own final value; there is no
+  restoration, TRL 4.2). Without an earlier value RexxJS now leaves the
+  classic n + 1. The restoration is RexxJS's own rule, pinned by
+  interpreter.spec.js ("should preserve loop variable scope") and
+  do-loop-control-variable-after-end.spec.js, in
+  interpreter-control-flow.js's runControlledLoop (DO OVER restores the
+  same way); dropping it is for Paul to decide.
 - **`DO v OVER stem.`** (the trailing-period stem form) walks the
   characters of the string `STEM.`, not the stem's values; `DO v OVER stem`
   works.
