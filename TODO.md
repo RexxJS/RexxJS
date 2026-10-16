@@ -151,16 +151,23 @@ and left alone:
   do-loop-control-variable-after-end.spec.js, in
   interpreter-control-flow.js's runControlledLoop (DO OVER restores the
   same way); dropping it is for Paul to decide.
-- **`DO v OVER stem.`** (the trailing-period stem form) walks the
-  characters of the string `STEM.`, not the stem's values; `DO v OVER stem`
-  works.
-- **Variable names are case-sensitive** (`foo` and `FOO` are two
-  variables), where classic REXX uppercases every symbol. That is why an
-  unset tail symbol stays as typed in a compound variable's derived name
-  (`result.message` keeps the key `message`), and why `x = active` sets
-  the lowercase `x`. Making names case-insensitive is a larger change than
-  any of the three fixes; every spec that reads `interpreter.variables`
-  by a lowercase key would move with it.
+- **Variable names are case-sensitive in RexxJS; in classic REXX they are
+  not.** Classic REXX (TRL 2.3 and 3.1) translates every symbol to
+  uppercase before use, so `foo`, `Foo` and `FOO` are one variable, named
+  `FOO`; a compound symbol's stem and constant tail parts are uppercased
+  too (`result.message` is `RESULT.MESSAGE`), while a tail part that is a
+  set variable is replaced by its value, case as stored. RexxJS keeps a
+  name as typed: `foo` and `FOO` are two variables, `x = active` sets the
+  lowercase `x`, and an unset tail symbol keeps its case in the derived
+  name (`result.message` is the key `message`). What would change: names
+  folded to uppercase on every set and get (assignment, LET, PARSE, ARG,
+  PROCEDURE EXPOSE, DO control variables, interpolation), so a script
+  using two cases for one name would see one variable; JavaScript-facing
+  names (a host's variableResolver, `interpreter.variables`,
+  `getVariable`, object properties read through a dotted name) would see
+  uppercase keys unless mapped; and every spec reading
+  `interpreter.variables` or `getVariable` by a lowercase key moves with
+  it. A larger change than the fixes beside it; for Paul to decide.
 
 ## Test hygiene
 

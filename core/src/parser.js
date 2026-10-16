@@ -1831,6 +1831,12 @@ function parseLoopSpecification(specStr) {
   // DO variable OVER array
   const overMatch = spec.match(/^(\w+)\s+OVER\s+(.+)$/i);
   if (overMatch) {
+    // A stem written with its trailing period (DO v OVER stem., TRL 3.4)
+    // names the stem, as DO v OVER stem does
+    const stemMatch = overMatch[2].trim().match(/^([a-zA-Z_]\w*)\.$/);
+    if (stemMatch) {
+      return { type: 'OVER', variable: overMatch[1], array: { type: 'VARIABLE', name: stemMatch[1] } };
+    }
     const arrayExpr = parseExpression(overMatch[2].trim());
     return {
       type: 'OVER',
