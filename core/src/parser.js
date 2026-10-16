@@ -1327,6 +1327,18 @@ function parseStatement(tokens, startIndex) {
     };
   }
 
+  // A command built by concatenation, starting with a literal: 'MOVE("' || sq || '")',
+  // 'MOVE("'sq'")', 'say' word. Classic REXX evaluates a command clause as an
+  // expression and sends its value (TRL 2.3), so this is evaluated when run.
+  if (/^["'`]/.test(line) && !isSingleLiteral(line) && (hasTopLevelConcatenation(line) || isTermConcatenation(line))) {
+    return {
+      // value: the text between the outer quotes, as before, for a target
+      // that reads its clause as written (ADDRESS EXPECTATIONS)
+      command: addLineNumber({ type: 'QUOTED_STRING', expression: line, value: line[line.length - 1] === line[0] ? line.slice(1, -1) : line }, token),
+      nextIndex: startIndex + 1
+    };
+  }
+
   // Bare quoted string (potential ADDRESS command) - supports double-quotes, single-quotes, and back-ticks
   const quotedStringMatch = line.match(/^(["`'])(.*?)\1$/);
   if (quotedStringMatch) {

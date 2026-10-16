@@ -118,7 +118,14 @@ async function executeRemoteCommand(interpreter, commandString, remote, command)
  */
 async function executeQuotedString(command) {
   const interpreter = this;
-  const commandString = command.value;
+  // A command built by concatenation (the parser's `expression`) is its
+  // value; but ADDRESS EXPECTATIONS reads its clause as written (its own
+  // language evaluates the expression: "LENGTH: " || LENGTH(t) || " should be 11").
+  const commandString = command.expression === undefined
+    ? command.value
+    : interpreter.address === 'expectations'
+      ? command.value
+      : String(await interpreter.evaluateConcatenation(command.expression));
 
   // Check if there's an active ADDRESS target
   if (interpreter.address && interpreter.address !== 'default') {
