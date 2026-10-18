@@ -441,8 +441,26 @@ function parseStatement(tokens, startIndex) {
     };
   }
 
-  // ADDRESS command with quoted string (combined form)
-  const addressWithStringMatch = line.match(/^ADDRESS\s+(\w+)\s+(["`'])(.*?)\2$/i);
+  // ADDRESS command with a command clause (combined form). The clause is an
+  // expression whose value is the command (TRL 2.3): one quoted string (a
+  // doubled quote in it is one quote), a variable, or terms concatenated.
+  const addressClauseMatch = line.match(/^ADDRESS\s+(\w+)\s+(\S.*)$/i);
+  if (addressClauseMatch && !/^(MATCHING|LINES|EXPECT|IT|SECTION)\b/i.test(addressClauseMatch[2])) {
+    const clause = addressClauseMatch[2].trim();
+    if (isSingleLiteral(clause)) {
+      return {
+        command: addLineNumber({
+          type: 'ADDRESS_WITH_STRING',
+          target: addressClauseMatch[1],
+          commandString: unquoteLiteral(clause)
+        }, token),
+        nextIndex: startIndex + 1
+      };
+    }
+  }
+
+  // ADDRESS command with a back-ticked string
+  const addressWithStringMatch = line.match(/^ADDRESS\s+(\w+)\s+(`)(.*?)\2$/i);
   if (addressWithStringMatch) {
     return {
       command: addLineNumber({ 
