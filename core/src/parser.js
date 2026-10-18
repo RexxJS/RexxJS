@@ -692,16 +692,7 @@ function parseStatement(tokens, startIndex) {
           if (current.trim()) {
             const arg = current.trim();
             // Check if this argument looks like a function call and parse it as expression
-            if (callIsFunctionCallExpression(arg)) {
-              const funcCall = parseFunctionCall(arg);
-              if (funcCall) {
-                args.push(funcCall);
-              } else {
-                args.push(arg);
-              }
-            } else {
-              args.push(arg);
-            }
+            args.push(argumentOf(arg));
             current = '';
           }
         } else {
@@ -712,16 +703,7 @@ function parseStatement(tokens, startIndex) {
       if (current.trim()) {
         const arg = current.trim();
         // Check if this argument looks like a function call and parse it as expression
-        if (callIsFunctionCallExpression(arg)) {
-          const funcCall = parseFunctionCall(arg);
-          if (funcCall) {
-            args.push(funcCall);
-          } else {
-            args.push(arg);
-          }
-        } else {
-          args.push(arg);
-        }
+        args.push(argumentOf(arg));
         // Final argument parsed
       }
     }
@@ -971,16 +953,7 @@ function parseStatement(tokens, startIndex) {
             if (current.trim()) {
               const arg = current.trim();
               // Check if this argument looks like a function call and parse it as expression
-              if (callIsFunctionCallExpression(arg)) {
-                const funcCall = parseFunctionCall(arg);
-                if (funcCall) {
-                  args.push(funcCall);
-                } else {
-                  args.push(arg);
-                }
-              } else {
-                args.push(arg);
-              }
+              args.push(argumentOf(arg));
               current = '';
             }
           } else {
@@ -991,16 +964,7 @@ function parseStatement(tokens, startIndex) {
         if (current.trim()) {
           const arg = current.trim();
           // Check if this argument looks like a function call and parse it as expression
-          if (callIsFunctionCallExpression(arg)) {
-            const funcCall = parseFunctionCall(arg);
-            if (funcCall) {
-              args.push(funcCall);
-            } else {
-              args.push(arg);
-            }
-          } else {
-            args.push(arg);
-          }
+          args.push(argumentOf(arg));
         }
       }
       
