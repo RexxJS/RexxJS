@@ -23,6 +23,8 @@ describe('Excel Functions - Rexx Integration Tests', () => {
     });
   });
 
+  // The JSON table is a single-quoted literal: a double-quoted string holding
+  // undoubled double quotes is not one literal in classic REXX (TRL 2.2).
   test('should handle VLOOKUP function through Rexx interpreter', async () => {
     const rexxCode = `
       LET tableData = '[["Name", "Age", "City"], ["John", 30, "New York"], ["Jane", 25, "London"]]'
