@@ -5,3 +5,4 @@
 5. Prefix playwright test invocations with `PLAYWRIGHT_HTML_OPEN=never`
 6. If you are about to code "fallback" or "fall back" logic, quit immediately then tell me your rationale and ask me yes/no
 7. It is OK and generally good to ask me to git-stash so we can solve something more fine-grained then ask me to git-stash-pop to get back to something we were working on
+8. When pushing a batch of commits, put a code commit last, never a `[skip actions]` docs commit: a skipped head commit skips CI for the whole push, and hid a red build for weeks
