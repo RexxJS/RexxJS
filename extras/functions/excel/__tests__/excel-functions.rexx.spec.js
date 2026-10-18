@@ -25,7 +25,7 @@ describe('Excel Functions - Rexx Integration Tests', () => {
 
   test('should handle VLOOKUP function through Rexx interpreter', async () => {
     const rexxCode = `
-      LET tableData = "[[\"Name\", \"Age\", \"City\"], [\"John\", 30, \"New York\"], [\"Jane\", 25, \"London\"]]"
+      LET tableData = '[["Name", "Age", "City"], ["John", 30, "New York"], ["Jane", 25, "London"]]'
       LET result = VLOOKUP lookupValue="Jane" tableArray=tableData colIndex=2 exactMatch="true"
       SAY "VLOOKUP result: " || result
     `;
