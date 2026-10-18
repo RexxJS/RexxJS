@@ -457,6 +457,16 @@ function parseStatement(tokens, startIndex) {
         nextIndex: startIndex + 1
       };
     }
+    if (/^[a-zA-Z_][a-zA-Z0-9_.]*$/.test(clause) || hasTopLevelConcatenation(clause) || isTermConcatenation(clause)) {
+      return {
+        command: addLineNumber({
+          type: 'ADDRESS_WITH_STRING',
+          target: addressClauseMatch[1],
+          expression: clause
+        }, token),
+        nextIndex: startIndex + 1
+      };
+    }
   }
 
   // ADDRESS command with a back-ticked string

@@ -55,7 +55,16 @@ function executeAddressRemoteCommand(command, interpreter) {
  */
 async function executeAddressWithStringCommand(command, interpreter) {
   interpreter.address = command.target.toLowerCase();
-  await interpreter.executeQuotedString({ type: 'QUOTED_STRING', value: command.commandString });
+  if (command.expression === undefined) {
+    await interpreter.executeQuotedString({ type: 'QUOTED_STRING', value: command.commandString });
+    return;
+  }
+  // A clause that is an expression: its value is the command
+  const expression = command.expression;
+  const value = /^[a-zA-Z_][a-zA-Z0-9_.]*$/.test(expression)
+    ? await interpreter.resolveValue(expression)
+    : await interpreter.evaluateConcatenation(expression);
+  await interpreter.executeQuotedString({ type: 'QUOTED_STRING', value: String(value) });
 }
 
 /**
