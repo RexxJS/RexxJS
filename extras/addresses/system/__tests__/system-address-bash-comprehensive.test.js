@@ -10,6 +10,7 @@ const { parse } = require('../../../../core/src/parser');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { testNeedingBash4 } = require('../test-support/bash-version');
 
 // Load the system address handler
 const source = fs.readFileSync(path.join(__dirname, '../src/system-address.js'), 'utf8');
@@ -74,7 +75,7 @@ describe('System ADDRESS comprehensive bash shell tests', () => {
         expect(result.stdout).toBe('Length: 11'); // "Hello World" has 11 characters
     });
 
-    test('should handle bash associative arrays', async () => {
+    testNeedingBash4('should handle bash associative arrays', async () => {
         const script = `
             ADDRESS SYSTEM
             LET result = execute command="declare -A colors=([red]='#FF0000' [green]='#00FF00'); echo \${colors[red]}" shell="bash"

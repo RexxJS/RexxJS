@@ -10,6 +10,7 @@ const { parse } = require('../../../../core/src/parser');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { testNeedingBash4 } = require('../test-support/bash-version');
 
 // Load the system address handler
 const source = fs.readFileSync(path.join(__dirname, '../src/system-address.js'), 'utf8');
@@ -62,7 +63,7 @@ describe('System ADDRESS with bash shell selection', () => {
         // outcome in its result (exitCode above), not in RC
     });
 
-    test('should use bash for parameter expansion and process substitution', async () => {
+    testNeedingBash4('should use bash for parameter expansion and process substitution', async () => {
         const script = `
             ADDRESS SYSTEM
             LET result = execute command="TEXT='Hello World'; echo Length: \${#TEXT} Uppercase: \${TEXT^^}" shell="bash"
@@ -81,7 +82,7 @@ describe('System ADDRESS with bash shell selection', () => {
         expect(result.stdout).toContain('Uppercase: HELLO WORLD'); // bash ${TEXT^^} converts to uppercase
     });
 
-    test('should handle bash associative arrays', async () => {
+    testNeedingBash4('should handle bash associative arrays', async () => {
         const script = `
             ADDRESS SYSTEM
             LET result = execute command="declare -A colors=([red]='#FF0000' [green]='#00FF00' [blue]='#0000FF'); echo \${colors[red]}" shell="bash"
@@ -236,7 +237,7 @@ BASH_FUNCTION
         expect(result.stdout).toBe('42');
     });
 
-    test('should demonstrate RC and RESULT validation with complex bash operations', async () => {
+    testNeedingBash4('should demonstrate RC and RESULT validation with complex bash operations', async () => {
         const script = `
             ADDRESS SYSTEM
             LET script = <<COMPLEX_BASH

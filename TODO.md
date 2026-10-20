@@ -175,12 +175,14 @@ and left alone:
   31 tests pass, then Jest waits on an open handle (`npx jest
   tests/dom-functions.spec.js`; find it with `--detectOpenHandles`). The
   full run exits, so CI is unaffected.
-- **Three bash tests need bash 4** (`${X^^}`, `declare -A`) and fail under
-  macOS's bash 3.2: in `extras/addresses/system/__tests__/`,
-  system-address-bash-shell's parameter-expansion, associative-array and
-  complex-operations tests, and system-address-bash-comprehensive's
-  associative arrays. They pass on Linux (CI). Skip them where bash is
-  older than 4, or run them with a bash 4 found on PATH.
+- ~~**Four bash tests need bash 4** (`${X^^}`, `declare -A`) and fail under
+  macOS's bash 3.2~~ (done 2026-10-20: in
+  `extras/addresses/system/__tests__/`, system-address-bash-shell's
+  parameter-expansion, associative-array and complex-operations tests and
+  system-address-bash-comprehensive's associative arrays use
+  `testNeedingBash4` (`extras/addresses/system/test-support/bash-version.js`),
+  which is `test.skip` where the `bash` on PATH is older than 4. Put a bash 4
+  first on PATH to run them.)
 - **`ci.sh` installs each module with `npm install`**, which rewrites
   `extras/package-lock.json` (it prunes stale "extraneous" entries such as
   `addresses/gemini-ai`) in a local run. Prune it once and commit it, or
