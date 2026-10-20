@@ -1412,6 +1412,9 @@ class RexxInterpreter {
               let value;
               if (result && result.type === 'RETURN' && result.value !== undefined) {
                 value = result.value;
+              } else if (result && typeof result === 'object' && result.terminated === false && 'returnValue' in result) {
+                // A routine of this program: its RETURN value, as RESULT has it
+                value = result.returnValue;
               } else if (result && typeof result === 'object' && result.success) {
                 // Handle successful external script calls
                 value = result.returnValue || null;
